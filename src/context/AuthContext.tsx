@@ -1,29 +1,57 @@
 // 전역 상태 관리 (예: 인증 상태)
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+interface User {
+    id: string;
+    name: string;
+}
 
 interface AuthContextType {
-    user: { id: string; username: string } | null;
-    login: (userData: { id: string; username: string }) => void;
+    isAuthenticated: boolean;
+    user: User | null;
+    login: (user: User) => void;
     logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// AuthContext 기본값은 children이 없는 빈 객체로 타입 추론되기 때문에,
+// 별도의 props 타입을 만들어 children을 명시해 줍니다.
+interface AuthProviderProps {
+    children: ReactNode;
+}  
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<{ id: string; username: string } | null>(null);
-  
-    const login = (userData: { id: string; username: string }) => setUser(userData);
-    const logout = () => setUser(null);
-  
+const AuthContext = createContext<AuthContextType>({
+    isAuthenticated: false,
+    user: null,
+    login: () => {},
+    logout: () => {},
+});
+
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+      // 예시: localStorage에서 사용자 정보 복원 (실제 구현에 맞게 수정)
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
+
+    const login = (user: User) => {
+        setUser(user);
+        localStorage.setItem('user', JSON.stringify(user));
+    };
+
+    const logout = () => {
+        setUser(null);
+        localStorage.removeItem('user');
+    };
+
     return (
-      <AuthContext.Provider value={{ user, login, logout }}>
-        {children}
-      </AuthContext.Provider>
+        <AuthContext.Provider value={{ isAuthenticated: !!user, user, login, logout }}>
+            {children}
+        </AuthContext.Provider>
     );
-  };
-
-  export const useAuth = (): AuthContextType => {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error('useAuth must be used within an AuthProvider');
-    return context;
-  };
+};
