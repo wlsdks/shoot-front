@@ -1,3 +1,4 @@
+// 애플리케이션 시작점, 전역 스타일 적용 등
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';

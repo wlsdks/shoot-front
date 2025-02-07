@@ -1,3 +1,4 @@
+// 전체 레이아웃 및 라우터 설정
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
