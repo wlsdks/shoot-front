@@ -80,7 +80,7 @@ const ChatRoom: React.FC = () => {
                 {messages.map((msg, idx) => (
                     <ChatMessage
                         key={idx}
-                        senderId={msg.senderId}
+                        senderId={user?.name}
                         content={msg.content}
                         timestamp={msg.createdAt}
                     />
