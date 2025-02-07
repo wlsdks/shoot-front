@@ -4,27 +4,30 @@ import { useParams } from 'react-router-dom';
 import { getChatMessages } from '../services/api';
 import SockJS from 'sockjs-client';
 import { Client, IMessage } from '@stomp/stompjs';
+import ChatMessage, { MessageContent } from '../components/chatroom/ChatMessage';
 
-interface ChatMessage {
+export interface ChatMessageItem {
   roomId: string;
   senderId: string;
-  content: string;
+  content: MessageContent;
+  createdAt?: string;
 }
 
 const ChatRoom: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [input, setInput] = useState('');
   const [stompClient, setStompClient] = useState<Client | null>(null);
 
   useEffect(() => {
     if (!roomId) return;
+
     // 초기 메시지 로드
     getChatMessages(roomId)
       .then((res) => setMessages(res.data))
       .catch((err) => console.error('메시지 로드 실패', err));
 
-    // STOMP 웹소켓 연결
+    // STOMP 웹소켓 연결 (백엔드가 8100번 포트에서 실행 중이라고 가정)
     const socket = new SockJS('http://localhost:8100/ws/chat');
     const client = new Client({
       webSocketFactory: () => socket,
@@ -33,7 +36,7 @@ const ChatRoom: React.FC = () => {
       onConnect: () => {
         console.log('WebSocket 연결됨');
         client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
-          const msg: ChatMessage = JSON.parse(message.body);
+          const msg: ChatMessageItem = JSON.parse(message.body);
           setMessages((prev) => [...prev, msg]);
         });
       },
@@ -48,10 +51,12 @@ const ChatRoom: React.FC = () => {
 
   const sendMessage = () => {
     if (!stompClient || input.trim() === '' || !roomId) return;
-    const chatMessage: ChatMessage = {
+    // 메시지 전송 시, 백엔드에서 처리할 수 있는 형식으로 만듭니다.
+    const chatMessage: ChatMessageItem = {
       roomId,
-      senderId: '본인_아이디', // 실제 로그인 정보에서 가져와야 합니다.
-      content: input,
+      senderId: '본인_아이디', // 실제 로그인 정보를 사용해야 합니다.
+      content: { text: input, type: 'TEXT', attachments: [], isEdited: false, isDeleted: false },
+      createdAt: new Date().toISOString(),
     };
     stompClient.publish({
       destination: '/app/chat', // 백엔드 @MessageMapping("/chat")에 대응
@@ -65,9 +70,12 @@ const ChatRoom: React.FC = () => {
       <h2>채팅방 {roomId}</h2>
       <div style={{ border: '1px solid #ccc', padding: '10px', height: '300px', overflowY: 'scroll' }}>
         {messages.map((msg, idx) => (
-          <div key={idx}>
-            <b>{msg.senderId}</b>: {msg.content}
-          </div>
+          <ChatMessage
+            key={idx}
+            senderId={msg.senderId}
+            content={msg.content}
+            timestamp={msg.createdAt}
+          />
         ))}
       </div>
       <div>

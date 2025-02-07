@@ -1,9 +1,17 @@
 // 개별 메시지 렌더링
 import React from 'react';
 
-interface ChatMessageProps {
+export interface MessageContent {
+  text: string;
+  type: string;
+  attachments: any[];
+  isEdited: boolean;
+  isDeleted: boolean;
+}
+
+export interface ChatMessageProps {
   senderId: string;
-  content: string;
+  content: MessageContent;
   timestamp?: string;
 }
 
@@ -13,7 +21,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ senderId, content, timestamp 
       <div>
         <strong>{senderId}</strong> <small>{timestamp}</small>
       </div>
-      <div>{content}</div>
+      <div>{content.text}</div>
     </div>
   );
 };

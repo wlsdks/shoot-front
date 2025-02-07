@@ -1,10 +1,10 @@
 // 메시지 리스트
 import React from 'react';
-import ChatMessage from './ChatMessage';
+import ChatMessage, { MessageContent } from './ChatMessage';
 
 export interface ChatMessageItem {
   senderId: string;
-  content: string;
+  content: MessageContent;  // 객체 타입으로 변경
   timestamp?: string;
 }
 
