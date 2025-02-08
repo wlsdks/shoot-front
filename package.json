@@ -10,6 +10,7 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.5",
     "react-scripts": "5.0.1",
+    "styled-components": "^6.1.15",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -40,6 +41,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@types/react-router-dom": "^5.3.3",
-    "@types/sockjs-client": "^1.5.4"
+    "@types/sockjs-client": "^1.5.4",
+    "@types/styled-components": "^5.1.34"
   }
 }

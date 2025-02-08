@@ -7,5 +7,8 @@
 6. npm install sockjs-client @stomp/stompjs axios
 7. npm install web-vitals@2.1.4
 
+8. npm install styled-components
+9. npm install --save-dev @types/styled-components
+
 최종 실행
 - npm start
