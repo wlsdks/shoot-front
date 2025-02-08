@@ -56,12 +56,8 @@ const Navigation: React.FC = () => {
 
     // 로그아웃 버튼 클릭 시 실행되는 핸들러
     const handleLogout = () => {
-        // 전역 인증 상태 업데이트 (토큰 제거도 AuthContext.logout() 내부에서 처리할 수 있음)
-        logout();
-        // localStorage에서 accessToken 제거 (만약 logout() 내부에서 처리되지 않았다면)
-        localStorage.removeItem('accessToken');
-        // 로그인 페이지로 리디렉션
-        navigate('/login');
+        logout();        // AuthContext에서 사용자 상태, 토큰 제거
+        navigate('/');   // 홈 화면으로 이동
     };
 
     return (

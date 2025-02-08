@@ -2,6 +2,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/SignUp';
 import ChatList from './pages/ChatList';
@@ -15,6 +16,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <Navigation />
         <Routes>
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
@@ -25,8 +27,6 @@ const App: React.FC = () => {
             <Route path="/chatroom/:roomId" element={<ChatRoom />} />
             {/* 필요한 다른 보호 페이지 추가 */}
           </Route>
-          
-          <Route path="*" element={<Login />} /> {/* 기본 페이지 */}
         </Routes>
       </BrowserRouter>
     </AuthProvider>

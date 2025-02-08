@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
-      // 예시: localStorage에서 사용자 정보 복원 (실제 구현에 맞게 수정)
+        // 페이지 새로고침 시 localStorage에서 사용자 정보 복원
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             setUser(JSON.parse(storedUser));
@@ -47,6 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const logout = () => {
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('accessToken'); // 토큰도 제거
     };
 
     return (

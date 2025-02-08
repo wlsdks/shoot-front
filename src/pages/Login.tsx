@@ -112,18 +112,18 @@ const Login: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-        // 로그인 API 호출 (예: /auth/login)
-        const response = await loginApi(username, password);
-        // API 응답 데이터 예시: { userId: "1", accessToken: "jwt-token-string" }
-        const { userId, accessToken } = response.data;
-        // JWT 토큰을 로컬 스토리지에 저장 (axios 인터셉터에서 이후 요청에 사용)
-        localStorage.setItem('accessToken', accessToken);
-        // AuthContext에 로그인 정보 업데이트
-        login({ id: userId, name: username });
-        // 로그인 성공 시 채팅방 목록 페이지로 이동
-        navigate('/chatlist');
+            // 로그인 API 호출 (예: /auth/login)
+            const response = await loginApi(username, password);
+            // API 응답 데이터 예시: { userId: "1", accessToken: "jwt-token-string" }
+            const { userId, accessToken } = response.data;
+            // JWT 토큰을 로컬 스토리지에 저장 (axios 인터셉터에서 이후 요청에 사용)
+            localStorage.setItem('accessToken', accessToken);
+            // AuthContext에 로그인 정보 업데이트
+            login({ id: userId, name: username });
+            // 로그인 성공 시 채팅방 목록 페이지로 이동
+            navigate('/chatlist');
         } catch (err) {
-        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+            setError('아이디 또는 비밀번호가 올바르지 않습니다.');
         }
     };
 
