@@ -7,6 +7,7 @@ import Signup from './pages/SignUp';
 import ChatList from './pages/ChatList';
 import ChatRoom from './pages/ChatRoom';
 import { AuthProvider } from './context/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
 
 const App: React.FC = () => {
   return (
@@ -16,8 +17,15 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/chatlist" element={<ChatList />} />
-          <Route path="/chatroom/:roomId" element={<ChatRoom />} />
+
+          {/* 아래 PrivateRoute가 보호하는 라우트들은 인증되지 않은 경우 로그인 페이지로 리디렉션됩니다. */}
+          <Route element={<PrivateRoute />}>
+            <Route path="/chatrooms" element={<ChatList />} />
+            <Route path="/chatlist" element={<ChatList />} />
+            <Route path="/chatroom/:roomId" element={<ChatRoom />} />
+            {/* 필요한 다른 보호 페이지 추가 */}
+          </Route>
+          
           <Route path="*" element={<Login />} /> {/* 기본 페이지 */}
         </Routes>
       </BrowserRouter>
