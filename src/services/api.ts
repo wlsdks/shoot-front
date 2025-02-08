@@ -37,3 +37,9 @@ export const getChatRooms = (userId: string) => {
 export const getChatMessages = (roomId: string, before?: string, limit: number = 20) => {
     return api.get(`/messages/get`, { params: { roomId, before, limit } });
 };
+
+// 토큰 유효성 검사 (GET /auth/me) 같은 형식
+export const loginCheckApi = () => {
+    // 별도의 token 매개변수 없이, axios가 common header로 토큰을 포함
+    return api.get("/auth/me");
+};
