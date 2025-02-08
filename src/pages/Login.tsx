@@ -120,8 +120,8 @@ const Login: React.FC = () => {
             localStorage.setItem('accessToken', accessToken);
             // AuthContext에 로그인 정보 업데이트
             login({ id: userId, name: username });
-            // 로그인 성공 시 채팅방 목록 페이지로 이동
-            navigate('/chatlist');
+            // 로그인 후 "/" => FriendListPage
+            navigate('/');
         } catch (err) {
             setError('아이디 또는 비밀번호가 올바르지 않습니다.');
         }

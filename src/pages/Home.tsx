@@ -1,7 +1,8 @@
 // src/pages/Home.tsx
-import React from 'react';
+import React, { useEffect } from "react";
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import styled from 'styled-components';
 
 // 전체 화면 가운데 정렬 배경 (채팅방과 유사하게)
@@ -64,29 +65,26 @@ const StyledLink = styled(Link)`
 
 const Home: React.FC = () => {
     const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
 
+    useEffect(() => {
+        // 이미 로그인 상태라면 메인 화면 대신 /friends 바로 이동
+        if (isAuthenticated) {
+            navigate("/");
+        }
+    }, [isAuthenticated, navigate]);
+    
+    if (isAuthenticated) {
+        // 로그인된 경우 위에서 /friends 이동 중
+        return null;
+    }
+
+    // 비로그인 사용자가 "/"로 들어온 경우 간단 안내
     return (
-        <OuterWrapper>
-            <HomeContainer>
-                <Title>SHOOT 채팅</Title>
-                <SubTitle>
-                    모던한 채팅 애플리케이션에 오신 것을 환영합니다!<br />
-                    지금 로그인하여 다양한 채팅을 즐겨보세요.
-                </SubTitle>
-                {isAuthenticated ? (
-                    // 로그인 상태라면 '채팅방' 버튼만 보이게
-                    <ButtonWrapper>
-                        <StyledLink to="/chatrooms">채팅방 목록으로 가기</StyledLink>
-                    </ButtonWrapper>
-                ) : (
-                    // 비로그인 상태라면 '로그인/회원가입' 버튼 표시
-                    <ButtonWrapper>
-                        <StyledLink to="/login">로그인</StyledLink>
-                        <StyledLink to="/signup">회원가입</StyledLink>
-                    </ButtonWrapper>
-                )}
-            </HomeContainer>
-        </OuterWrapper>
+        <div style={{ textAlign: "center", marginTop: "50px" }}>
+            <h1>안녕하세요, Shoot 채팅 서비스입니다!</h1>
+            <p>로그인 후 다양한 기능을 사용할 수 있습니다.</p>
+        </div>
     );
 };
 
