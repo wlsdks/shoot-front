@@ -4,10 +4,16 @@ import {
   getIncomingRequests,
   getOutgoingRequests,
   getRecommendations,
+  sendFriendRequest,
 } from "../../services/friendApi";
 import { useAuth } from "../../context/AuthContext";
 
-// 스타일링
+interface RecommendedUser {
+    id: string;      // 고유 식별자 (예: "67a78ebb3d560f73c0423666")
+    username: string;
+    nickname: string;
+}
+
 const Container = styled.div`
   padding: 1rem;
 `;
@@ -89,7 +95,7 @@ const SocialTab: React.FC = () => {
   const { user } = useAuth();
   const [incoming, setIncoming] = useState<string[]>([]);
   const [outgoing, setOutgoing] = useState<string[]>([]);
-  const [recommended, setRecommended] = useState<string[]>([]);
+  const [recommended, setRecommended] = useState<RecommendedUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -105,6 +111,7 @@ const SocialTab: React.FC = () => {
       ]);
       setIncoming(incRes.data);
       setOutgoing(outRes.data);
+      // recRes.data는 이제 RecommendedUser[]로 반환된다고 가정
       setRecommended(recRes.data);
     } catch (e) {
       console.error(e);
@@ -119,6 +126,20 @@ const SocialTab: React.FC = () => {
       fetchData();
     }
   }, [user]);
+
+  // 추천 친구 목록에서 "친구추가" 버튼 클릭 시 친구 요청 API 호출
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    if (!user) return;
+    try {
+      const res = await sendFriendRequest(user.id, targetUserId);
+      alert(`친구 요청 성공: ${res.data}`);
+      // 요청 후 데이터를 새로 고침
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("친구 요청 보내기에 실패했습니다.");
+    }
+  };
 
   if (loading) return <LoadingContainer>로딩중...</LoadingContainer>;
   if (error) return <Container>{error}</Container>;
@@ -161,10 +182,12 @@ const SocialTab: React.FC = () => {
         <StatusText>추천할 친구가 없습니다.</StatusText>
       ) : (
         <List>
-          {recommended.map((rc) => (
-            <ListItem key={rc}>
-              <FriendName>{rc}</FriendName>
-              <Button onClick={() => alert(`친구 요청 보내기: ${rc}`)}>
+          {recommended.map((recUser) => (
+            <ListItem key={recUser.id}>
+              <FriendName>
+                {recUser.nickname || recUser.username}
+              </FriendName>
+              <Button onClick={() => handleSendFriendRequest(recUser.id)}>
                 친구추가
               </Button>
             </ListItem>
