@@ -1,148 +1,126 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useAuth } from "../../context/AuthContext";
-import { getFriends } from "../../services/friendApi"; // 친구 목록 API 호출 함수
+import { getFriends } from "../../services/friendApi";
 import FriendSearch from "../FriendSearch";
 import FriendCodePage from "../FriendCodePage";
 
-const Container = styled.div`
-    padding: 1rem;
-    position: relative;
+// FriendTab 컨테이너 (ContentArea에 채워질 카드)
+const TabContainer = styled.div`
+    padding: 16px;
 `;
 
-const TopBar = styled.div`
+// 헤더 영역: 제목과 버튼 그룹
+const Header = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 16px;
 `;
 
-const SectionTitle = styled.h2`
-    font-size: 1.1rem;
+// 제목 스타일
+const Title = styled.h2`
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
     margin: 0;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #eee;
 `;
 
-const List = styled.ul`
-    list-style: none;
-    margin: 0;
-    padding: 0;
-`;
-
-const ListItem = styled.li`
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f3f3f3;
-    &:last-child {
-        border-bottom: none;
-    }
-`;
-
-const Button = styled.button`
-    background: #007bff;
-    border: none;
-    color: #fff;
-    border-radius: 4px;
-    padding: 6px 10px;
-    cursor: pointer;
-    &:hover {
-        background: #0056b3;
-    }
-`;
-
-const SearchToggleButton = styled(Button)`
-    background: transparent;
-    color: #007bff;
-    padding: 0;
-    border: none;
-    font-size: 1.2rem;
-`;
-
-const CodeToggleButton = styled(Button)`
-    font-size: 1rem;
-    margin-left: 1rem;
-`;
-
-const ModalOverlay = styled.div`
-    position: fixed; 
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.4);
+// 버튼 그룹
+const ButtonGroup = styled.div`
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+    gap: 8px;
 `;
 
-const ModalContent = styled.div`
-    background: #fff;
-    width: 90%;
-    max-width: 400px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: 1rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+// 아이콘 버튼 (검색 토글)
+const IconButton = styled.button`
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    color: #007bff;
+    cursor: pointer;
+`;
+
+// 텍스트 버튼 (코드 등록/찾기)
+const TextButton = styled.button`
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    color: #007bff;
+    cursor: pointer;
+`;
+
+// 친구 목록 (카드 스타일)
+const FriendList = styled.ul`
+    list-style: none;
+    padding: 0;
+    margin: 0;
+`;
+
+const FriendItem = styled.li`
+    padding: 12px;
+    background: #f9f9f9;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+    color: #333;
+    transition: transform 0.2s, box-shadow 0.2s;
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 `;
 
 const FriendTab: React.FC = () => {
     const { user } = useAuth();
     const [friends, setFriends] = useState<string[]>([]);
     const [showSearch, setShowSearch] = useState<boolean>(false);
-    const [showCodeModal, setShowCodeModal] = useState<boolean>(false);
+    const [showCode, setShowCode] = useState<boolean>(false);
 
     const fetchFriends = async () => {
         if (!user) return;
         try {
-        const friendRes = await getFriends(user.id);
-        setFriends(friendRes.data);
+            const response = await getFriends(user.id);
+            setFriends(response.data);
         } catch (err) {
-        console.error(err);
+            console.error(err);
         }
     };
 
     useEffect(() => {
         if (user?.id) {
-        fetchFriends();
+            fetchFriends();
         }
     }, [user]);
 
     return (
-        <Container>
-            <TopBar>
-                <SectionTitle>내 친구 목록</SectionTitle>
-                <div>
-                    <SearchToggleButton onClick={() => setShowSearch(prev => !prev)}>
-                        {showSearch ? "닫기" : "🔍 검색"}
-                    </SearchToggleButton>
-                    <CodeToggleButton onClick={() => setShowCodeModal(true)}>
+        <TabContainer>
+            <Header>
+                <Title>내 친구 목록</Title>
+                <ButtonGroup>
+                    <IconButton onClick={() => setShowSearch((prev) => !prev)}>
+                        {showSearch ? "✖" : "🔍"}
+                    </IconButton>
+                    <TextButton onClick={() => setShowCode((prev) => !prev)}>
                         코드 등록/찾기
-                    </CodeToggleButton>
-                </div>
-            </TopBar>
+                    </TextButton>
+                </ButtonGroup>
+            </Header>
             {showSearch && <FriendSearch />}
+            {showCode && <FriendCodePage />}
             {friends.length === 0 ? (
-                <p>친구가 없습니다.</p>
+                <p style={{ textAlign: "center", color: "#888", fontSize: "16px" }}>
+                친구가 없습니다.
+                </p>
             ) : (
-                <List>
+                <FriendList>
                 {friends.map((friend) => (
-                    <ListItem key={friend}>{friend}</ListItem>
+                    <FriendItem key={friend}>{friend}</FriendItem>
                 ))}
-                </List>
+                </FriendList>
             )}
-            {showCodeModal && (
-                <ModalOverlay onClick={() => setShowCodeModal(false)}>
-                    <ModalContent onClick={e => e.stopPropagation()}>
-                        <FriendCodePage />
-                        <Button onClick={() => setShowCodeModal(false)} style={{ marginTop: "1rem", width: "100%" }}>
-                            닫기
-                        </Button>
-                    </ModalContent>
-                </ModalOverlay>
-            )}
-        </Container>
+        </TabContainer>
     );
 };
 
