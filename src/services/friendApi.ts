@@ -38,10 +38,16 @@ export const getRecommendations = (userId: string, limit: number = 3): Promise<A
     });
 };
 
-// 1:1 채팅방 생성(없으면 새로, 있으면 재활용)
+// 1:1 채팅방 생성 (없으면 새로, 있으면 재활용)
 export const createDirectChat = (userId: string, friendId: string): Promise<AxiosResponse<any>> => {
-  // POST /chatrooms/create/direct?userId=xxx&friendId=yyy
     return api.post(`/chatrooms/create/direct`, null, {
         params: { userId, friendId }
+    });
+};
+
+// 친구 검색 API 함수
+export const searchFriends = (userId: string, query: string): Promise<AxiosResponse<any>> => {
+    return api.get(`/friends/search`, {
+        params: { userId, query }
     });
 };

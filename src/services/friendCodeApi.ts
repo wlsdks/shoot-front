@@ -28,4 +28,4 @@ export const deleteMyCode = async (userId: string) => {
 // 코드로 친구 찾기 및 요청 보내기
 export const sendFriendRequestByCode = async (userId: string, targetCode: string) => {
     return await axios.post(`/api/v1/friends/request/by-code?userId=${userId}&targetCode=${targetCode}`);
-};  
+};
