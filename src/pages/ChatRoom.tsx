@@ -20,6 +20,13 @@ export interface ChatMessageItem {
     createdAt?: string;
 }
 
+// 타이핑 인디케이터 메시지 인터페이스
+interface TypingIndicatorMessage {
+    roomId: string;
+    userId: string;
+    isTyping: boolean;
+}
+
 // 채팅방 레이아웃 구성
 const ChatContainer = styled.div`
     display: flex;
@@ -89,13 +96,21 @@ const Timestamp = styled.div`
     text-align: right;
 `;
 
+const TypingIndicatorContainer = styled.div`
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    color: #555;
+`;
+
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
     const [input, setInput] = useState("");
+    const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const chatAreaRef = useRef<HTMLDivElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // 1) 초기 메시지 로드 및 STOMP 소켓 연결
     useEffect(() => {
@@ -115,21 +130,40 @@ const ChatRoom: React.FC = () => {
             debug: (msg) => console.log("[STOMP]", msg),
             onConnect: () => {
                 console.log("WebSocket 연결됨");
-                // 특정 채팅방 토픽 구독
+
+                // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
                     setMessages((prev) => [...prev, msg]);
+                });
+
+                // 타이핑 인디케이터 구독
+                client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
+                    const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
+                    // 자신의 타이핑 이벤트는 무시
+                    if (typingMsg.userId === user?.id) return;
+        
+                    setTypingUsers((prev) => {
+                    const newSet = new Set(prev);
+                    if (typingMsg.isTyping) {
+                        newSet.add(typingMsg.userId);
+                    } else {
+                        newSet.delete(typingMsg.userId);
+                    }
+                    return newSet;
+                    });
                 });
             },
         });
         client.activate();
         setStompClient(client);
 
-        // 언마운트 시 소켓 종료
+        // 컴포넌트 언마운트 시 STOMP 연결 해제
         return () => {
             client.deactivate();
         };
-    }, [roomId]);
+    }, [roomId, user]);
+
 
     // 2) 메시지 목록이 업데이트될 때마다 자동 스크롤 (맨 하단)
     useEffect(() => {
@@ -137,6 +171,39 @@ const ChatRoom: React.FC = () => {
             chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
         }
     }, [messages]);
+
+    // 타이핑 인디케이터 전송 함수
+    const sendTypingIndicator = (isTyping: boolean) => {
+        if (!stompClient || !roomId || !user) return;
+
+        const typingPayload: TypingIndicatorMessage = {
+            roomId,
+            userId: user.id,
+            isTyping,
+        };
+
+        stompClient.publish({
+            destination: "/app/typing",
+            body: JSON.stringify(typingPayload),
+        });
+    };
+
+    // 입력값 변경 시 타이핑 상태 전송 및 타이머 설정
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+        // 사용자가 입력 시작하면 타이핑 시작 전송
+        sendTypingIndicator(true);
+
+        // 이전 타이머가 있다면 초기화
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        // 2초 동안 입력이 없으면 타이핑 종료 전송
+        typingTimeoutRef.current = setTimeout(() => {
+            sendTypingIndicator(false);
+        }, 2000);
+    };
 
     // 3) 메시지 전송 함수
     const sendMessage = () => {
@@ -162,7 +229,10 @@ const ChatRoom: React.FC = () => {
             destination: "/app/chat",
             body: JSON.stringify(chatMessage),
         });
+
         setInput("");
+        // 메시지 전송 시 타이핑 종료 전송
+        sendTypingIndicator(false);
     };
 
     return (
@@ -179,23 +249,29 @@ const ChatRoom: React.FC = () => {
                                 flexDirection: "column",
                             }}
                         >
-                        <ChatBubble isOwnMessage={isOwn}>
-                            {msg.content.text}
-                        </ChatBubble>
-                        {msg.createdAt && (
-                            <Timestamp>
+                            <ChatBubble isOwnMessage={isOwn}>
+                                {msg.content.text}
+                            </ChatBubble>
+                            {msg.createdAt && (
+                                <Timestamp>
                                 {new Date(msg.createdAt).toLocaleTimeString()}
-                            </Timestamp>
-                        )}
+                                </Timestamp>
+                            )}
                         </div>
                     );
                 })}
+                {/* 타이핑 인디케이터 UI */}
+                {typingUsers.size > 0 && (
+                    <TypingIndicatorContainer>
+                        {Array.from(typingUsers).join(", ")}님이 타이핑 중...
+                    </TypingIndicatorContainer>
+                )}
             </ChatArea>
             <ChatInputContainer>
                 <Input
                     type="text"
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={handleInputChange}
                     placeholder="메시지를 입력하세요"
                 />
                 <SendButton onClick={sendMessage}>전송</SendButton>
