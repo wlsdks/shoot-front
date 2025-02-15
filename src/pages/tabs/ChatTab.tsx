@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getChatRooms } from '../../services/api';
+import { getChatRooms } from '../../services/chatRoom';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';

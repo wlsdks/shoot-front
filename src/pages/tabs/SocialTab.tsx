@@ -5,7 +5,7 @@ import {
     getOutgoingRequests,
     getRecommendations,
     sendFriendRequest,
-} from "../../services/friendApi";
+} from "../../services/friends";
 import { useAuth } from "../../context/AuthContext";
 
 interface RecommendedUser {

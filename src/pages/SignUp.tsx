@@ -1,7 +1,7 @@
 // 회원가입 페이지
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signup } from '../services/api';
+import { signup } from '../services/auth';
 import styled, { keyframes } from 'styled-components';
 
 const fadeIn = keyframes`

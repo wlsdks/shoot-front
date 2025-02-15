@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useAuth } from "../../context/AuthContext";
-import { getFriends } from "../../services/friendApi";
+import { getFriends } from "../../services/friends";
 import FriendSearch from "../FriendSearch";
 import FriendCodePage from "../FriendCodePage";
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
-import { searchFriends } from "../services/friendApi"; // API 함수
+import { searchFriends } from "../services/friends";
 import { useAuth } from "../context/AuthContext";
 import { parseUserString, UserDTO } from "../utils/parseUserString";
 

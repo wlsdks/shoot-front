@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { createMyCode, sendFriendRequestByCode, findUserByCode } from "../services/friendCodeApi";
+import { createMyCode, sendFriendRequestByCode, findUserByCode } from "../services/userCode";
 import { useAuth } from "../context/AuthContext";
 
 // 슬라이드 다운 애니메이션 정의

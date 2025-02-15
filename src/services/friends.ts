@@ -1,6 +1,7 @@
 import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
 import { AxiosResponse } from "axios";
 
+// 친구 목록 가져오기
 export const getFriends = (userId: string): Promise<AxiosResponse<string[]>> => {
     return api.get(`/friends?userId=${userId}`);
 };
@@ -20,6 +21,27 @@ export const sendFriendRequest = (userId: string, targetUserId: string): Promise
     return api.post(`/friends/request`, null, { params: { userId, targetUserId } });
 };
 
+// 친구 요청 승인
+export const acceptFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
+    return api.post(`/friends/accept`, null, {
+        params: { userId, requesterId }
+    });
+};
+
+// 친구 요청 거절
+export const rejectFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
+    return api.post(`/friends/reject`, null, {
+        params: { userId, requesterId }
+    });
+};
+
+// 친구 검색 API 함수
+export const searchFriends = (userId: string, query: string): Promise<AxiosResponse<any>> => {
+    return api.get(`/friends/search`, {
+        params: { userId, query }
+    });
+};
+
 /**
  * BFS 기반 친구 추천 API 호출
  * @param userId 추천 대상 사용자의 아이디
@@ -33,30 +55,4 @@ export const getRecommendations = (
     maxDepth: number = 2
 ): Promise<AxiosResponse<any>> => {
     return api.get(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth } });
-};
-
-export const acceptFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/friends/accept`, null, {
-        params: { userId, requesterId }
-    });
-};
-
-export const rejectFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/friends/reject`, null, {
-        params: { userId, requesterId }
-    });
-};
-
-// 1:1 채팅방 생성 (없으면 새로, 있으면 재활용)
-export const createDirectChat = (userId: string, friendId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/chatrooms/create/direct`, null, {
-        params: { userId, friendId }
-    });
-};
-
-// 친구 검색 API 함수
-export const searchFriends = (userId: string, query: string): Promise<AxiosResponse<any>> => {
-    return api.get(`/friends/search`, {
-        params: { userId, query }
-    });
 };

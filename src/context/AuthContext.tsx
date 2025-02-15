@@ -1,7 +1,7 @@
 // 전역 상태 관리 (예: 인증 상태)
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from "axios";
-import { loginCheckApi } from "../services/api"; // => /api/v1/auth/me 호출
+import { loginCheckApi } from "../services/auth"; // => /api/v1/auth/me 호출
 
 interface User {
     id: string;

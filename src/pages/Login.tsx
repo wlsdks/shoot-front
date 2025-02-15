@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { login as loginApi } from '../services/api';
+import { login as loginApi } from '../services/auth';
 import styled, { keyframes } from 'styled-components';
 
 const fadeIn = keyframes`
