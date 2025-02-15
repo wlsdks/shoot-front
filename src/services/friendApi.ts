@@ -20,9 +20,19 @@ export const sendFriendRequest = (userId: string, targetUserId: string): Promise
     return api.post(`/friends/request`, null, { params: { userId, targetUserId } });
 };
 
-// 친구 추천: 추천 결과는 예제에서는 string[] – 예를 들어 추천 대상의 사용자 id 목록이라고 가정
-export const getRecommendations = (userId: string, limit: number = 3): Promise<AxiosResponse<any>> => {
-    return api.get(`/friends/recommend`, { params: { userId, limit } });
+/**
+ * BFS 기반 친구 추천 API 호출
+ * @param userId 추천 대상 사용자의 아이디
+ * @param limit 반환할 추천 수 (기본값: 3)
+ * @param maxDepth 친구 네트워크 탐색 최대 깊이 (기본값: 2)
+ * @returns 추천 대상 사용자 목록
+ */
+export const getRecommendations = (
+    userId: string,
+    limit: number = 3,
+    maxDepth: number = 2
+): Promise<AxiosResponse<any>> => {
+    return api.get(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth } });
 };
 
 export const acceptFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
