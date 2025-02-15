@@ -2,12 +2,14 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getChatMessages } from "../services/message";
+import { forwardMessage } from "../services/message";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import styled from "styled-components";
 
 // 채팅 메시지 항목
 export interface ChatMessageItem {
+    id: string; // 메시지 식별자 (서버에서 생성)
     roomId: string;
     senderId: string;
     content: {
@@ -87,6 +89,7 @@ const ChatBubble = styled.div<{ isOwnMessage: boolean }>`
     color: ${(props) => (props.isOwnMessage ? "#fff" : "#000")};
     align-self: ${(props) => (props.isOwnMessage ? "flex-end" : "flex-start")};
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer; /* 우클릭을 위해 커서 설정 */
 `;
 
 const Timestamp = styled.div`
@@ -102,6 +105,52 @@ const TypingIndicatorContainer = styled.div`
     color: #555;
 `;
 
+/* 컨텍스트 메뉴 스타일 */
+const ContextMenu = styled.div`
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+`;
+
+const ContextMenuItem = styled.div`
+    padding: 8px 12px;
+    cursor: pointer;
+    &:hover {
+        background: #f0f0f0;
+    }
+`;
+
+/* 모달 스타일 */
+const ModalOverlay = styled.div`
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+`;
+
+const ModalContent = styled.div`
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    min-width: 300px;
+`;
+
+const ModalButtons = styled.div`
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+`;
+
+// ChatRoom 컴포넌트
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
@@ -111,6 +160,18 @@ const ChatRoom: React.FC = () => {
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // 컨텍스트 메뉴 상태: 표시 여부, 위치, 선택한 메시지
+    const [contextMenu, setContextMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        message: ChatMessageItem | null;
+    }>({ visible: false, x: 0, y: 0, message: null });
+
+    // 전달 모달 상태: 표시 여부, 대상 채팅방 ID 입력값
+    const [showForwardModal, setShowForwardModal] = useState(false);
+    const [targetRoomId, setTargetRoomId] = useState("");
 
     // 1) 초기 메시지 로드 및 STOMP 소켓 연결
     useEffect(() => {
@@ -144,13 +205,10 @@ const ChatRoom: React.FC = () => {
                     if (typingMsg.userId === user?.id) return;
         
                     setTypingUsers((prev) => {
-                    const newSet = new Set(prev);
-                    if (typingMsg.isTyping) {
-                        newSet.add(typingMsg.userId);
-                    } else {
-                        newSet.delete(typingMsg.userId);
-                    }
-                    return newSet;
+                        const newSet = new Set(prev);
+                        if (typingMsg.isTyping) newSet.add(typingMsg.userId);
+                        else newSet.delete(typingMsg.userId);
+                        return newSet;
                     });
                 });
             },
@@ -213,6 +271,7 @@ const ChatRoom: React.FC = () => {
         }
 
         const chatMessage: ChatMessageItem = {
+            id: "", // 새 메시지이므로 빈 값, 서버에서 ID 생성
             roomId,
             senderId: user.id,
             content: {
@@ -235,37 +294,84 @@ const ChatRoom: React.FC = () => {
         sendTypingIndicator(false);
     };
 
+    // 우클릭 시 컨텍스트 메뉴 표시 (메시지 전달 옵션 포함)
+    const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
+        e.preventDefault();
+
+        setContextMenu({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+            message,
+        });
+    };
+
+    // 외부 클릭 시 컨텍스트 메뉴 닫기
+    useEffect(() => {
+        const handleClick = () => {
+            if (contextMenu.visible) {
+                setContextMenu({ ...contextMenu, visible: false, message: null });
+            }
+        };
+
+        window.addEventListener("click", handleClick);
+        return () => window.removeEventListener("click", handleClick);
+    }, [contextMenu]);
+
+    // 컨텍스트 메뉴에서 "메시지 전달" 선택
+    const handleForwardClick = () => {
+        setContextMenu({ ...contextMenu, visible: false });
+        setShowForwardModal(true);
+    };
+
+    // 모달 제출: 대상 채팅방 ID 입력 후 API 호출
+    const handleModalSubmit = async () => {
+        if (contextMenu.message) {
+            try {
+                await forwardMessage(contextMenu.message.id, targetRoomId, user!.id);
+                alert("메시지가 전달되었습니다.");
+            } catch (error) {
+                console.error("Forward error", error);
+                alert("메시지 전달 실패");
+            }
+        }
+        setShowForwardModal(false);
+        setTargetRoomId("");
+    };
+
+    const handleModalCancel = () => {
+        setShowForwardModal(false);
+        setTargetRoomId("");
+    };
+
     return (
         <ChatContainer>
             <ChatArea ref={chatAreaRef}>
-                {messages.map((msg, idx) => {
-                    const isOwn = msg.senderId === user?.id;
-                    return (
-                        <div
-                            key={idx}
-                            style={{
-                                marginBottom: "10px",
-                                display: "flex",
-                                flexDirection: "column",
-                            }}
+            {messages.map((msg, idx) => {
+                const isOwn = msg.senderId === user?.id;
+
+                return (
+                    <div
+                        key={idx}
+                        style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}
+                    >
+                        <ChatBubble
+                            isOwnMessage={isOwn}
+                            onContextMenu={(e) => handleContextMenu(e, msg)}
                         >
-                            <ChatBubble isOwnMessage={isOwn}>
-                                {msg.content.text}
+                        {msg.content.text}
                             </ChatBubble>
-                            {msg.createdAt && (
-                                <Timestamp>
-                                {new Date(msg.createdAt).toLocaleTimeString()}
-                                </Timestamp>
-                            )}
-                        </div>
-                    );
-                })}
-                {/* 타이핑 인디케이터 UI */}
-                {typingUsers.size > 0 && (
-                    <TypingIndicatorContainer>
-                        {Array.from(typingUsers).join(", ")}님이 타이핑 중...
-                    </TypingIndicatorContainer>
-                )}
+                        {msg.createdAt && (
+                            <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>
+                        )}
+                    </div>
+                );
+            })}
+            {typingUsers.size > 0 && (
+                <TypingIndicatorContainer>
+                    {Array.from(typingUsers).join(", ")}님이 타이핑 중...
+                </TypingIndicatorContainer>
+            )}
             </ChatArea>
             <ChatInputContainer>
                 <Input
@@ -276,6 +382,32 @@ const ChatRoom: React.FC = () => {
                 />
                 <SendButton onClick={sendMessage}>전송</SendButton>
             </ChatInputContainer>
+
+            {/* 컨텍스트 메뉴 */}
+            {contextMenu.visible && (
+                <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
+                    <ContextMenuItem onClick={handleForwardClick}>메시지 전달</ContextMenuItem>
+                </ContextMenu>
+            )}
+
+            {/* 전달 모달 */}
+            {showForwardModal && (
+                <ModalOverlay>
+                    <ModalContent>
+                        <h3>메시지 전달</h3>
+                        <p>전달할 대상 채팅방 ID를 입력하세요:</p>
+                        <input
+                            value={targetRoomId}
+                            onChange={(e) => setTargetRoomId(e.target.value)}
+                            placeholder="대상 채팅방 ID"
+                        />
+                        <ModalButtons>
+                            <button onClick={handleModalSubmit}>전달</button>
+                            <button onClick={handleModalCancel}>취소</button>
+                        </ModalButtons>
+                    </ModalContent>
+                </ModalOverlay>
+            )}
         </ChatContainer>
     );
 };
