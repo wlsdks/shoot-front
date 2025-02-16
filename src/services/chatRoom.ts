@@ -18,3 +18,13 @@ export const updateChatRoomFavorite = (
 ): Promise<AxiosResponse<any>> => {
     return api.post(`/chatrooms/favorite`, null, { params: { roomId, userId, isFavorite } });
 };
+
+/**
+ * 특정 채팅방 내 모든 메시지를 읽음 처리하는 API 호출
+ * @param roomId 채팅방 ID
+ * @param userId 사용자 ID
+ * @returns
+ */
+export const markAllMessagesAsRead = (roomId: string, userId: string): Promise<AxiosResponse<any>> => {
+    return api.post(`/chatrooms/${roomId}/readAll`, null, { params: { userId } });
+};

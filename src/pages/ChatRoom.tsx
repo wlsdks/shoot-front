@@ -2,11 +2,12 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getChatMessages, forwardMessage } from "../services/message";
+import { markAllMessagesAsRead } from "../services/chatRoom";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import styled from "styled-components";
 
-// 채팅 메시지 항목
+// 채팅 메시지 인터페이스
 export interface ChatMessageItem {
     id: string; // 메시지 식별자 (서버에서 생성)
     roomId: string;
@@ -19,6 +20,7 @@ export interface ChatMessageItem {
         isDeleted: boolean;
     };
     createdAt?: string;
+    status: string; // "SENT", "DELIVERED", "READ" 등
 }
 
 // 타이핑 인디케이터 메시지 인터페이스
@@ -28,7 +30,13 @@ interface TypingIndicatorMessage {
     isTyping: boolean;
 }
 
-// 채팅방 레이아웃 구성
+// 메시지 상태 업데이트 이벤트 인터페이스 (예시)
+interface MessageStatusUpdate {
+    messageId: string;
+    status: string;
+}
+
+// 스타일 컴포넌트들
 const ChatContainer = styled.div`
     display: flex;
     flex-direction: column;
@@ -88,7 +96,7 @@ const ChatBubble = styled.div<{ isOwnMessage: boolean }>`
     color: ${(props) => (props.isOwnMessage ? "#fff" : "#000")};
     align-self: ${(props) => (props.isOwnMessage ? "flex-end" : "flex-start")};
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    cursor: pointer; /* 우클릭을 위해 커서 설정 */
+    cursor: pointer;
 `;
 
 const Timestamp = styled.div`
@@ -98,13 +106,19 @@ const Timestamp = styled.div`
     text-align: right;
 `;
 
+const MessageStatusIndicator = styled.span`
+    font-size: 0.75rem;
+    color: #007bff;
+    margin-left: 8px;
+`;
+
 const TypingIndicatorContainer = styled.div`
     padding: 5px 10px;
     font-size: 0.9rem;
     color: #555;
 `;
 
-/* 컨텍스트 메뉴 스타일 */
+/* 컨텍스트 메뉴 및 모달 스타일 (생략) */
 const ContextMenu = styled.div`
     position: absolute;
     background: white;
@@ -121,7 +135,6 @@ const ContextMenuItem = styled.div`
     }
 `;
 
-/* 모달 스타일 */
 const ModalOverlay = styled.div`
     position: fixed;
     top: 0;
@@ -149,6 +162,16 @@ const ModalButtons = styled.div`
     gap: 10px;
 `;
 
+const MarkAllReadButton = styled.button`
+    margin: 10px;
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+`;
+
 // ChatRoom 컴포넌트
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
@@ -160,28 +183,27 @@ const ChatRoom: React.FC = () => {
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // 컨텍스트 메뉴 상태: 표시 여부, 위치, 선택한 메시지
+    // 마지막 메시지 요소를 참조할 ref (IntersectionObserver용)
+    const lastMessageRef = useRef<HTMLDivElement | null>(null);
+
+    // 컨텍스트 메뉴 및 모달 상태
     const [contextMenu, setContextMenu] = useState<{
         visible: boolean;
         x: number;
         y: number;
         message: ChatMessageItem | null;
     }>({ visible: false, x: 0, y: 0, message: null });
-
-    // 전달 모달 상태: 표시 여부, 대상 채팅방 ID 입력값
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
 
-    // 1) 초기 메시지 로드 및 STOMP 소켓 연결
+    // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
         if (!roomId) return;
 
-        // 1-1) REST API로 기존 메시지 로드
         getChatMessages(roomId)
             .then((res) => setMessages(res.data))
             .catch((err) => console.error("메시지 로드 실패", err));
 
-        // 1-2) SockJS + STOMP 연결 (JWT 토큰 사용)
         const token = localStorage.getItem("accessToken");
         const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
         const client = new Client({
@@ -195,14 +217,20 @@ const ChatRoom: React.FC = () => {
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
                     setMessages((prev) => [...prev, msg]);
+
+                    // 새 메시지 도착 시 페이지가 보이면 자동 읽음 처리
+                    if (document.visibilityState === "visible") {
+                        markAllMessagesAsRead(roomId, user!.id)
+                        .then(() => console.log("새 메시지 자동 읽음 처리 완료"))
+                        .catch((err) => console.error("자동 읽음 처리 실패", err));
+                    }
                 });
 
                 // 타이핑 인디케이터 구독
                 client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
                     const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
-                    // 자신의 타이핑 이벤트는 무시
                     if (typingMsg.userId === user?.id) return;
-        
+
                     setTypingUsers((prev) => {
                         const newSet = new Set(prev);
                         if (typingMsg.isTyping) newSet.add(typingMsg.userId);
@@ -215,62 +243,71 @@ const ChatRoom: React.FC = () => {
         client.activate();
         setStompClient(client);
 
-        // 컴포넌트 언마운트 시 STOMP 연결 해제
         return () => {
             client.deactivate();
         };
     }, [roomId, user]);
 
-
-    // 2) 메시지 목록이 업데이트될 때마다 자동 스크롤 (맨 하단)
+    // 2) 메시지 목록 업데이트 시 자동 스크롤
     useEffect(() => {
         if (chatAreaRef.current) {
             chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
         }
     }, [messages]);
 
-    // 타이핑 인디케이터 전송 함수
+    // 3) 채팅방 진입 시 자동 "모두 읽음 처리" API 호출
+    useEffect(() => {
+        if (user && roomId) {
+            markAllMessagesAsRead(roomId, user.id)
+                .then(() => console.log("초기 모두 읽음 처리 완료"))
+                .catch((err) => console.error("읽음 처리 실패", err));
+        }
+    }, [roomId, user]);
+
+   // 4) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
+    useEffect(() => {
+        const handleFocus = () => {
+            if (user && roomId) {
+                markAllMessagesAsRead(roomId, user.id)
+                    .then(() => console.log("Window focus: 모두 읽음 처리 완료"))
+                    .catch((err) => console.error("Window focus: 읽음 처리 실패", err));
+            }
+        };
+        window.addEventListener("focus", handleFocus);
+        return () => window.removeEventListener("focus", handleFocus);
+    }, [roomId, user]);
+
+    // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
         if (!stompClient || !roomId || !user) return;
-
-        const typingPayload: TypingIndicatorMessage = {
-            roomId,
-            userId: user.id,
-            isTyping,
-        };
-
+        const typingPayload: TypingIndicatorMessage = { roomId, userId: user.id, isTyping };
         stompClient.publish({
             destination: "/app/typing",
             body: JSON.stringify(typingPayload),
         });
     };
 
-    // 입력값 변경 시 타이핑 상태 전송 및 타이머 설정
+    // 입력값 변경 및 타이핑 디바운스 처리
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInput(e.target.value);
-        // 사용자가 입력 시작하면 타이핑 시작 전송
         sendTypingIndicator(true);
 
-        // 이전 타이머가 있다면 초기화
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-        // 2초 동안 입력이 없으면 타이핑 종료 전송
         typingTimeoutRef.current = setTimeout(() => {
             sendTypingIndicator(false);
         }, 2000);
     };
 
-    // 3) 메시지 전송 함수
+    // 메시지 전송
     const sendMessage = () => {
         if (!stompClient || input.trim() === "" || !roomId || !user) {
-            console.error("전송 불가: 사용자 정보 또는 입력 값이 유효하지 않습니다.");
+            console.error("전송 불가: 유효하지 않은 입력");
             return;
         }
 
         const chatMessage: ChatMessageItem = {
-            id: "", // 새 메시지이므로 빈 값, 서버에서 ID 생성
+            id: "", // 서버에서 생성
             roomId,
             senderId: user.id,
             content: {
@@ -281,6 +318,7 @@ const ChatRoom: React.FC = () => {
                 isDeleted: false,
             },
             createdAt: new Date().toISOString(),
+            status: "SENT"
         };
 
         stompClient.publish({
@@ -289,11 +327,10 @@ const ChatRoom: React.FC = () => {
         });
 
         setInput("");
-        // 메시지 전송 시 타이핑 종료 전송
         sendTypingIndicator(false);
     };
 
-    // 우클릭 시 컨텍스트 메뉴 표시 (메시지 전달 옵션 포함)
+    // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
         e.preventDefault();
 
@@ -312,7 +349,6 @@ const ChatRoom: React.FC = () => {
                 setContextMenu({ ...contextMenu, visible: false, message: null });
             }
         };
-
         window.addEventListener("click", handleClick);
         return () => window.removeEventListener("click", handleClick);
     }, [contextMenu]);
@@ -323,7 +359,7 @@ const ChatRoom: React.FC = () => {
         setShowForwardModal(true);
     };
 
-    // 모달 제출: 대상 채팅방 ID 입력 후 API 호출
+    // 모달 제출: 대상 채팅방 ID 입력 후 메시지 전달 API 호출
     const handleModalSubmit = async () => {
         if (contextMenu.message) {
             try {
@@ -346,31 +382,36 @@ const ChatRoom: React.FC = () => {
     return (
         <ChatContainer>
             <ChatArea ref={chatAreaRef}>
-            {messages.map((msg, idx) => {
-                const isOwn = msg.senderId === user?.id;
-
+                {messages.map((msg, idx) => {
+                    const isOwn = msg.senderId === user?.id;
+                    // 마지막 메시지에 ref 할당 (IntersectionObserver 용)
+                    const refProp = idx === messages.length - 1 ? { ref: lastMessageRef } : {};
                 return (
                     <div
                         key={idx}
+                        {...refProp}
+                        onContextMenu={(e) => handleContextMenu(e, msg)}
                         style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}
                     >
-                        <ChatBubble
-                            isOwnMessage={isOwn}
-                            onContextMenu={(e) => handleContextMenu(e, msg)}
-                        >
-                        {msg.content.text}
-                            </ChatBubble>
-                        {msg.createdAt && (
-                            <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>
-                        )}
+                        <ChatBubble isOwnMessage={isOwn}>
+                            {msg.content.text}
+                        </ChatBubble>
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
+                            {msg.createdAt && (
+                                <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>
+                            )}
+                            {isOwn && (
+                                <MessageStatusIndicator>{msg.status}</MessageStatusIndicator>
+                            )}
+                        </div>
                     </div>
                 );
-            })}
-            {typingUsers.size > 0 && (
-                <TypingIndicatorContainer>
-                    {Array.from(typingUsers).join(", ")}님이 타이핑 중...
-                </TypingIndicatorContainer>
-            )}
+                })}
+                {typingUsers.size > 0 && (
+                    <TypingIndicatorContainer>
+                        {Array.from(typingUsers).join(", ")}님이 타이핑 중...
+                    </TypingIndicatorContainer>
+                )}
             </ChatArea>
             <ChatInputContainer>
                 <Input
@@ -381,14 +422,15 @@ const ChatRoom: React.FC = () => {
                 />
                 <SendButton onClick={sendMessage}>전송</SendButton>
             </ChatInputContainer>
-
+            <MarkAllReadButton onClick={() => { /* 디버그용 수동 호출 */ }}>
+                모두 읽음 처리
+            </MarkAllReadButton>
             {/* 컨텍스트 메뉴 */}
             {contextMenu.visible && (
                 <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
                     <ContextMenuItem onClick={handleForwardClick}>메시지 전달</ContextMenuItem>
                 </ContextMenu>
             )}
-
             {/* 전달 모달 */}
             {showForwardModal && (
                 <ModalOverlay>
