@@ -1,14 +1,20 @@
-import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
+import api from "./api";
 import { AxiosResponse } from "axios";
 
-// 채팅방 목록 API 호출
-export const getChatRooms = (userId: string) => {
-    return api.get(`/chatrooms?userId=${userId}`);
+/**
+ * 채팅방 목록 조회 API
+ */
+export const getChatRooms = (userId: string): Promise<AxiosResponse<any>> => {
+    return api.get(`/chatrooms`, { params: { userId } });
 };
 
-// 1:1 채팅방 생성 (없으면 새로, 있으면 재활용)
-export const createDirectChat = (userId: string, friendId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/chatrooms/create/direct`, null, {
-        params: { userId, friendId }
-    });
+/**
+ * 채팅방 즐겨찾기(핀) 상태 업데이트 API
+ */
+export const updateChatRoomFavorite = (
+    roomId: string,
+    userId: string,
+    isFavorite: boolean
+): Promise<AxiosResponse<any>> => {
+    return api.post(`/chatrooms/favorite`, null, { params: { roomId, userId, isFavorite } });
 };

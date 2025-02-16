@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getChatMessages } from "../services/message";
-import { forwardMessage } from "../services/message";
+import { getChatMessages, forwardMessage } from "../services/message";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import styled from "styled-components";
