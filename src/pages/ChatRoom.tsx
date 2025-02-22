@@ -166,6 +166,14 @@ const MarkAllReadButton = styled.button`
     cursor: pointer;
 `;
 
+const ErrorMessage = styled.div`
+    padding: 10px;
+    background: #ffebee;
+    color: #c62828;
+    text-align: center;
+    font-size: 0.9rem;
+`;
+
 // ChatRoom 컴포넌트
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
@@ -174,12 +182,13 @@ const ChatRoom: React.FC = () => {
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
     const [stompClient, setStompClient] = useState<Client | null>(null);
+    // 에러 상태 추가
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
     // 마지막 메시지 요소를 참조할 ref (IntersectionObserver용)
     const lastMessageRef = useRef<HTMLDivElement | null>(null);
-
+    const heartbeatRef = useRef<NodeJS.Timeout | null>(null); // Heartbeat용 ref 추가
     // 컨텍스트 메뉴 및 모달 상태
     const [contextMenu, setContextMenu] = useState<{
         visible: boolean;
@@ -206,12 +215,23 @@ const ChatRoom: React.FC = () => {
             debug: (msg) => console.log("[STOMP]", msg),
             onConnect: () => {
                 console.log("WebSocket 연결됨");
-
+                setConnectionError(null); // 연결 성공 시 에러 제거
+                
                 // onConnect 시 활성 상태(active: true) 전송 (활성화 되었다면 채팅 안읽은 개수를 업데이트하지 않는다.)
                 client.publish({
                     destination: "/app/active",
                     body: JSON.stringify({ userId: user.id, roomId, active: true })
                 });
+
+                // Heartbeat 설정
+                heartbeatRef.current = setInterval(() => {
+                    if (client.connected) {
+                        client.publish({
+                            destination: "/app/active",
+                            body: JSON.stringify({ userId: user.id, roomId, active: true })
+                        });
+                    }
+                }, 30000); // 30초마다
 
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
@@ -239,6 +259,12 @@ const ChatRoom: React.FC = () => {
                     });
                 });
             },
+            onDisconnect: () => {
+                setConnectionError("WebSocket 연결이 끊겼습니다. 재접속 중..."); // 연결 끊김 시 에러 상태 설정
+            },
+            onStompError: (frame) => {
+                setConnectionError("WebSocket 오류 발생: " + frame.body); // STOMP 오류 시 메시지 표시
+            }
         });
         client.activate();
         setStompClient(client);
@@ -257,12 +283,15 @@ const ChatRoom: React.FC = () => {
 
         return () => {
             if (client && client.connected) {
-                // cleanup 시 비활성 상태(active: false) 전송.
                 client.publish({
                     destination: "/app/active",
                     body: JSON.stringify({ userId: user.id, roomId, active: false })
                 });
                 client.deactivate();
+            }
+            // Heartbeat 정리
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
             }
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
@@ -311,6 +340,13 @@ const ChatRoom: React.FC = () => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInput(e.target.value);
         sendTypingIndicator(true);
+
+        // redis에 TTL이 설정되어 만약 사용자가 활동(예: 입력, 스크롤)하면 TTL 갱신.
+        if (!stompClient || !roomId || !user) return;
+        stompClient.publish({
+            destination: "/app/active",
+            body: JSON.stringify({ userId: user.id, roomId, active: true })
+        });
 
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
@@ -401,6 +437,7 @@ const ChatRoom: React.FC = () => {
 
     return (
         <ChatContainer>
+            {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>} {/* 에러 메시지 표시 */}
             <ChatArea ref={chatAreaRef}>
                 {messages.map((msg, idx) => {
                     const isOwn = msg.senderId === user?.id;
