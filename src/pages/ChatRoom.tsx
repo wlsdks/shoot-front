@@ -221,8 +221,8 @@ const ChatRoom: React.FC = () => {
                     // 새 메시지 도착 시 페이지가 보이면 자동 읽음 처리
                     if (document.visibilityState === "visible") {
                         markAllMessagesAsRead(roomId, user!.id)
-                        .then(() => console.log("새 메시지 자동 읽음 처리 완료"))
-                        .catch((err) => console.error("자동 읽음 처리 실패", err));
+                            .then(() => console.log("새 메시지 자동 읽음 처리 완료"))
+                            .catch((err) => console.error("자동 읽음 처리 실패", err));
                     }
                 });
 

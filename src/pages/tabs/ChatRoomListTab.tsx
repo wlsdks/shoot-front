@@ -117,7 +117,7 @@ const ChatRoomList: React.FC = () => {
     // 채팅방 목록 불러오기
     const fetchRooms = async () => {
         if (!user) return;
-            setLoading(true);
+        setLoading(true);
         try {
             const response = await getChatRooms(user.id);
             const roomsData: ChatRoom[] = response.data;
@@ -133,6 +133,19 @@ const ChatRoomList: React.FC = () => {
 
     useEffect(() => {
         fetchRooms();
+
+        if (!user) return;
+        const source = new EventSource(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`);
+        source.onmessage = (event) => {
+            const { roomId, unreadCount, lastMessage } = JSON.parse(event.data);
+            setRooms((prev) =>
+                prev.map((room) =>
+                    room.roomId === roomId ? { ...room, unreadMessages: unreadCount, lastMessage } : room
+                )
+            );
+        };
+        source.onerror = () => console.error("SSE 연결 오류");
+        return () => source.close();
     }, [user]);
 
      // 즐겨찾기 토글 함수
@@ -161,19 +174,19 @@ const ChatRoomList: React.FC = () => {
                         <Avatar>{room.title.charAt(0).toUpperCase()}</Avatar>
                         <RoomInfo>
                             <RoomHeader>
-                            <RoomTitle>{room.title}</RoomTitle>
-                            <div>
-                                <Timestamp>{room.timestamp}</Timestamp>
-                                <FavoriteButton
-                                    active={room.isPinned}
-                                    onClick={(e) => {
-                                        e.preventDefault(); // 링크 네비게이션 방지
-                                        toggleFavorite(room.roomId, room.isPinned);
-                                    }}
-                                >
-                                    {room.isPinned ? "★" : "☆"}
-                                </FavoriteButton>
-                            </div>
+                                <RoomTitle>{room.title}</RoomTitle>
+                                <div>
+                                    <Timestamp>{room.timestamp}</Timestamp>
+                                    <FavoriteButton
+                                        active={room.isPinned}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            toggleFavorite(room.roomId, room.isPinned);
+                                        }}
+                                    >
+                                        {room.isPinned ? "★" : "☆"}
+                                    </FavoriteButton>
+                                </div>
                             </RoomHeader>
                             <LastMessage>
                                 {room.lastMessage || "최근 메시지가 없습니다."}
