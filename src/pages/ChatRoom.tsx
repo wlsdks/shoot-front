@@ -21,6 +21,7 @@ export interface ChatMessageItem {
     };
     createdAt?: string;
     status: string; // "SENT", "DELIVERED", "READ" 등
+    readBy: { [userId: string]: boolean }; // 읽음 상태 추가
 }
 
 // 타이핑 인디케이터 메시지 인터페이스
@@ -182,15 +183,12 @@ const ChatRoom: React.FC = () => {
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
     const [stompClient, setStompClient] = useState<Client | null>(null);
-    // 에러 상태 추가
-    const [connectionError, setConnectionError] = useState<string | null>(null);
+    const [connectionError, setConnectionError] = useState<string | null>(null);  // 에러 상태 추가
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    // 마지막 메시지 요소를 참조할 ref (IntersectionObserver용)
-    const lastMessageRef = useRef<HTMLDivElement | null>(null);
-    const heartbeatRef = useRef<NodeJS.Timeout | null>(null); // Heartbeat용 ref 추가
-    // 컨텍스트 메뉴 및 모달 상태
-    const [contextMenu, setContextMenu] = useState<{
+    const lastMessageRef = useRef<HTMLDivElement | null>(null); // 마지막 메시지 요소를 참조할 ref (IntersectionObserver용)
+    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);   // Heartbeat용 ref 추가
+    const [contextMenu, setContextMenu] = useState<{            // 컨텍스트 메뉴 및 모달 상태
         visible: boolean;
         x: number;
         y: number;
@@ -236,7 +234,11 @@ const ChatRoom: React.FC = () => {
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
-                    setMessages((prev) => [...prev, msg]);
+                    setMessages((prev) => {
+                        // 메시지 중복 방지를 위해 ID로 필터링
+                        const updatedMessages = prev.filter(m => m.id !== msg.id);
+                        return [...updatedMessages, msg];
+                    });
 
                     // 새 메시지 도착 시 페이지가 보이면 자동 읽음 처리
                     if (document.visibilityState === "visible") {
@@ -313,7 +315,7 @@ const ChatRoom: React.FC = () => {
         }
     }, [roomId, user]);
 
-   // 4) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
+    // 4) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
     useEffect(() => {
         const handleFocus = () => {
             if (user && roomId) {
@@ -349,10 +351,7 @@ const ChatRoom: React.FC = () => {
         });
 
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
-        typingTimeoutRef.current = setTimeout(() => {
-            sendTypingIndicator(false);
-        }, 2000);
+        typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
     };
 
     // 메시지 전송
@@ -362,8 +361,9 @@ const ChatRoom: React.FC = () => {
             return;
         }
 
+        // 메시지 세팅
         const chatMessage: ChatMessageItem = {
-            id: "", // 서버에서 생성
+            id: "",
             roomId,
             senderId: user.id,
             content: {
@@ -374,7 +374,8 @@ const ChatRoom: React.FC = () => {
                 isDeleted: false,
             },
             createdAt: new Date().toISOString(),
-            status: "SENT"
+            status: "SENT",
+            readBy: { [user.id]: true } // 초기 readBy 설정 (발신자만 읽음)
         };
 
         stompClient.publish({
@@ -437,32 +438,33 @@ const ChatRoom: React.FC = () => {
 
     return (
         <ChatContainer>
-            {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>} {/* 에러 메시지 표시 */}
+            {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}
             <ChatArea ref={chatAreaRef}>
                 {messages.map((msg, idx) => {
                     const isOwn = msg.senderId === user?.id;
-                    // 마지막 메시지에 ref 할당 (IntersectionObserver 용)
-                    const refProp = idx === messages.length - 1 ? { ref: lastMessageRef } : {};
-                return (
-                    <div
-                        key={idx}
-                        {...refProp}
-                        onContextMenu={(e) => handleContextMenu(e, msg)}
-                        style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}
-                    >
-                        <ChatBubble isOwnMessage={isOwn}>
-                            {msg.content.text}
-                        </ChatBubble>
-                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
-                            {msg.createdAt && (
-                                <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>
-                            )}
-                            {isOwn && (
-                                <MessageStatusIndicator>{msg.status}</MessageStatusIndicator>
-                            )}
+                    const refProp = idx === messages.length - 1 ? { ref: lastMessageRef } : {};  // 마지막 메시지에 ref 할당 (IntersectionObserver 용)
+                    const unreadByOpponent = isOwn && Object.entries(msg.readBy)
+                        .some(([id, read]) => id !== user?.id && !read); // 상대방 안 읽음 체크
+                    return (
+                        <div
+                            key={idx}
+                            {...refProp}
+                            onContextMenu={(e) => handleContextMenu(e, msg)}
+                            style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}
+                        >
+                            <ChatBubble isOwnMessage={isOwn}>{msg.content.text}</ChatBubble>
+                            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
+                                {msg.createdAt && (
+                                    <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>
+                                )}
+                                {isOwn && (
+                                    <MessageStatusIndicator>
+                                        {unreadByOpponent ? "1" : "✓"} {/* 상대방 안 읽으면 1, 읽으면 ✓ */}
+                                    </MessageStatusIndicator>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                );
+                    );
                 })}
                 {typingUsers.size > 0 && (
                     <TypingIndicatorContainer>
