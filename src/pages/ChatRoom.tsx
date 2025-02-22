@@ -192,7 +192,7 @@ const ChatRoom: React.FC = () => {
 
     // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
-        if (!roomId) return;
+        if (!roomId || !user) return;
 
         getChatMessages(roomId)
             .then((res) => setMessages(res.data))
@@ -206,6 +206,12 @@ const ChatRoom: React.FC = () => {
             debug: (msg) => console.log("[STOMP]", msg),
             onConnect: () => {
                 console.log("WebSocket 연결됨");
+
+                // onConnect 시 활성 상태(active: true) 전송 (활성화 되었다면 채팅 안읽은 개수를 업데이트하지 않는다.)
+                client.publish({
+                    destination: "/app/active",
+                    body: JSON.stringify({ userId: user.id, roomId, active: true })
+                });
 
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
@@ -238,7 +244,14 @@ const ChatRoom: React.FC = () => {
         setStompClient(client);
 
         return () => {
-            client.deactivate();
+            if (client) {
+                // cleanup 시 비활성 상태(active: false) 전송.
+                client.publish({
+                    destination: "/app/active",
+                    body: JSON.stringify({ userId: user?.id, roomId, active: false })
+                });
+                client.deactivate();
+            }
         };
     }, [roomId, user]);
 
