@@ -108,6 +108,14 @@ const FavoriteButton = styled.button<{ active: boolean }>`
     color: ${(props) => (props.active ? "#ffbb00" : "#ccc")};
 `;
 
+const ErrorMessage = styled.div`
+    padding: 10px;
+    background: #ffebee;
+    color: #c62828;
+    text-align: center;
+    font-size: 0.9rem;
+`;
+
 const ChatRoomList: React.FC = () => {
     const { user } = useAuth();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -145,7 +153,10 @@ const ChatRoomList: React.FC = () => {
                 )
             );
         };
-        source.onerror = () => console.error("SSE 연결 오류");
+        source.onerror = () => {
+            console.error("SSE 연결 오류");
+            setError("서버 연결이 끊겼습니다. 재접속 중..."); // SSE 오류 시 상태 설정
+        };
         return () => source.close();
     }, [user, fetchRooms]);
 
@@ -165,6 +176,7 @@ const ChatRoomList: React.FC = () => {
 
     return (
         <RoomListContainer>
+            {error && <ErrorMessage>{error}</ErrorMessage>} {/* 에러 메시지 표시 */}
             {rooms.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#0b0a0a" }}>
                     참여 중인 채팅방이 없습니다.
