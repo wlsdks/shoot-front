@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getChatRooms, updateChatRoomFavorite } from '../../services/chatRoom';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
@@ -115,13 +115,13 @@ const ChatRoomList: React.FC = () => {
     const [error, setError] = useState("");
 
     // 채팅방 목록 불러오기
-    const fetchRooms = async () => {
+    // fetchRooms를 useCallback으로 감싸기
+    const fetchRooms = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
             const response = await getChatRooms(user.id);
             const roomsData: ChatRoom[] = response.data;
-            // 백엔드에서 핀된 채팅방은 이미 최신 순으로 정렬되어 있다고 가정
             setRooms(roomsData);
         } catch (err) {
             console.error(err);
@@ -129,7 +129,7 @@ const ChatRoomList: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]); // 의존성: user만 필요 (setRooms 등은 컴포넌트 상태라 안 넣어도 OK)
 
     useEffect(() => {
         fetchRooms();
@@ -137,6 +137,7 @@ const ChatRoomList: React.FC = () => {
         if (!user) return;
         const source = new EventSource(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`);
         source.onmessage = (event) => {
+            // roomId (어떤 채팅방인지), unreadCount (새 숫자), lastMessage (마지막 메시지 내용)
             const { roomId, unreadCount, lastMessage } = JSON.parse(event.data);
             setRooms((prev) =>
                 prev.map((room) =>
@@ -146,7 +147,7 @@ const ChatRoomList: React.FC = () => {
         };
         source.onerror = () => console.error("SSE 연결 오류");
         return () => source.close();
-    }, [user]);
+    }, [user, fetchRooms]);
 
      // 즐겨찾기 토글 함수
     const toggleFavorite = async (roomId: string, currentFavorite: boolean) => {

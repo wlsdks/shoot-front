@@ -30,12 +30,6 @@ interface TypingIndicatorMessage {
     isTyping: boolean;
 }
 
-// 메시지 상태 업데이트 이벤트 인터페이스 (예시)
-interface MessageStatusUpdate {
-    messageId: string;
-    status: string;
-}
-
 // 스타일 컴포넌트들
 const ChatContainer = styled.div`
     display: flex;
