@@ -243,15 +243,28 @@ const ChatRoom: React.FC = () => {
         client.activate();
         setStompClient(client);
 
-        return () => {
-            if (client) {
-                // cleanup 시 비활성 상태(active: false) 전송.
+        // 창 종료 이벤트
+        const handleBeforeUnload = () => {
+            if (client && client.connected) {
                 client.publish({
                     destination: "/app/active",
-                    body: JSON.stringify({ userId: user?.id, roomId, active: false })
+                    body: JSON.stringify({ userId: user.id, roomId, active: false })
                 });
                 client.deactivate();
             }
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
+        return () => {
+            if (client && client.connected) {
+                // cleanup 시 비활성 상태(active: false) 전송.
+                client.publish({
+                    destination: "/app/active",
+                    body: JSON.stringify({ userId: user.id, roomId, active: false })
+                });
+                client.deactivate();
+            }
+            window.removeEventListener("beforeunload", handleBeforeUnload);
         };
     }, [roomId, user]);
 
