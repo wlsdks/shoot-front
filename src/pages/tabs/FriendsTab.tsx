@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import styled from "styled-components";
 import { useAuth } from "../../context/AuthContext";
 import { getFriends } from "../../services/friends";
@@ -6,6 +6,7 @@ import FriendSearch from "../FriendSearch";
 import FriendCodePage from "../FriendCodePage";
 import { createDirectChat } from "../../services/chatRoom"
 import { useNavigate } from "react-router-dom";
+import { EventSourcePolyfill } from "event-source-polyfill";
 
 // FriendTab 컨테이너 (ContentArea에 채워질 카드)
 const TabContainer = styled.div`
@@ -81,51 +82,102 @@ interface Friend {
 }
 
 const FriendTab: React.FC = () => {
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
     const [friends, setFriends] = useState<Friend[]>([]);
     const [showSearch, setShowSearch] = useState<boolean>(false);
     const [showCode, setShowCode] = useState<boolean>(false);
     const navigate = useNavigate(); // 네비게이션 추가
+    const isInitialLoad = useRef<boolean>(false); // 초기 로드 플래그
 
     const fetchFriends = useCallback(async () => {
-        if (!user) return;
+        if (!user) {
+            console.log("FriendTab: No user, skipping fetchFriends");
+            return;
+        }
+
+        console.log("FriendTab: Fetching friends for user:", user.id);
+
         try {
             const response = await getFriends(user.id);
+            console.log("FriendTab: Friends fetched:", response.data);
             setFriends(response.data);
         } catch (err) {
-            console.error(err);
+            console.error("FriendTab: Fetch friends failed:", err);
         }
     }, [user]);
 
+    // 초기 친구 목록 로드
+    useEffect(() => {
+        if (!user?.id || isInitialLoad.current) {
+            console.log("FriendTab: No user ID or already loaded, skipping initial fetch");
+            return;
+        }
+        console.log("FriendTab: Initializing friends...");
+        fetchFriends();
+        isInitialLoad.current = true;
+    }, [user?.id, fetchFriends]);
+
     // friendAdded 이벤트 수신 → 친구 추가 시 fetchFriends 호출 → 목록 실시간 갱신.
     useEffect(() => {
-        if (!user?.id) return;
+        if (!user?.id) {
+            console.log("FriendTab: No user ID, skipping SSE");
+            return;
+        }
 
-        fetchFriends(); // 초기 로드
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            console.log("FriendTab: No token, skipping SSE");
+            return;
+        }
 
-        const source = new EventSource(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`);
-        source.addEventListener("friendAdded", (event) => {
-            fetchFriends(); // 친구 추가 시 갱신
+        console.log("FriendTab: Starting SSE connection...");
+        const source = new EventSourcePolyfill(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`, {
+            headers: { "Authorization": `Bearer ${token}` }
         });
-        source.onerror = () => {
-            console.error("SSE 연결 오류");
+
+        //
+        source.addEventListener("friendAdded", (event) => {
+            console.log("FriendTab: Friend added event:", event);
+            fetchFriends();
+        });
+        // 하트비트
+        source.addEventListener("heartbeat", (event) => {
+            console.log("FriendTab: Heartbeat received:", event);
+        });
+        // 에러
+        source.onerror = (err) => {
+            console.error("FriendTab: SSE connection error:", err);
+            // 연결 종료 최소화 → UI 멈춤 방지
         };
-        return () => source.close();
-    }, [user, fetchFriends]);
+        return () => {
+            console.log("FriendTab: Closing SSE connection");
+            source.close();
+        };
+    }, [user?.id, fetchFriends]);
 
     // 친구 클릭 시 채팅방 생성 및 이동
-    const handleFriendClick = async (friendId: string) => {
+    const handleFriendClick = useCallback(async (friendId: string) => {
+        console.log("FriendTab: Friend clicked:", friendId);
         if (!user) return;
+
         try {
             const response = await createDirectChat(user.id, friendId);
+            console.log("FriendTab: Chat created, roomId:", response.data.id);
             const roomId = response.data.id; // 응답에서 roomId 추출 (ChatRoom 객체 반환 가정)
             navigate(`/chatroom/${roomId}`); // 채팅방으로 이동
         } catch (err) {
-            console.error("채팅방 생성 실패", err);
+            console.error("FriendTab: Chat Room creation failed:", err);
             alert("채팅방 생성에 실패했습니다.");
         }
-    };
+    }, [user, navigate]);
 
+    // 렌더링 조건문은 Hook 호출 후
+    if (loading) {
+        console.log("FriendTab: Auth loading...");
+        return <div>Loading...</div>;
+    }
+
+    console.log("FriendTab: Rendering, friends:", friends);
     return (
         <TabContainer>
             <Header>
