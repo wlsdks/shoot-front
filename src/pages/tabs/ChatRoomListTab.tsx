@@ -146,19 +146,26 @@ const ChatRoomList: React.FC = () => {
         }
         fetchRooms();
 
+        // SSE로 받은 메시지 처리 (친구가 메시지 보내면 받아서 내 채팅방 업데이트)
         const handleMessage = (event: MessageEvent) => {
             const { roomId, unreadCount, lastMessage } = JSON.parse(event.data);
             console.log("ChatRoomList: Message received:", { roomId, unreadCount, lastMessage });
+
+            // 채팅방에 표시 업데이트
             setRooms((prev) =>
                 prev.map((room) =>
                     room.roomId === roomId ? { ...room, unreadMessages: unreadCount, lastMessage } : room
                 )
             );
         };
+
+        // 채팅방 생성 SSE 이벤트 (새로고침 진행)
         const handleChatRoomCreated = (event: MessageEvent) => {
             console.log("ChatRoomList: Chat room created event:", event);
             fetchRooms();
         };
+
+        // SSE 하트비트 (로그만 남김)
         const handleHeartbeat = (event: MessageEvent) => {
             console.log("ChatRoomList: Heartbeat received:", event);
         };

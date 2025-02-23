@@ -87,6 +87,7 @@ const FriendTab: React.FC = () => {
     const [showCode, setShowCode] = useState<boolean>(false);
     const navigate = useNavigate();
 
+    // 친구목록 조회
     const fetchFriends = useCallback(async () => {
         if (!user) {
             console.log("FriendTab: No user, skipping fetchFriends");
@@ -104,31 +105,30 @@ const FriendTab: React.FC = () => {
         }
     }, [user]);
 
-    // 초기 친구 목록 로드
+    // 초기 친구 목록 로드 (한 번만 호출)
     useEffect(() => {
         if (!user?.id) {
-            console.log("FriendTab: No user ID or already loaded, skipping initial fetch");
+            console.log("FriendTab: No user ID, skipping initial fetch");
             return;
         }
-
         console.log("FriendTab: Initializing friends...");
         fetchFriends();
     }, [user?.id, fetchFriends]);
 
-    // friendAdded 이벤트 수신 → 친구 추가 시 fetchFriends 호출 → 목록 실시간 갱신.
+    // friendAdded, heartbeat 이벤트 구독 (SSE)
     useEffect(() => {
         if (!user?.id) {
-            console.log("FriendTab: No user ID, skipping fetch");
-            setFriends([]);
+            console.log("FriendTab: No user ID, skipping SSE subscription");
             return;
         }
-        console.log("FriendTab: Initializing friends...");
-        fetchFriends();
 
+        // SSE로 친구 목록 업데이트
         const handleFriendAdded = (event: MessageEvent) => {
             console.log("FriendTab: Friend added event:", event);
             fetchFriends();
         };
+
+        // SSE 하트비트 (로그만 남김)
         const handleHeartbeat = (event: MessageEvent) => {
             console.log("FriendTab: Heartbeat received:", event);
         };
