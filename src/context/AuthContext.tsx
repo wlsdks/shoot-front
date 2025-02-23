@@ -51,26 +51,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // 토큰이 있으면 /me API 호출로 검증
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         loginCheckApi()
-        .then((res) => {
-            // 성공 => user 저장
-            const data = res.data; // e.g. { id, username, nickname }
-            setUser(data);
-            setIsAuthenticated(true);
-        })
-        .catch((err) => {
-            console.error("토큰검증 실패:", err);
-            // 혹은 localStorage.removeItem("accessToken");
-        })
-        .finally(() => {
-            // 로딩 끝
-            setLoading(false);
-        });
+            .then((res) => {
+                // 성공 => user 저장
+                const data = res.data; // e.g. { id, username }
+                setUser(data);
+                setIsAuthenticated(true);
+            })
+            .catch((err) => {
+                console.error("토큰검증 실패:", err);
+                // 혹은 localStorage.removeItem("accessToken");
+            })
+            .finally(() => {
+                // 로딩 끝
+                setLoading(false);
+            });
     }, []);
 
     // 2) login
     const login = (u: User, token?: string) => {
+        // 유저 세팅, 인증여부 세팅
         setUser(u);
         setIsAuthenticated(true);
+
+        // access 토큰 세팅
         if (token) {
             localStorage.setItem("accessToken", token);
             axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -79,8 +82,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // 3) logout
     const logout = () => {
+        // 유저 정보 및 인증여부 삭제
         setUser(null);
         setIsAuthenticated(false);
+
+        // access 토큰 삭제
         localStorage.removeItem("accessToken");
         delete axios.defaults.headers.common["Authorization"];
     };

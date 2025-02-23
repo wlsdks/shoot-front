@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
 import { searchFriends } from "../services/friends";
 import { useAuth } from "../context/AuthContext";
@@ -45,18 +45,6 @@ const LoadingMessage = styled.p`
     margin-top: 8px;
 `;
 
-const SearchButton = styled.button`
-    padding: 8px 16px;
-    background-color: #007bff;
-    border: none;
-    color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    &:hover {
-        background-color: #0056b3;
-    }
-`;
 
 const ResultList = styled.ul`
     list-style: none;
@@ -86,6 +74,26 @@ const FriendSearch: React.FC = () => {
     const [results, setResults] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // 검색
+    const performSearch = useCallback(async () => {
+        if (!user) {
+            console.error("로그인 정보가 없습니다.");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const response = await searchFriends(user.id, query);
+            setResults(response.data);
+        } catch (error) {
+            console.error("검색 실패:", error);
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [user, query]); // 의존성 명시
+
     // 디바운스 효과: query가 변경되면 200ms 후에 API 호출
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
@@ -95,27 +103,9 @@ const FriendSearch: React.FC = () => {
                 setResults([]);
             }
         }, 100);
-        return () => clearTimeout(delayDebounceFn);
-    }, [query]);
-
-    const performSearch = async () => {
-        if (!user) {
-            console.error("로그인 정보가 없습니다.");
-            return;
-        }
-
-        setLoading(true);
         
-        try {
-            const response = await searchFriends(user.id, query);
-            setResults(response.data); // Friend[]로 직접 설정
-        } catch (error) {
-            console.error("검색 실패:", error);
-            setResults([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+        return () => clearTimeout(delayDebounceFn);
+    }, [query, performSearch]);
 
     return (
         <SearchContainer>

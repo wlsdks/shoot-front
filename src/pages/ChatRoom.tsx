@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getChatMessages, forwardMessage } from "../services/message";
@@ -28,6 +28,7 @@ export interface ChatMessageItem {
 interface TypingIndicatorMessage {
     roomId: string;
     userId: string;
+    username: string;
     isTyping: boolean;
 }
 
@@ -157,15 +158,6 @@ const ModalButtons = styled.div`
     gap: 10px;
 `;
 
-const MarkAllReadButton = styled.button`
-    margin: 10px;
-    padding: 8px 16px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-`;
 
 const ErrorMessage = styled.div`
     padding: 10px;
@@ -186,7 +178,6 @@ const ChatRoom: React.FC = () => {
     const [connectionError, setConnectionError] = useState<string | null>(null);  // 에러 상태 추가
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const lastMessageRef = useRef<HTMLDivElement | null>(null); // 마지막 메시지 요소를 참조할 ref (IntersectionObserver용)
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);   // Heartbeat용 ref 추가
     const [contextMenu, setContextMenu] = useState<{            // 컨텍스트 메뉴 및 모달 상태
         visible: boolean;
@@ -197,14 +188,28 @@ const ChatRoom: React.FC = () => {
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
 
+    // 읽음 처리 함수 (디바운스 제거)
+    const markRead = useCallback(() => {
+        if (document.visibilityState === "visible" && roomId && user) {
+            markAllMessagesAsRead(roomId, user.id)
+                .then(() => console.log("읽음 처리 완료"))
+                .catch((err) => console.error("읽음 처리 실패", err));
+        }
+    }, [roomId, user]);
+
     // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
         if (!roomId || !user) return;
 
+        // 초기 메시지 로드 후 읽음 처리
         getChatMessages(roomId)
-            .then((res) => setMessages(res.data))
+            .then((res) => {
+                setMessages(res.data);
+                markRead(); // 진입 시 즉시 읽음 처리
+            })
             .catch((err) => console.error("메시지 로드 실패", err));
 
+        // STOMP 연결
         const token = localStorage.getItem("accessToken");
         const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
         const client = new Client({
@@ -239,13 +244,7 @@ const ChatRoom: React.FC = () => {
                         const updatedMessages = prev.filter(m => m.id !== msg.id);
                         return [...updatedMessages, msg];
                     });
-
-                    // 새 메시지 도착 시 페이지가 보이면 자동 읽음 처리
-                    if (document.visibilityState === "visible") {
-                        markAllMessagesAsRead(roomId, user!.id)
-                            .then(() => console.log("새 메시지 자동 읽음 처리 완료"))
-                            .catch((err) => console.error("자동 읽음 처리 실패", err));
-                    }
+                    markRead(); // 새 메시지 도착 시 즉시 읽음 처리
                 });
 
                 // 타이핑 인디케이터 구독
@@ -253,10 +252,11 @@ const ChatRoom: React.FC = () => {
                     const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
                     if (typingMsg.userId === user?.id) return;
 
+                    // 입력중인 유저정보 세팅
                     setTypingUsers((prev) => {
                         const newSet = new Set(prev);
-                        if (typingMsg.isTyping) newSet.add(typingMsg.userId);
-                        else newSet.delete(typingMsg.userId);
+                        if (typingMsg.isTyping) newSet.add(typingMsg.username);
+                        else newSet.delete(typingMsg.username);
                         return newSet;
                     });
                 });
@@ -297,7 +297,7 @@ const ChatRoom: React.FC = () => {
             }
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
-    }, [roomId, user]);
+    }, [roomId, user, markRead]);
 
     // 2) 메시지 목록 업데이트 시 자동 스크롤
     useEffect(() => {
@@ -306,19 +306,11 @@ const ChatRoom: React.FC = () => {
         }
     }, [messages]);
 
-    // 3) 채팅방 진입 시 자동 "모두 읽음 처리" API 호출
-    useEffect(() => {
-        if (user && roomId) {
-            markAllMessagesAsRead(roomId, user.id)
-                .then(() => console.log("초기 모두 읽음 처리 완료"))
-                .catch((err) => console.error("읽음 처리 실패", err));
-        }
-    }, [roomId, user]);
-
-    // 4) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
+    // 3) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
     useEffect(() => {
         const handleFocus = () => {
             if (user && roomId) {
+                // 창 포커스 시 호출
                 markAllMessagesAsRead(roomId, user.id)
                     .then(() => console.log("Window focus: 모두 읽음 처리 완료"))
                     .catch((err) => console.error("Window focus: 읽음 처리 실패", err));
@@ -331,7 +323,14 @@ const ChatRoom: React.FC = () => {
     // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
         if (!stompClient || !roomId || !user) return;
-        const typingPayload: TypingIndicatorMessage = { roomId, userId: user.id, isTyping };
+
+        const typingPayload: TypingIndicatorMessage = { 
+            roomId,
+            userId: user.id,
+            username: user.name,
+            isTyping 
+        };
+
         stompClient.publish({
             destination: "/app/typing",
             body: JSON.stringify(typingPayload),
@@ -390,7 +389,6 @@ const ChatRoom: React.FC = () => {
     // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
         e.preventDefault();
-
         setContextMenu({
             visible: true,
             x: e.clientX,
@@ -431,6 +429,7 @@ const ChatRoom: React.FC = () => {
         setTargetRoomId("");
     };
 
+    // 모달 취소
     const handleModalCancel = () => {
         setShowForwardModal(false);
         setTargetRoomId("");
@@ -442,13 +441,11 @@ const ChatRoom: React.FC = () => {
             <ChatArea ref={chatAreaRef}>
                 {messages.map((msg, idx) => {
                     const isOwn = msg.senderId === user?.id;
-                    const refProp = idx === messages.length - 1 ? { ref: lastMessageRef } : {};  // 마지막 메시지에 ref 할당 (IntersectionObserver 용)
                     const unreadByOpponent = isOwn && Object.entries(msg.readBy)
                         .some(([id, read]) => id !== user?.id && !read); // 상대방 안 읽음 체크
                     return (
                         <div
                             key={idx}
-                            {...refProp}
                             onContextMenu={(e) => handleContextMenu(e, msg)}
                             style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}
                         >
@@ -481,9 +478,6 @@ const ChatRoom: React.FC = () => {
                 />
                 <SendButton onClick={sendMessage}>전송</SendButton>
             </ChatInputContainer>
-            <MarkAllReadButton onClick={() => { /* 디버그용 수동 호출 */ }}>
-                모두 읽음 처리
-            </MarkAllReadButton>
             {/* 컨텍스트 메뉴 */}
             {contextMenu.visible && (
                 <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>

@@ -1,5 +1,5 @@
 import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
-import { AxiosResponse } from "axios";
+// import { AxiosResponse } from "axios";
 
 // 회원가입 API 호출
 export const signup = (username: string, nickname: string) => {

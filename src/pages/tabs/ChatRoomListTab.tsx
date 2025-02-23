@@ -154,7 +154,7 @@ const ChatRoomList: React.FC = () => {
             );
         };
         source.addEventListener("chatRoomCreated", (event) => {
-            const { roomId } = JSON.parse(event.data);
+            // const { roomId } = JSON.parse(event.data);
             fetchRooms(); // 새 채팅방 추가 시 목록 새로고침
         });
         source.onerror = () => {
