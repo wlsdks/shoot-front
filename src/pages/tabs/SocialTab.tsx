@@ -1,17 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
 import {
     getIncomingRequests,
     getOutgoingRequests,
     getRecommendations,
     sendFriendRequest,
+    acceptFriendRequest,
+    rejectFriendRequest,
 } from "../../services/friends";
 import { useAuth } from "../../context/AuthContext";
 
-interface RecommendedUser {
-    id: string;      // 고유 식별자 (예: "67a78ebb3d560f73c0423666")
+// Friend 인터페이스 정의 (타입 통일)
+interface Friend {
+    id: string;
     username: string;
-    nickname: string;
 }
 
 const Container = styled.div`
@@ -93,13 +95,13 @@ const LoadingContainer = styled.div`
 
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
-    const [incoming, setIncoming] = useState<string[]>([]);
-    const [outgoing, setOutgoing] = useState<string[]>([]);
-    const [recommended, setRecommended] = useState<RecommendedUser[]>([]);
+    const [incoming, setIncoming] = useState<Friend[]>([]);
+    const [outgoing, setOutgoing] = useState<Friend[]>([]);
+    const [recommended, setRecommended] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!user) return;
         try {
             setLoading(true);
@@ -111,7 +113,6 @@ const SocialTab: React.FC = () => {
             ]);
             setIncoming(incRes.data);
             setOutgoing(outRes.data);
-            // recRes.data는 이제 RecommendedUser[]로 반환된다고 가정
             setRecommended(recRes.data);
         } catch (e) {
             console.error(e);
@@ -119,13 +120,11 @@ const SocialTab: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
     useEffect(() => {
-        if (user?.id) {
-            fetchData();
-        }
-    }, [user]);
+        if (user?.id) fetchData();
+    }, [user, fetchData]);
 
     // 추천 친구 목록에서 "친구추가" 버튼 클릭 시 친구 요청 API 호출
     const handleSendFriendRequest = async (targetUserId: string) => {
@@ -141,6 +140,32 @@ const SocialTab: React.FC = () => {
         }
     };
 
+    // 친구 요청 수락 처리
+    const handleAcceptRequest = async (requesterId: string) => {
+        if (!user) return;
+        try {
+            await acceptFriendRequest(user.id, requesterId);
+            alert("친구 요청을 수락했습니다.");
+            fetchData(); // 데이터 새로고침
+        } catch (err) {
+            console.error(err);
+            alert("친구 요청 수락 실패");
+        }
+    };
+
+    // 친구 요청 거절 처리
+    const handleRejectRequest = async (requesterId: string) => {
+        if (!user) return;
+        try {
+            await rejectFriendRequest(user.id, requesterId);
+            alert("친구 요청을 거절했습니다.");
+            fetchData(); // 데이터 새로고침
+        } catch (err) {
+            console.error(err);
+            alert("친구 요청 거절 실패");
+        }
+    };
+
     if (loading) return <LoadingContainer>로딩중...</LoadingContainer>;
     if (error) return <Container>{error}</Container>;
 
@@ -151,12 +176,12 @@ const SocialTab: React.FC = () => {
                 <StatusText>받은 요청이 없습니다.</StatusText>
             ) : (
                 <List>
-                    {incoming.map((uid) => (
-                        <ListItem key={uid}>
-                            <FriendName>{uid}</FriendName>
+                    {incoming.map((friend) => (
+                        <ListItem key={friend.id}>
+                            <FriendName>{friend.username}</FriendName>
                             <Actions>
-                                <Button onClick={() => alert(`수락: ${uid}`)}>수락</Button>
-                                <Button onClick={() => alert(`거절: ${uid}`)}>거절</Button>
+                                <Button onClick={() => handleAcceptRequest(friend.id)}>수락</Button>
+                                <Button onClick={() => handleRejectRequest(friend.id)}>거절</Button>
                             </Actions>
                         </ListItem>
                     ))}
@@ -168,12 +193,12 @@ const SocialTab: React.FC = () => {
                 <StatusText>보낸 요청이 없습니다.</StatusText>
             ) : (
                 <List>
-                {outgoing.map((uid) => (
-                    <ListItem key={uid}>
-                        <FriendName>{uid}</FriendName>
-                        <StatusText style={{ color: "#888" }}>대기중</StatusText>
-                    </ListItem>
-                ))}
+                    {outgoing.map((friend) => (
+                        <ListItem key={friend.id}>
+                            <FriendName>{friend.username}</FriendName>
+                            <StatusText style={{ color: "#888" }}>대기중</StatusText>
+                        </ListItem>
+                    ))}
                 </List>
             )}
 
@@ -182,16 +207,14 @@ const SocialTab: React.FC = () => {
                 <StatusText>추천할 친구가 없습니다.</StatusText>
             ) : (
                 <List>
-                {recommended.map((recUser) => (
-                    <ListItem key={recUser.id}>
-                        <FriendName>
-                            {recUser.nickname || recUser.username}
-                        </FriendName>
-                        <Button onClick={() => handleSendFriendRequest(recUser.id)}>
-                            친구추가
-                        </Button>
-                    </ListItem>
-                ))}
+                    {recommended.map((friend) => (
+                        <ListItem key={friend.id}>
+                            <FriendName>{friend.username}</FriendName>
+                            <Button onClick={() => handleSendFriendRequest(friend.id)}>
+                                친구추가
+                            </Button>
+                        </ListItem>
+                    ))}
                 </List>
             )}
         </Container>

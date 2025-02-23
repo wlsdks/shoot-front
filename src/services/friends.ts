@@ -1,18 +1,24 @@
 import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
 import { AxiosResponse } from "axios";
 
+// 친구 인터페이스 정의
+interface Friend {
+    id: string;
+    username: string;
+}
+
 // 친구 목록 가져오기
-export const getFriends = (userId: string): Promise<AxiosResponse<string[]>> => {
+export const getFriends = (userId: string): Promise<AxiosResponse<Friend[]>> => {
     return api.get(`/friends?userId=${userId}`);
-};
+}
 
 // 받은 친구 요청 목록 조회
-export const getIncomingRequests = (userId: string): Promise<AxiosResponse<string[]>> => {
+export const getIncomingRequests = (userId: string): Promise<AxiosResponse<Friend[]>> => {
     return api.get(`/friends/incoming`, { params: { userId } });
 };
 
 // 보낸 친구 요청 목록 조회
-export const getOutgoingRequests = (userId: string): Promise<AxiosResponse<string[]>> => {
+export const getOutgoingRequests = (userId: string): Promise<AxiosResponse<Friend[]>> => {
     return api.get(`/friends/outgoing`, { params: { userId } });
 };
 
@@ -36,10 +42,8 @@ export const rejectFriendRequest = (userId: string, requesterId: string): Promis
 };
 
 // 친구 검색 API 함수
-export const searchFriends = (userId: string, query: string): Promise<AxiosResponse<any>> => {
-    return api.get(`/friends/search`, {
-        params: { userId, query }
-    });
+export const searchFriends = (userId: string, query: string): Promise<AxiosResponse<Friend[]>> => {
+    return api.get(`/friends/search`, { params: { userId, query } });
 };
 
 /**
@@ -53,6 +57,6 @@ export const getRecommendations = (
     userId: string,
     limit: number = 3,
     maxDepth: number = 2
-): Promise<AxiosResponse<any>> => {
+): Promise<AxiosResponse<Friend[]>> => {
     return api.get(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth } });
 };

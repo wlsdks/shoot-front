@@ -4,6 +4,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getFriends } from "../../services/friends";
 import FriendSearch from "../FriendSearch";
 import FriendCodePage from "../FriendCodePage";
+import { createDirectChat } from "../../services/chatRoom"
+import { useNavigate } from "react-router-dom";
 
 // FriendTab 컨테이너 (ContentArea에 채워질 카드)
 const TabContainer = styled.div`
@@ -72,27 +74,45 @@ const FriendItem = styled.li`
     }
 `;
 
+// 친구 인터페이스 정의
+interface Friend {
+    id: string;
+    username: string;
+}
+
 const FriendTab: React.FC = () => {
     const { user } = useAuth();
-    const [friends, setFriends] = useState<string[]>([]);
+    const [friends, setFriends] = useState<Friend[]>([]);
     const [showSearch, setShowSearch] = useState<boolean>(false);
     const [showCode, setShowCode] = useState<boolean>(false);
+    const navigate = useNavigate(); // 네비게이션 추가
 
     const fetchFriends = async () => {
         if (!user) return;
         try {
             const response = await getFriends(user.id);
-            setFriends(response.data);
+            setFriends(response.data); // 가정: { id, username } 배열 반환
         } catch (err) {
             console.error(err);
         }
     };
 
     useEffect(() => {
-        if (user?.id) {
-            fetchFriends();
-        }
+        if (user?.id) fetchFriends();
     }, [user]);
+
+    // 친구 클릭 시 채팅방 생성 및 이동
+    const handleFriendClick = async (friendId: string) => {
+        if (!user) return;
+        try {
+            const response = await createDirectChat(user.id, friendId);
+            const roomId = response.data.id; // 응답에서 roomId 추출 (ChatRoom 객체 반환 가정)
+            navigate(`/chatroom/${roomId}`); // 채팅방으로 이동
+        } catch (err) {
+            console.error("채팅방 생성 실패", err);
+            alert("채팅방 생성에 실패했습니다.");
+        }
+    };
 
     return (
         <TabContainer>
@@ -111,13 +131,18 @@ const FriendTab: React.FC = () => {
             {showCode && <FriendCodePage />}
             {friends.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#888", fontSize: "16px" }}>
-                친구가 없습니다.
+                    친구가 없습니다.
                 </p>
             ) : (
                 <FriendList>
-                {friends.map((friend) => (
-                    <FriendItem key={friend}>{friend}</FriendItem>
-                ))}
+                    {friends.map((friend) => (
+                        <FriendItem
+                            key={friend.id}
+                            onClick={() => handleFriendClick(friend.id)} // 클릭 이벤트 추가
+                        >
+                            {friend.username}
+                        </FriendItem>
+                    ))}
                 </FriendList>
             )}
         </TabContainer>

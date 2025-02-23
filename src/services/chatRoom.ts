@@ -28,3 +28,13 @@ export const updateChatRoomFavorite = (
 export const markAllMessagesAsRead = (roomId: string, userId: string): Promise<AxiosResponse<any>> => {
     return api.post(`/chatrooms/${roomId}/readAll`, null, { params: { userId } });
 };
+
+/**
+ * 1:1 채팅방 생성 API
+ * @param userId 사용자 ID
+ * @param friendId 친구 ID
+ * @returns 생성된 채팅방 정보
+ */
+export const createDirectChat = (userId: string, friendId: string): Promise<AxiosResponse<any>> => {
+    return api.post(`/chatrooms/create/direct`, null, { params: { userId, friendId } });
+};

@@ -2,7 +2,12 @@ import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { searchFriends } from "../services/friends";
 import { useAuth } from "../context/AuthContext";
-import { parseUserString, UserDTO } from "../utils/parseUserString";
+
+// Friend 인터페이스 정의
+interface Friend {
+    id: string;
+    username: string;
+}
 
 const slideDown = keyframes`
     from { transform: translateY(-20px); opacity: 0; }
@@ -78,7 +83,7 @@ const NoResultsMessage = styled.p`
 const FriendSearch: React.FC = () => {
     const { user } = useAuth();
     const [query, setQuery] = useState("");
-    const [results, setResults] = useState<UserDTO[]>([]);
+    const [results, setResults] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(false);
 
     // 디바운스 효과: query가 변경되면 200ms 후에 API 호출
@@ -98,21 +103,12 @@ const FriendSearch: React.FC = () => {
             console.error("로그인 정보가 없습니다.");
             return;
         }
+
         setLoading(true);
+        
         try {
             const response = await searchFriends(user.id, query);
-            // 만약 응답 데이터가 문자열 배열이면 파싱하고,
-            if (Array.isArray(response.data)) {
-                if (response.data.length > 0 && typeof response.data[0] === "string") {
-                    const parsedResults = response.data.map((item: string) => parseUserString(item));
-                    setResults(parsedResults);
-                } else {
-                    // 이미 객체 형태라면 그대로 사용
-                    setResults(response.data);
-                }
-            } else {
-                setResults([]);
-            }
+            setResults(response.data); // Friend[]로 직접 설정
         } catch (error) {
             console.error("검색 실패:", error);
             setResults([]);
@@ -129,11 +125,6 @@ const FriendSearch: React.FC = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
             />
-            {
-            /* 만약 사용자가 직접 "검색" 버튼을 누르길 원한다면 아래 주석을 풀어서 사용하세요.
-                <SearchButton onClick={performSearch}>검색하기</SearchButton>
-            */
-            }
             {loading && <LoadingMessage>검색 중...</LoadingMessage>}
             {query.trim() !== "" && !loading && results.length === 0 && (
                 <NoResultsMessage>검색된 유저가 없습니다.</NoResultsMessage>
@@ -142,8 +133,7 @@ const FriendSearch: React.FC = () => {
                 <ResultList>
                     {results.map((friend) => (
                         <ResultItem key={friend.id}>
-                            <strong>{friend.nickname || friend.username}</strong> ({friend.username})
-                            {friend.userCode && <span> - 코드: {friend.userCode}</span>}
+                            {friend.username} {/* Friend.name 사용 */}
                         </ResultItem>
                     ))}
                 </ResultList>
