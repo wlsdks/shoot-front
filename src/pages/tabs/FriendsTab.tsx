@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
 import { useAuth } from "../../context/AuthContext";
 import { getFriends } from "../../services/friends";
@@ -87,19 +87,31 @@ const FriendTab: React.FC = () => {
     const [showCode, setShowCode] = useState<boolean>(false);
     const navigate = useNavigate(); // 네비게이션 추가
 
-    const fetchFriends = async () => {
+    const fetchFriends = useCallback(async () => {
         if (!user) return;
         try {
             const response = await getFriends(user.id);
-            setFriends(response.data); // 가정: { id, username } 배열 반환
+            setFriends(response.data);
         } catch (err) {
             console.error(err);
         }
-    };
-
-    useEffect(() => {
-        if (user?.id) fetchFriends();
     }, [user]);
+
+    // friendAdded 이벤트 수신 → 친구 추가 시 fetchFriends 호출 → 목록 실시간 갱신.
+    useEffect(() => {
+        if (!user?.id) return;
+
+        fetchFriends(); // 초기 로드
+
+        const source = new EventSource(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`);
+        source.addEventListener("friendAdded", (event) => {
+            fetchFriends(); // 친구 추가 시 갱신
+        });
+        source.onerror = () => {
+            console.error("SSE 연결 오류");
+        };
+        return () => source.close();
+    }, [user, fetchFriends]);
 
     // 친구 클릭 시 채팅방 생성 및 이동
     const handleFriendClick = async (friendId: string) => {
