@@ -41,8 +41,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // 1) 초기 로드 시 localStorage 검사
     useEffect(() => {
+        console.log("AuthProvider: Checking token...");
         const token = localStorage.getItem("accessToken");
         if (!token) {
+            console.log("AuthProvider: No token, skipping...");
             // 토큰이 없다면 인증 안된 상태로 로딩끝
             setLoading(false);
             return;
@@ -53,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         loginCheckApi()
             .then((res) => {
                 // 성공 => user 저장
+                console.log("AuthProvider: Token valid, user:", res.data);
                 const data = res.data; // e.g. { id, username }
                 setUser(data);
                 setIsAuthenticated(true);
@@ -63,21 +66,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             })
             .finally(() => {
                 // 로딩 끝
+                console.log("AuthProvider: Loading complete");
                 setLoading(false);
             });
     }, []);
 
     // 2) login
     const login = (u: User, token?: string) => {
+        console.log("AuthProvider: Logging in, user:", u, "token:", token);
+        if (!token) {
+            console.error("AuthProvider: No token provided during login");
+            return; // 토큰 없으면 로그인 중단 → 문제 방지
+        }
+
         // 유저 세팅, 인증여부 세팅
         setUser(u);
         setIsAuthenticated(true);
 
-        // access 토큰 세팅
-        if (token) {
-            localStorage.setItem("accessToken", token);
-            axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        }
+        // 토큰 세팅
+        localStorage.setItem("accessToken", token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     };
 
     // 3) logout

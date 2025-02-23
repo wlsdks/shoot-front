@@ -114,15 +114,17 @@ const Login: React.FC = () => {
         try {
             // 로그인 API 호출 (예: /auth/login)
             const response = await loginApi(username, password);
+            console.log("Login response:", response.data); // 디버깅 로그
             // API 응답 데이터 예시: { userId: "1", accessToken: "jwt-token-string" }
             const { userId, accessToken } = response.data;
             // JWT 토큰을 로컬 스토리지에 저장 (axios 인터셉터에서 이후 요청에 사용)
             localStorage.setItem('accessToken', accessToken);
             // AuthContext에 로그인 정보 업데이트
-            login({ id: userId, name: username });
+            login({ id: userId, name: username }, accessToken);
             // 로그인 후 "/" => FriendListPage
             navigate('/');
         } catch (err) {
+            console.error("Login failed:", err);
             setError('아이디 또는 비밀번호가 올바르지 않습니다.');
         }
     };
