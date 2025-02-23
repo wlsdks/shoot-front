@@ -138,6 +138,7 @@ const ChatRoomList: React.FC = () => {
         }
     }, [user]); // 의존성: user만 필요 (setRooms 등은 컴포넌트 상태라 안 넣어도 OK)
 
+    // SSE 이벤트 처리
     useEffect(() => {
         if (!user?.id) {
             console.log("ChatRoomList: No user ID, skipping fetchRooms");
