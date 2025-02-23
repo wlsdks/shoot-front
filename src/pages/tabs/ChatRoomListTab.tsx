@@ -153,6 +153,10 @@ const ChatRoomList: React.FC = () => {
                 )
             );
         };
+        source.addEventListener("chatRoomCreated", (event) => {
+            const { roomId } = JSON.parse(event.data);
+            fetchRooms(); // 새 채팅방 추가 시 목록 새로고침
+        });
         source.onerror = () => {
             console.error("SSE 연결 오류");
             setError("서버 연결이 끊겼습니다. 재접속 중..."); // SSE 오류 시 상태 설정
