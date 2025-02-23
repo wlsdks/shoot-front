@@ -4,7 +4,9 @@ import { AxiosResponse } from "axios";
 /**
  * 채팅방 목록 조회 API
  */
-export const getChatRooms = (userId: string): Promise<AxiosResponse<any>> => {
+export const getChatRooms = (
+    userId: string
+): Promise<AxiosResponse<any>> => {
     return api.get(`/chatrooms`, { params: { userId } });
 };
 
@@ -25,8 +27,11 @@ export const updateChatRoomFavorite = (
  * @param userId 사용자 ID
  * @returns
  */
-export const markAllMessagesAsRead = (roomId: string, userId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/chatrooms/${roomId}/readAll`, null, { params: { userId } });
+export const markAllMessagesAsRead = (
+    roomId: string,
+    userId: string
+): Promise<AxiosResponse<any>> => {
+    return api.post(`/messages/mark-read`, null, { params: { roomId, userId } });
 };
 
 /**
@@ -35,6 +40,9 @@ export const markAllMessagesAsRead = (roomId: string, userId: string): Promise<A
  * @param friendId 친구 ID
  * @returns 생성된 채팅방 정보
  */
-export const createDirectChat = (userId: string, friendId: string): Promise<AxiosResponse<any>> => {
+export const createDirectChat = (
+    userId: string,
+    friendId: string
+): Promise<AxiosResponse<any>> => {
     return api.post(`/chatrooms/create/direct`, null, { params: { userId, friendId } });
 };
