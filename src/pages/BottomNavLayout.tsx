@@ -14,16 +14,17 @@ const Container = styled.div`
 `;
 
 const MobileScreen = styled.div`
-    width: 375px;  /* 일반적인 모바일 화면 너비 (아이폰X 기준) */
-    height: 667px; /* 일반적인 모바일 화면 높이 (아이폰X 기준) */
+    width: 375px;
+    height: 667px;
     background-color: #fff;
-    border-radius: 30px;  /* 둥근 모서리 */
+    border-radius: 30px;
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 2px solid #ddd;  /* 회색 테두리 */
+    border: 2px solid #ddd;
     position: relative;
+    z-index: 0; /* 기본 z-index */
 `;
 
 const ContentArea = styled.div`
@@ -31,24 +32,28 @@ const ContentArea = styled.div`
     display: flex;
     flex-direction: column;
     padding: 10px;
-    overflow-y: auto;  /* 스크롤 가능 */
+    overflow-y: auto;
+    margin-bottom: 0; /* BottomNav와 겹치지 않도록 */
 `;
 
 const BottomNav = styled.div`
     display: flex;
     background: #fff;
     border-top: 1px solid #ddd;
+    position: relative;
+    z-index: 10;  /* BottomNav가 다른 요소보다 앞에 나오도록 */
+    pointer-events: auto;
 `;
 
-const NavButton = styled.button<{ active: boolean }>`
+const NavButton = styled.button<{ $active: boolean }>`
     flex: 1;
     padding: 1rem;
-    background: ${(props) => (props.active ? "#f2f2f2" : "#fff")};
+    background: ${(props) => (props.$active ? "#f2f2f2" : "#fff")};
     border: none;
     border-bottom: ${(props) =>
-        props.active ? "3px solid #007bff" : "3px solid transparent"};
-    color: ${(props) => (props.active ? "#007bff" : "#333")};
-    font-weight: ${(props) => (props.active ? "600" : "400")};
+        props.$active ? "3px solid #007bff" : "3px solid transparent"};
+    color: ${(props) => (props.$active ? "#007bff" : "#333")};
+    font-weight: ${(props) => (props.$active ? "600" : "400")};
     cursor: pointer;
 `;
 
@@ -65,10 +70,10 @@ const BottomNavLayout: React.FC = () => {
                     {activeTab === 3 && <SettingsTab />}
                 </ContentArea>
                 <BottomNav>
-                    <NavButton active={activeTab === 0} onClick={() => setActiveTab(0)}>친구</NavButton>
-                    <NavButton active={activeTab === 1} onClick={() => setActiveTab(1)}>소셜</NavButton>
-                    <NavButton active={activeTab === 2} onClick={() => setActiveTab(2)}>채팅</NavButton>
-                    <NavButton active={activeTab === 3} onClick={() => setActiveTab(3)}>설정</NavButton>
+                    <NavButton $active={activeTab === 0} onClick={() => setActiveTab(0)}>친구</NavButton>
+                    <NavButton $active={activeTab === 1} onClick={() => setActiveTab(1)}>소셜</NavButton>
+                    <NavButton $active={activeTab === 2} onClick={() => setActiveTab(2)}>채팅</NavButton>
+                    <NavButton $active={activeTab === 3} onClick={() => setActiveTab(3)}>설정</NavButton>
                 </BottomNav>
             </MobileScreen>
         </Container>
