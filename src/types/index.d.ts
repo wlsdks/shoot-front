@@ -1,1 +1,0 @@
-// (예: ChatMessage, ChatRoom 등)

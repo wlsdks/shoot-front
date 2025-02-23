@@ -6,7 +6,6 @@ import FriendSearch from "../FriendSearch";
 import FriendCodePage from "../FriendCodePage";
 import { createDirectChat } from "../../services/chatRoom"
 import { useNavigate } from "react-router-dom";
-import { EventSourcePolyfill } from "event-source-polyfill";
 
 // FriendTab 컨테이너 (ContentArea에 채워질 카드)
 const TabContainer = styled.div`
@@ -82,12 +81,11 @@ interface Friend {
 }
 
 const FriendTab: React.FC = () => {
-    const { user, loading } = useAuth();
+    const { user, loading, subscribeToSse, unsubscribeFromSse } = useAuth();
     const [friends, setFriends] = useState<Friend[]>([]);
     const [showSearch, setShowSearch] = useState<boolean>(false);
     const [showCode, setShowCode] = useState<boolean>(false);
-    const navigate = useNavigate(); // 네비게이션 추가
-    const isInitialLoad = useRef<boolean>(false); // 초기 로드 플래그
+    const navigate = useNavigate();
 
     const fetchFriends = useCallback(async () => {
         if (!user) {
@@ -108,52 +106,41 @@ const FriendTab: React.FC = () => {
 
     // 초기 친구 목록 로드
     useEffect(() => {
-        if (!user?.id || isInitialLoad.current) {
+        if (!user?.id) {
             console.log("FriendTab: No user ID or already loaded, skipping initial fetch");
             return;
         }
+
         console.log("FriendTab: Initializing friends...");
         fetchFriends();
-        isInitialLoad.current = true;
     }, [user?.id, fetchFriends]);
 
     // friendAdded 이벤트 수신 → 친구 추가 시 fetchFriends 호출 → 목록 실시간 갱신.
     useEffect(() => {
         if (!user?.id) {
-            console.log("FriendTab: No user ID, skipping SSE");
+            console.log("FriendTab: No user ID, skipping fetch");
+            setFriends([]);
             return;
         }
+        console.log("FriendTab: Initializing friends...");
+        fetchFriends();
 
-        const token = localStorage.getItem("accessToken");
-        if (!token) {
-            console.log("FriendTab: No token, skipping SSE");
-            return;
-        }
-
-        console.log("FriendTab: Starting SSE connection...");
-        const source = new EventSourcePolyfill(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`, {
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-
-        //
-        source.addEventListener("friendAdded", (event) => {
+        const handleFriendAdded = (event: MessageEvent) => {
             console.log("FriendTab: Friend added event:", event);
             fetchFriends();
-        });
-        // 하트비트
-        source.addEventListener("heartbeat", (event) => {
+        };
+        const handleHeartbeat = (event: MessageEvent) => {
             console.log("FriendTab: Heartbeat received:", event);
-        });
-        // 에러
-        source.onerror = (err) => {
-            console.error("FriendTab: SSE connection error:", err);
-            // 연결 종료 최소화 → UI 멈춤 방지
         };
+
+        subscribeToSse("friendAdded", handleFriendAdded);
+        subscribeToSse("heartbeat", handleHeartbeat);
+
         return () => {
-            console.log("FriendTab: Closing SSE connection");
-            source.close();
+            unsubscribeFromSse("friendAdded", handleFriendAdded);
+            unsubscribeFromSse("heartbeat", handleHeartbeat);
         };
-    }, [user?.id, fetchFriends]);
+    }, [user?.id, fetchFriends, subscribeToSse, unsubscribeFromSse]);
 
     // 친구 클릭 시 채팅방 생성 및 이동
     const handleFriendClick = useCallback(async (friendId: string) => {

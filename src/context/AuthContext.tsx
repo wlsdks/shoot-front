@@ -1,6 +1,6 @@
-// 전역 상태 관리 (예: 인증 상태)
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import axios from "axios";
+import { EventSourcePolyfill } from "event-source-polyfill";
 import { loginCheckApi } from "../services/auth"; // => /api/v1/auth/me 호출
 
 interface User {
@@ -14,6 +14,8 @@ interface AuthContextType {
     loading: boolean;              // ← 추가: 인증 확인중인지를 표시
     login: (user: User, token?: string) => void;
     logout: () => void;
+    subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
+    unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
 }
 
 // AuthContext 기본값은 children이 없는 빈 객체로 타입 추론되기 때문에,
@@ -28,6 +30,8 @@ const AuthContext = createContext<AuthContextType>({
     loading: false,
     login: () => {},
     logout: () => {},
+    subscribeToSse: () => {},
+    unsubscribeFromSse: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -35,9 +39,9 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-    // 로딩 상태: 아직 토큰 검사중이면 true
     const [loading, setLoading] = useState(true);
+    const sseSource = useRef<EventSourcePolyfill | null>(null);
+    const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
 
     // 1) 초기 로드 시 localStorage 검사
     useEffect(() => {
@@ -45,27 +49,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = localStorage.getItem("accessToken");
         if (!token) {
             console.log("AuthProvider: No token, skipping...");
-            // 토큰이 없다면 인증 안된 상태로 로딩끝
             setLoading(false);
             return;
         }
 
-        // 토큰이 있으면 /me API 호출로 검증
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         loginCheckApi()
             .then((res) => {
-                // 성공 => user 저장
                 console.log("AuthProvider: Token valid, user:", res.data);
-                const data = res.data; // e.g. { id, username }
-                setUser(data);
-                setIsAuthenticated(true);
+                const data = res.data;
+                // 자동 로그인 시 login 함수를 호출하여 SSE 연결도 생성
+                login(data, token);
             })
             .catch((err) => {
                 console.error("토큰검증 실패:", err);
-                // 혹은 localStorage.removeItem("accessToken");
             })
             .finally(() => {
-                // 로딩 끝
                 console.log("AuthProvider: Loading complete");
                 setLoading(false);
             });
@@ -76,31 +75,93 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("AuthProvider: Logging in, user:", u, "token:", token);
         if (!token) {
             console.error("AuthProvider: No token provided during login");
-            return; // 토큰 없으면 로그인 중단 → 문제 방지
+            return;
         }
-
-        // 유저 세팅, 인증여부 세팅
+        
         setUser(u);
         setIsAuthenticated(true);
-
-        // 토큰 세팅
         localStorage.setItem("accessToken", token);
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        // SSE 연결 시작
+        if (!sseSource.current && u.id) {
+            console.log("AuthProvider: Starting SSE connection...");
+            sseSource.current = new EventSourcePolyfill(`http://localhost:8100/api/v1/chatrooms/updates/${u.id}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            // 기본 message 이벤트: 로그 추가
+            (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
+                console.log("AuthProvider: SSE onmessage event received:", event);
+                const listenersForEvent = listeners.current.get("message") || new Set();
+                listenersForEvent.forEach(callback => callback(event));
+            };
+
+            // 커스텀 이벤트 friendAdded
+            (sseSource.current as any).addEventListener("friendAdded", function(this: EventSource, event: Event) {
+                console.log("AuthProvider: SSE friendAdded event received:", event);
+                const msgEvent = event as MessageEvent;
+                const listenersForEvent = listeners.current.get("friendAdded") || new Set();
+                listenersForEvent.forEach(callback => callback(msgEvent));
+            });
+
+            // 커스텀 이벤트 chatRoomCreated
+            (sseSource.current as any).addEventListener("chatRoomCreated", function(this: EventSource, event: Event) {
+                console.log("AuthProvider: SSE chatRoomCreated event received:", event);
+                const msgEvent = event as MessageEvent;
+                const listenersForEvent = listeners.current.get("chatRoomCreated") || new Set();
+                listenersForEvent.forEach(callback => callback(msgEvent));
+            });
+
+            // 커스텀 이벤트 heartbeat
+            (sseSource.current as any).addEventListener("heartbeat", function(this: EventSource, event: Event) {
+                console.log("AuthProvider: SSE heartbeat event received:", event);
+                const msgEvent = event as MessageEvent;
+                const listenersForEvent = listeners.current.get("heartbeat") || new Set();
+                listenersForEvent.forEach(callback => callback(msgEvent));
+            });
+
+            // onerror: 오류 발생 시 로그 출력
+            (sseSource.current as EventSource).onerror = function(this: EventSource, err: Event) {
+                console.error("AuthProvider: SSE connection error:", err);
+            };
+        }
     };
 
     // 3) logout
     const logout = () => {
-        // 유저 정보 및 인증여부 삭제
+        console.log("AuthProvider: Logging out...");
         setUser(null);
         setIsAuthenticated(false);
-
-        // access 토큰 삭제
         localStorage.removeItem("accessToken");
         delete axios.defaults.headers.common["Authorization"];
+        
+        if (sseSource.current) {
+            console.log("AuthProvider: Closing SSE connection");
+            sseSource.current.close();
+            sseSource.current = null;
+            listeners.current.clear(); // 모든 리스너 초기화
+        }
+    };
+
+    const subscribeToSse = (eventName: string, callback: (event: MessageEvent) => void) => {
+        const eventListeners = listeners.current.get(eventName) || new Set();
+        eventListeners.add(callback);
+        listeners.current.set(eventName, eventListeners);
+    };
+
+    const unsubscribeFromSse = (eventName: string, callback: (event: MessageEvent) => void) => {
+        const eventListeners = listeners.current.get(eventName);
+        if (eventListeners) {
+            eventListeners.delete(callback);
+            if (eventListeners.size === 0) {
+                listeners.current.delete(eventName);
+            }
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, subscribeToSse, unsubscribeFromSse }}>
             {children}
         </AuthContext.Provider>
     );

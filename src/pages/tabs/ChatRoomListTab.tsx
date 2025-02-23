@@ -117,13 +117,12 @@ const ErrorMessage = styled.div`
 `;
 
 const ChatRoomList: React.FC = () => {
-    const { user } = useAuth();
+    const { user, subscribeToSse, unsubscribeFromSse } = useAuth();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     // 채팅방 목록 불러오기
-    // fetchRooms를 useCallback으로 감싸기
     const fetchRooms = useCallback(async () => {
         if (!user) return;
         setLoading(true);
@@ -140,29 +139,40 @@ const ChatRoomList: React.FC = () => {
     }, [user]); // 의존성: user만 필요 (setRooms 등은 컴포넌트 상태라 안 넣어도 OK)
 
     useEffect(() => {
+        if (!user?.id) {
+            console.log("ChatRoomList: No user ID, skipping fetchRooms");
+            setRooms([]);
+            return;
+        }
         fetchRooms();
 
-        if (!user) return;
-        const source = new EventSource(`http://localhost:8100/api/v1/chatrooms/updates/${user.id}`);
-        source.onmessage = (event) => {
-            // roomId (어떤 채팅방인지), unreadCount (새 숫자), lastMessage (마지막 메시지 내용)
+        const handleMessage = (event: MessageEvent) => {
             const { roomId, unreadCount, lastMessage } = JSON.parse(event.data);
+            console.log("ChatRoomList: Message received:", { roomId, unreadCount, lastMessage });
             setRooms((prev) =>
                 prev.map((room) =>
                     room.roomId === roomId ? { ...room, unreadMessages: unreadCount, lastMessage } : room
                 )
             );
         };
-        source.addEventListener("chatRoomCreated", (event) => {
-            // const { roomId } = JSON.parse(event.data);
-            fetchRooms(); // 새 채팅방 추가 시 목록 새로고침
-        });
-        source.onerror = () => {
-            console.error("SSE 연결 오류");
-            setError("서버 연결이 끊겼습니다. 재접속 중..."); // SSE 오류 시 상태 설정
+        const handleChatRoomCreated = (event: MessageEvent) => {
+            console.log("ChatRoomList: Chat room created event:", event);
+            fetchRooms();
         };
-        return () => source.close();
-    }, [user, fetchRooms]);
+        const handleHeartbeat = (event: MessageEvent) => {
+            console.log("ChatRoomList: Heartbeat received:", event);
+        };
+
+        subscribeToSse("message", handleMessage);
+        subscribeToSse("chatRoomCreated", handleChatRoomCreated);
+        subscribeToSse("heartbeat", handleHeartbeat);
+
+        return () => {
+            unsubscribeFromSse("message", handleMessage);
+            unsubscribeFromSse("chatRoomCreated", handleChatRoomCreated);
+            unsubscribeFromSse("heartbeat", handleHeartbeat);
+        };
+    }, [user?.id, fetchRooms, subscribeToSse, unsubscribeFromSse]);
 
      // 즐겨찾기 토글 함수
     const toggleFavorite = async (roomId: string, currentFavorite: boolean) => {
@@ -176,7 +186,7 @@ const ChatRoomList: React.FC = () => {
     };
     
     if (loading) return <p>로딩중...</p>;
-    if (error) return <p>{error}</p>;
+    if (error) return <ErrorMessage>{error}</ErrorMessage>;
 
     return (
         <RoomListContainer>

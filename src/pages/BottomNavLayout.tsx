@@ -53,7 +53,7 @@ const NavButton = styled.button<{ active: boolean }>`
 `;
 
 const BottomNavLayout: React.FC = () => {
-    const [activeTab, setActiveTab] = useState(0); // 0: 친구, 1: 소셜, 2: 채팅, 3: 설정
+    const [activeTab, setActiveTab] = useState<number>(0);
 
     return (
         <Container>
