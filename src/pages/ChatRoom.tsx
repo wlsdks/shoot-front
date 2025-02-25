@@ -526,7 +526,7 @@ const ChatRoom: React.FC = () => {
         <ChatWrapper>
             <ChatContainer>
                 <Header>
-                    <BackButton onClick={() => navigate("/chatroom")}>←</BackButton>
+                    <BackButton onClick={() => navigate("/")}>←</BackButton> {/* 경로 수정 */}
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
                 {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}

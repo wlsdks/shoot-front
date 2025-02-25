@@ -1,4 +1,3 @@
-// 네비게이션 바 (회원가입, 로그인, 채팅 목록 이동 등)
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +9,12 @@ const NavBar = styled.nav`
     display: flex;
     align-items: center;
     color: #fff;
+    position: fixed; /* 상단 고정 */
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 30px; /* 고정 높이 설정 */
+    z-index: 1000;
 `;
 
 const Brand = styled(Link)`
@@ -54,10 +59,9 @@ const Navigation: React.FC = () => {
     const { isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
 
-    // 로그아웃 버튼 클릭 시 실행되는 핸들러
     const handleLogout = () => {
-        logout();        // AuthContext에서 사용자 상태, 토큰 제거
-        navigate('/');   // 홈 화면으로 이동
+        logout();
+        navigate('/');
     };
 
     return (
@@ -65,15 +69,15 @@ const Navigation: React.FC = () => {
             <Brand to="/">Shoot</Brand>
             <NavMenu>
                 {isAuthenticated ? (
-                <>
-                    <NavLink to="/chatrooms">채팅방</NavLink>
-                    <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
-                </>
+                    <>
+                        <NavLink to="/">채팅방</NavLink> {/* 경로 수정 */}
+                        <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
+                    </>
                 ) : (
-                <>
-                    <NavLink to="/login">로그인</NavLink>
-                    <NavLink to="/signup">회원가입</NavLink>
-                </>
+                    <>
+                        <NavLink to="/login">로그인</NavLink>
+                        <NavLink to="/signup">회원가입</NavLink>
+                    </>
                 )}
             </NavMenu>
         </NavBar>
