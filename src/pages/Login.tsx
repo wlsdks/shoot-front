@@ -109,19 +109,17 @@ const Login: React.FC = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
 
+    // 로그인 클릭시 동작
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // 기존의 localStorage 데이터 클리어 (토큰 등)
+        localStorage.clear();
+
         try {
-            // 로그인 API 호출 (예: /auth/login)
-            const response = await loginApi(username, password);
-            console.log("Login response:", response.data); // 디버깅 로그
-            // API 응답 데이터 예시: { userId: "1", accessToken: "jwt-token-string" }
+            const response = await loginApi(username, password); // 로그인 API 호출 (예: /auth/login)
+            console.log("Login response:", response.data);
             const { userId, accessToken } = response.data;
-            // JWT 토큰을 로컬 스토리지에 저장 (axios 인터셉터에서 이후 요청에 사용)
-            localStorage.setItem('accessToken', accessToken);
-            // AuthContext에 로그인 정보 업데이트
-            login({ id: userId, name: username }, accessToken);
-            // 로그인 후 "/" => FriendListPage
+            login({ id: userId, name: username }, accessToken); // AuthContext에 로그인 정보 업데이트
             navigate('/');
         } catch (err) {
             console.error("Login failed:", err);

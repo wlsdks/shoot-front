@@ -11,7 +11,7 @@ interface User {
 interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
-    loading: boolean;              // ← 추가: 인증 확인중인지를 표시
+    loading: boolean;
     login: (user: User, token?: string) => void;
     logout: () => void;
     subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
@@ -77,14 +77,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error("AuthProvider: No token provided during login");
             return;
         }
+
+        // 기존 SSE 연결이 있다면 먼저 종료
+        if (sseSource.current) {
+            console.log("AuthProvider: Existing SSE connection found. Closing it.");
+            sseSource.current.close();
+            sseSource.current = null;
+            listeners.current.clear();
+        }
         
         setUser(u);
         setIsAuthenticated(true);
+        
         localStorage.setItem("accessToken", token);
+
+        // 이 코드는 axios로 HTTP 요청을 보낼 때마다 기본적으로 "Authorization" 헤더에 해당 토큰을 포함시킵니다.
+        // 이를 통해 매번 개별 요청에 토큰을 수동으로 추가할 필요 없이, 인증이 필요한 API 호출 시 자동으로 토큰이 전달되어 인증이 이루어집니다.
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
         // SSE 연결 시작
-        if (!sseSource.current && u.id) {
+        if (u.id) {
             console.log("AuthProvider: Starting SSE connection...");
             sseSource.current = new EventSourcePolyfill(`http://localhost:8100/api/v1/chatrooms/updates/${u.id}`, {
                 headers: { "Authorization": `Bearer ${token}` }
