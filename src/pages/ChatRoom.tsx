@@ -83,14 +83,16 @@ const SendButton = styled.button`
     }
 `;
 
-const ChatBubble = styled.div<{ isOwnMessage: boolean }>`
+const ChatBubble = styled.div.withConfig({
+    shouldForwardProp: (prop) => prop !== "isOwnMessage"
+})<{ isOwnMessage: boolean }>`
     max-width: 70%;
     padding: 10px 15px;
     margin-bottom: 8px;
     border-radius: 15px;
-    background-color: ${(props) => (props.isOwnMessage ? "#007bff" : "#e5e5ea")};
-    color: ${(props) => (props.isOwnMessage ? "#fff" : "#000")};
-    align-self: ${(props) => (props.isOwnMessage ? "flex-end" : "flex-start")};
+    background-color: ${({ isOwnMessage }) => (isOwnMessage ? "#007bff" : "#e5e5ea")};
+    color: ${({ isOwnMessage }) => (isOwnMessage ? "#fff" : "#000")};
+    align-self: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     cursor: pointer;
 `;
@@ -187,6 +189,7 @@ const ChatRoom: React.FC = () => {
     }>({ visible: false, x: 0, y: 0, message: null });
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
+    const [isConnected, setIsConnected] = useState(true);
 
     // 읽음 처리 함수 (디바운스 제거)
     const markRead = useCallback(() => {
@@ -202,15 +205,15 @@ const ChatRoom: React.FC = () => {
         if (!roomId || !user) return;
 
         // 초기 메시지 로드 후 읽음 처리
-        getChatMessages(roomId)
-            .then((res) => {
-                setMessages(res.data);
-                markRead(); // 진입 시 즉시 읽음 처리
-            })
-            .catch((err) => console.error("메시지 로드 실패", err));
+        getChatMessages(roomId).then((res) => {
+            setMessages(res.data);
+            markRead();
+        }).catch((err) => console.error("메시지 로드 실패", err));
 
         // STOMP 연결
         const token = localStorage.getItem("accessToken");
+        console.log("Token:", token); // 토큰 값 확인
+        
         const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
         const client = new Client({
             webSocketFactory: () => socket,
@@ -219,6 +222,7 @@ const ChatRoom: React.FC = () => {
             onConnect: () => {
                 console.log("WebSocket 연결됨");
                 setConnectionError(null); // 연결 성공 시 에러 제거
+                setIsConnected(true);
                 
                 // onConnect 시 활성 상태(active: true) 전송 (활성화 되었다면 채팅 안읽은 개수를 업데이트하지 않는다.)
                 client.publish({
@@ -262,10 +266,12 @@ const ChatRoom: React.FC = () => {
                 });
             },
             onDisconnect: () => {
-                setConnectionError("WebSocket 연결이 끊겼습니다. 재접속 중..."); // 연결 끊김 시 에러 상태 설정
+                setConnectionError("WebSocket 연결이 끊겼습니다. 재접속 중...");
+                setIsConnected(false);
             },
             onStompError: (frame) => {
-                setConnectionError("WebSocket 오류 발생: " + frame.body); // STOMP 오류 시 메시지 표시
+                setConnectionError("WebSocket 오류 발생: " + frame.body);
+                setIsConnected(false);
             }
         });
         client.activate();
@@ -322,15 +328,15 @@ const ChatRoom: React.FC = () => {
 
     // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
-        if (!stompClient || !roomId || !user) return;
-
+        if (!stompClient || !stompClient.connected || !roomId || !user) return;
+    
         const typingPayload: TypingIndicatorMessage = { 
             roomId,
             userId: user.id,
             username: user.name,
             isTyping 
         };
-
+    
         stompClient.publish({
             destination: "/app/typing",
             body: JSON.stringify(typingPayload),
@@ -340,23 +346,26 @@ const ChatRoom: React.FC = () => {
     // 입력값 변경 및 타이핑 디바운스 처리
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInput(e.target.value);
-        sendTypingIndicator(true);
-
-        // redis에 TTL이 설정되어 만약 사용자가 활동(예: 입력, 스크롤)하면 TTL 갱신.
-        if (!stompClient || !roomId || !user) return;
-        stompClient.publish({
-            destination: "/app/active",
-            body: JSON.stringify({ userId: user.id, roomId, active: true })
-        });
-
+        
+        if (!stompClient || !roomId || !user || !stompClient.connected) return;
+    
+        const sendTyping = () => {
+            sendTypingIndicator(true);
+            stompClient.publish({
+                destination: "/app/active",
+                body: JSON.stringify({ userId: user.id, roomId, active: true })
+            });
+        };
+    
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        sendTyping(); // 즉시 첫 타이핑 전송
         typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
     };
 
     // 메시지 전송
     const sendMessage = () => {
-        if (!stompClient || input.trim() === "" || !roomId || !user) {
-            console.error("전송 불가: 유효하지 않은 입력");
+        if (!stompClient || !stompClient.connected || input.trim() === "" || !roomId || !user) {
+            console.error("전송 불가: 연결 끊김 또는 유효하지 않은 입력");
             return;
         }
 
@@ -475,8 +484,9 @@ const ChatRoom: React.FC = () => {
                     value={input}
                     onChange={handleInputChange}
                     placeholder="메시지를 입력하세요"
+                    disabled={!isConnected} // 연결 끊김 시 비활성화
                 />
-                <SendButton onClick={sendMessage}>전송</SendButton>
+                <SendButton onClick={sendMessage} disabled={!isConnected}>전송</SendButton>
             </ChatInputContainer>
             {/* 컨텍스트 메뉴 */}
             {contextMenu.visible && (

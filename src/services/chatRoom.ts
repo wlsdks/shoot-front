@@ -1,5 +1,6 @@
 import api from "./api";
 import { AxiosResponse } from "axios";
+import axios from "axios";
 
 /**
  * 채팅방 목록 조회 API
@@ -27,11 +28,21 @@ export const updateChatRoomFavorite = (
  * @param userId 사용자 ID
  * @returns
  */
-export const markAllMessagesAsRead = (
-    roomId: string,
-    userId: string
-): Promise<AxiosResponse<any>> => {
-    return api.post(`/messages/mark-read`, null, { params: { roomId, userId } });
+export const markAllMessagesAsRead = (roomId: string, userId: string) => {
+    const token = localStorage.getItem("accessToken");
+    console.log("markAllMessagesAsRead 호출:", { roomId, userId, token });
+    return axios.post(
+        `http://localhost:8100/api/v1/messages/mark-read?roomId=${roomId}&userId=${userId}`,
+        null,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
+    ).catch((error) => {
+        console.error("markAllMessagesAsRead 실패:", error.response || error);
+        throw error; // 에러를 상위로 전달
+    });
 };
 
 /**
