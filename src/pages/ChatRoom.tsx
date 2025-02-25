@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getChatMessages, forwardMessage } from "../services/message";
 import { markAllMessagesAsRead } from "../services/chatRoom";
@@ -34,20 +34,55 @@ interface TypingIndicatorMessage {
 
 // 스타일 컴포넌트들
 const ChatContainer = styled.div`
+    width: 375px;
+    height: 667px;
+    background-color: #fff;
+    border-radius: 30px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    height: 100%;
-    border-radius: 8px;
-    background: #fff;
-    border: 1px solid #ddd;
     overflow: hidden;
+    position: relative;
+`;
+
+const Header = styled.div`
+    padding: 10px 15px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+`;
+
+const BackButton = styled.button`
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #007bff;
+    margin-right: 10px;
 `;
 
 const ChatArea = styled.div`
     flex: 1;
-    padding: 20px;
+    padding: 15px;
     background: #f8f8f8;
     overflow-y: auto;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #888 transparent; /* Firefox */
+    &::-webkit-scrollbar {
+        width: 6px; /* Chrome, Safari */
+    }
+    &::-webkit-scrollbar-thumb {
+        background: #888; /* Chrome, Safari */
+        border-radius: 3px;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent; /* Chrome, Safari */
+    }
+    &:hover::-webkit-scrollbar-thumb {
+        background: #555; /* Chrome, Safari */
+    }
 `;
 
 const ChatInputContainer = styled.div`
@@ -55,31 +90,33 @@ const ChatInputContainer = styled.div`
     padding: 10px;
     background: #fff;
     border-top: 1px solid #ddd;
+    z-index: 10;
 `;
 
 const Input = styled.input`
     flex: 1;
     padding: 10px;
     font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: none;
+    border-radius: 20px;
+    background: #f0f0f0;
     &:focus {
         outline: none;
-        border-color: #007bff;
+        background: #e8e8e8;
     }
 `;
 
 const SendButton = styled.button`
     padding: 10px 20px;
     margin-left: 10px;
-    background-color: #007bff;
+    background: linear-gradient(135deg, #007bff, #0056b3);
     color: #fff;
     border: none;
-    border-radius: 4px;
+    border-radius: 20px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: transform 0.2s;
     &:hover {
-        background-color: #0056b3;
+        transform: scale(1.05);
     }
 `;
 
@@ -87,26 +124,30 @@ const ChatBubble = styled.div.withConfig({
     shouldForwardProp: (prop) => prop !== "isOwnMessage"
 })<{ isOwnMessage: boolean }>`
     max-width: 70%;
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    border-radius: 15px;
-    background-color: ${({ isOwnMessage }) => (isOwnMessage ? "#007bff" : "#e5e5ea")};
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 20px;
+    background: ${({ isOwnMessage }) => (isOwnMessage ? "linear-gradient(135deg, #007bff, #0056b3)" : "#e5e5ea")};
     color: ${({ isOwnMessage }) => (isOwnMessage ? "#fff" : "#000")};
     align-self: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     cursor: pointer;
+    transition: transform 0.2s;
+    &:hover {
+        transform: translateY(-2px);
+    }
 `;
 
 const Timestamp = styled.div`
     font-size: 0.75rem;
-    color: #666;
-    margin-top: 2px;
+    color: #999;
+    margin-top: 4px;
     text-align: right;
 `;
 
 const MessageStatusIndicator = styled.span`
     font-size: 0.75rem;
-    color: #007bff;
+    color: #fff;
     margin-left: 8px;
 `;
 
@@ -114,6 +155,18 @@ const TypingIndicatorContainer = styled.div`
     padding: 5px 10px;
     font-size: 0.9rem;
     color: #555;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    margin-bottom: 10px;
+`;
+
+const ErrorMessage = styled.div`
+    padding: 10px;
+    background: #ffebee;
+    color: #c62828;
+    text-align: center;
+    font-size: 0.9rem;
+    border-radius: 10px;
 `;
 
 /* 컨텍스트 메뉴 및 모달 스타일 (생략) */
@@ -160,19 +213,11 @@ const ModalButtons = styled.div`
     gap: 10px;
 `;
 
-
-const ErrorMessage = styled.div`
-    padding: 10px;
-    background: #ffebee;
-    color: #c62828;
-    text-align: center;
-    font-size: 0.9rem;
-`;
-
 // ChatRoom 컴포넌트
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
@@ -349,17 +394,24 @@ const ChatRoom: React.FC = () => {
         
         if (!stompClient || !roomId || !user || !stompClient.connected) return;
     
-        const sendTyping = () => {
-            sendTypingIndicator(true);
-            stompClient.publish({
-                destination: "/app/active",
-                body: JSON.stringify({ userId: user.id, roomId, active: true })
-            });
+        const sendTyping = (isTyping: boolean) => {
+            sendTypingIndicator(isTyping);
+            if (isTyping) {
+                stompClient.publish({
+                    destination: "/app/active",
+                    body: JSON.stringify({ userId: user.id, roomId, active: true })
+                });
+            }
         };
     
+        // 입력 시작 시 즉시 타이핑 상태 전송
+        sendTyping(true);
+
+        // 이전 타이머 정리
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        sendTyping(); // 즉시 첫 타이핑 전송
-        typingTimeoutRef.current = setTimeout(() => sendTypingIndicator(false), 2000);
+        
+        // 2초 후 타이핑 종료 전송
+        typingTimeoutRef.current = setTimeout(() => sendTyping(false), 2000);
     };
 
     // 메시지 전송
@@ -446,37 +498,30 @@ const ChatRoom: React.FC = () => {
 
     return (
         <ChatContainer>
+            <Header>
+                <BackButton onClick={() => navigate("/chatroom")}>←</BackButton>
+                <h2>채팅방</h2>
+            </Header>
             {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}
             <ChatArea ref={chatAreaRef}>
-                {messages.map((msg, idx) => {
-                    const isOwn = msg.senderId === user?.id;
-                    const unreadByOpponent = isOwn && Object.entries(msg.readBy)
-                        .some(([id, read]) => id !== user?.id && !read); // 상대방 안 읽음 체크
-                    return (
-                        <div
-                            key={idx}
-                            onContextMenu={(e) => handleContextMenu(e, msg)}
-                            style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}
-                        >
-                            <ChatBubble isOwnMessage={isOwn}>{msg.content.text}</ChatBubble>
-                            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
-                                {msg.createdAt && (
-                                    <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>
-                                )}
-                                {isOwn && (
-                                    <MessageStatusIndicator>
-                                        {unreadByOpponent ? "1" : "✓"} {/* 상대방 안 읽으면 1, 읽으면 ✓ */}
-                                    </MessageStatusIndicator>
-                                )}
-                            </div>
+                {messages.map((msg, idx) => (
+                    <div key={idx} onContextMenu={(e) => handleContextMenu(e, msg)} style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}>
+                        <ChatBubble isOwnMessage={msg.senderId === user?.id}>{msg.content.text}</ChatBubble>
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
+                            {msg.createdAt && <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>}
+                            {msg.senderId === user?.id && (
+                                <MessageStatusIndicator>
+                                    {Object.entries(msg.readBy).some(([id, read]) => id !== user?.id && !read) ? "1" : "✓"}
+                                </MessageStatusIndicator>
+                            )}
                         </div>
-                    );
-                })}
-                {typingUsers.size > 0 && (
-                    <TypingIndicatorContainer>
-                        {Array.from(typingUsers).join(", ")}님이 타이핑 중...
-                    </TypingIndicatorContainer>
-                )}
+                    </div>
+                    ))}
+                    {typingUsers.size > 0 && (
+                        <TypingIndicatorContainer>
+                            {Array.from(typingUsers).join(", ")}님이 타이핑 중...
+                        </TypingIndicatorContainer>
+                    )}
             </ChatArea>
             <ChatInputContainer>
                 <Input
