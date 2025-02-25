@@ -138,7 +138,7 @@ const Timestamp = styled.div<{ isOwnMessage: boolean }>`
 
 const MessageStatusIndicator = styled.span`
     font-size: 0.75rem;
-    color: #fff;
+    color: #10380c;
     margin-left: 8px;
 `;
 
@@ -246,7 +246,7 @@ const ChatRoom: React.FC = () => {
     const navigate = useNavigate();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
     const [input, setInput] = useState("");
-    const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+    const [typingUsers, setTypingUsers] = useState<string[]>([]); // Set<string> 대신 string[]로 변경
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const [connectionError, setConnectionError] = useState<string | null>(null);  // 에러 상태 추가
     const chatAreaRef = useRef<HTMLDivElement>(null);
@@ -271,15 +271,29 @@ const ChatRoom: React.FC = () => {
         }
     }, [roomId, user]);
 
+    const scrollToBottom = useCallback(() => {
+        if (chatAreaRef.current) {
+            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+        }
+    }, []);
+
     // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
         if (!roomId || !user) return;
 
         // 초기 메시지 로드 후 읽음 처리
-        getChatMessages(roomId).then((res) => {
-            setMessages(res.data);
-            markRead();
-        }).catch((err) => console.error("메시지 로드 실패", err));
+        const fetchMessages = async () => {
+            try {
+                const res = await getChatMessages(roomId);
+                setMessages(res.data);
+                markRead();
+                setTimeout(scrollToBottom, 0); // 비동기 렌더링 후 스크롤
+            } catch (err) {
+                console.error("메시지 로드 실패", err);
+            }
+        };
+
+        fetchMessages();
 
         // STOMP 연결
         const token = localStorage.getItem("accessToken");
@@ -311,15 +325,23 @@ const ChatRoom: React.FC = () => {
                     }
                 }, 30000); // 30초마다
 
+                let lastMarkReadTime = 0;
+                const MARK_READ_COOLDOWN = 5000;
+
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
                     setMessages((prev) => {
-                        // 메시지 중복 방지를 위해 ID로 필터링
-                        const updatedMessages = prev.filter(m => m.id !== msg.id);
-                        return [...updatedMessages, msg];
+                        if (prev.some(m => m.id === msg.id)) return prev;
+                        const updatedMessages = [...prev, msg].slice(-100);
+                        setTimeout(scrollToBottom, 0); // 비동기 렌더링 후 스크롤
+                        return updatedMessages;
                     });
-                    markRead(); // 새 메시지 도착 시 즉시 읽음 처리
+                    const now = Date.now();
+                    if (now - lastMarkReadTime > MARK_READ_COOLDOWN && document.visibilityState === "visible") {
+                        markRead();
+                        lastMarkReadTime = now;
+                    }
                 });
 
                 // 타이핑 인디케이터 구독
@@ -327,12 +349,14 @@ const ChatRoom: React.FC = () => {
                     const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
                     if (typingMsg.userId === user?.id) return;
 
-                    // 입력중인 유저정보 세팅
+                    console.log("Received typing message:", typingMsg);
                     setTypingUsers((prev) => {
-                        const newSet = new Set(prev);
-                        if (typingMsg.isTyping) newSet.add(typingMsg.username);
-                        else newSet.delete(typingMsg.username);
-                        return newSet;
+                        const newUsers = typingMsg.isTyping
+                            ? prev.includes(typingMsg.username) ? prev : [...prev, typingMsg.username] // 중복 제거
+                            : prev.filter(u => u !== typingMsg.username);
+                        console.log("Updated typingUsers:", newUsers);
+                        if (newUsers.length > 0) scrollToBottom();
+                        return newUsers;
                     });
                 });
             },
@@ -374,14 +398,15 @@ const ChatRoom: React.FC = () => {
             }
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
-    }, [roomId, user, markRead]);
+    }, [roomId, user, markRead, scrollToBottom]);
 
-    // 2) 메시지 목록 업데이트 시 자동 스크롤
+    // 메시지 및 타이핑 상태에 따른 스크롤 조정
     useEffect(() => {
-        if (chatAreaRef.current) {
-            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+        if (typingUsers.length > 0) {
+            scrollToBottom();
         }
-    }, [messages]);
+        // typingUsers가 비어질 때는 스크롤 위치를 유지 (원상복귀)
+    }, [messages, typingUsers, scrollToBottom]);
 
     // 3) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
     useEffect(() => {
@@ -471,17 +496,13 @@ const ChatRoom: React.FC = () => {
 
         setInput("");
         sendTypingIndicator(false);
+        scrollToBottom(); // 메시지 전송 후 즉시 스크롤
     };
 
     // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
         e.preventDefault();
-        setContextMenu({
-            visible: true,
-            x: e.clientX,
-            y: e.clientY,
-            message,
-        });
+        setContextMenu({ visible: true, x: e.clientX, y: e.clientY, message });
     };
 
     // 외부 클릭 시 컨텍스트 메뉴 닫기
@@ -533,6 +554,7 @@ const ChatRoom: React.FC = () => {
                 <ChatArea ref={chatAreaRef}>
                     {messages.map((msg, idx) => {
                         const isOwn = msg.senderId === user?.id;
+                        const unreadByOpponent = isOwn && Object.entries(msg.readBy).some(([id, read]) => id !== user?.id && !read);
                         return (
                             <MessageWrapper key={idx} isOwnMessage={isOwn}>
                                 <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
@@ -542,16 +564,16 @@ const ChatRoom: React.FC = () => {
                                     {msg.createdAt && <Timestamp isOwnMessage={isOwn}>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>}
                                     {isOwn && (
                                         <MessageStatusIndicator>
-                                            {Object.entries(msg.readBy).some(([id, read]) => id !== user?.id && !read) ? "1" : "✓"}
+                                            {unreadByOpponent ? "1" : ""}
                                         </MessageStatusIndicator>
                                     )}
                                 </MessageFooter>
                             </MessageWrapper>
                         );
                     })}
-                    {typingUsers.size > 0 && (
+                    {typingUsers.length > 0 && (
                         <TypingIndicatorContainer>
-                            {Array.from(typingUsers).join(", ")}님이 타이핑 중...
+                            {typingUsers.join(", ")}님이 타이핑 중...
                         </TypingIndicatorContainer>
                     )}
                 </ChatArea>
