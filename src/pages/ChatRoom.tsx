@@ -33,6 +33,15 @@ interface TypingIndicatorMessage {
 }
 
 // 스타일 컴포넌트들
+const ChatWrapper = styled.div`
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* 뷰포트 높이에 맞춤 */
+    background-color: #f5f5f5;
+    overflow: hidden; /* 뒷배경 스크롤 제거 */
+`;
+
 const ChatContainer = styled.div`
     width: 375px;
     height: 667px;
@@ -41,12 +50,12 @@ const ChatContainer = styled.div`
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden; /* 컨테이너 내부에서만 스크롤 */
     position: relative;
 `;
 
 const Header = styled.div`
-    padding: 10px 15px;
+    padding: 8px 10px; /* 크기 축소 */
     background: #fff;
     border-bottom: 1px solid #ddd;
     display: flex;
@@ -57,32 +66,89 @@ const Header = styled.div`
 const BackButton = styled.button`
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.2rem; /* 크기 조정 */
     cursor: pointer;
     color: #007bff;
-    margin-right: 10px;
+    margin-right: 8px;
+`;
+
+const HeaderTitle = styled.h2`
+    font-size: 1.1rem; /* 글자 크기 축소 */
+    margin: 0;
+    color: #333;
 `;
 
 const ChatArea = styled.div`
     flex: 1;
-    padding: 15px;
+    padding: 10px 15px;
     background: #f8f8f8;
-    overflow-y: auto;
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #888 transparent; /* Firefox */
+    overflow-y: auto; /* 채팅 영역에서만 스크롤 */
+    scrollbar-width: thin;
+    scrollbar-color: #888 transparent;
     &::-webkit-scrollbar {
-        width: 6px; /* Chrome, Safari */
+        width: 6px;
     }
     &::-webkit-scrollbar-thumb {
-        background: #888; /* Chrome, Safari */
+        background: #888;
         border-radius: 3px;
     }
     &::-webkit-scrollbar-track {
-        background: transparent; /* Chrome, Safari */
+        background: transparent;
     }
     &:hover::-webkit-scrollbar-thumb {
-        background: #555; /* Chrome, Safari */
+        background: #555;
     }
+`;
+
+const MessageWrapper = styled.div<{ isOwnMessage: boolean }>`
+    display: flex;
+    flex-direction: column;
+    align-items: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
+    margin-bottom: 10px;
+`;
+
+const ChatBubble = styled.div.withConfig({
+    shouldForwardProp: (prop) => prop !== "isOwnMessage"
+})<{ isOwnMessage: boolean }>`
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 20px;
+    background: ${({ isOwnMessage }) => (isOwnMessage ? "linear-gradient(135deg, #007bff, #0056b3)" : "#e5e5ea")};
+    color: ${({ isOwnMessage }) => (isOwnMessage ? "#fff" : "#000")};
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+    &:hover {
+        transform: translateY(-2px);
+    }
+`;
+
+const MessageFooter = styled.div<{ isOwnMessage: boolean }>`
+    display: flex;
+    justify-content: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-end")};
+    align-items: center;
+    margin-top: 4px;
+`;
+
+const Timestamp = styled.div<{ isOwnMessage: boolean }>`
+    font-size: 0.75rem;
+    color: ${({ isOwnMessage }) => (isOwnMessage ? "#999" : "#999")};
+    text-align: ${({ isOwnMessage }) => (isOwnMessage ? "right" : "right")};
+`;
+
+const MessageStatusIndicator = styled.span`
+    font-size: 0.75rem;
+    color: #fff;
+    margin-left: 8px;
+`;
+
+const TypingIndicatorContainer = styled.div`
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    color: #555;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    margin-bottom: 10px;
 `;
 
 const ChatInputContainer = styled.div`
@@ -118,46 +184,6 @@ const SendButton = styled.button`
     &:hover {
         transform: scale(1.05);
     }
-`;
-
-const ChatBubble = styled.div.withConfig({
-    shouldForwardProp: (prop) => prop !== "isOwnMessage"
-})<{ isOwnMessage: boolean }>`
-    max-width: 70%;
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    border-radius: 20px;
-    background: ${({ isOwnMessage }) => (isOwnMessage ? "linear-gradient(135deg, #007bff, #0056b3)" : "#e5e5ea")};
-    color: ${({ isOwnMessage }) => (isOwnMessage ? "#fff" : "#000")};
-    align-self: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    transition: transform 0.2s;
-    &:hover {
-        transform: translateY(-2px);
-    }
-`;
-
-const Timestamp = styled.div`
-    font-size: 0.75rem;
-    color: #999;
-    margin-top: 4px;
-    text-align: right;
-`;
-
-const MessageStatusIndicator = styled.span`
-    font-size: 0.75rem;
-    color: #fff;
-    margin-left: 8px;
-`;
-
-const TypingIndicatorContainer = styled.div`
-    padding: 5px 10px;
-    font-size: 0.9rem;
-    color: #555;
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 10px;
-    margin-bottom: 10px;
 `;
 
 const ErrorMessage = styled.div`
@@ -497,67 +523,68 @@ const ChatRoom: React.FC = () => {
     };
 
     return (
-        <ChatContainer>
-            <Header>
-                <BackButton onClick={() => navigate("/chatroom")}>←</BackButton>
-                <h2>채팅방</h2>
-            </Header>
-            {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}
-            <ChatArea ref={chatAreaRef}>
-                {messages.map((msg, idx) => (
-                    <div key={idx} onContextMenu={(e) => handleContextMenu(e, msg)} style={{ marginBottom: "10px", display: "flex", flexDirection: "column" }}>
-                        <ChatBubble isOwnMessage={msg.senderId === user?.id}>{msg.content.text}</ChatBubble>
-                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
-                            {msg.createdAt && <Timestamp>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>}
-                            {msg.senderId === user?.id && (
-                                <MessageStatusIndicator>
-                                    {Object.entries(msg.readBy).some(([id, read]) => id !== user?.id && !read) ? "1" : "✓"}
-                                </MessageStatusIndicator>
-                            )}
-                        </div>
-                    </div>
-                    ))}
+        <ChatWrapper>
+            <ChatContainer>
+                <Header>
+                    <BackButton onClick={() => navigate("/chatroom")}>←</BackButton>
+                    <HeaderTitle>채팅방</HeaderTitle>
+                </Header>
+                {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}
+                <ChatArea ref={chatAreaRef}>
+                    {messages.map((msg, idx) => {
+                        const isOwn = msg.senderId === user?.id;
+                        return (
+                            <MessageWrapper key={idx} isOwnMessage={isOwn}>
+                                <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                    {msg.content.text}
+                                </ChatBubble>
+                                <MessageFooter isOwnMessage={isOwn}>
+                                    {msg.createdAt && <Timestamp isOwnMessage={isOwn}>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>}
+                                    {isOwn && (
+                                        <MessageStatusIndicator>
+                                            {Object.entries(msg.readBy).some(([id, read]) => id !== user?.id && !read) ? "1" : "✓"}
+                                        </MessageStatusIndicator>
+                                    )}
+                                </MessageFooter>
+                            </MessageWrapper>
+                        );
+                    })}
                     {typingUsers.size > 0 && (
                         <TypingIndicatorContainer>
                             {Array.from(typingUsers).join(", ")}님이 타이핑 중...
                         </TypingIndicatorContainer>
                     )}
-            </ChatArea>
-            <ChatInputContainer>
-                <Input
-                    type="text"
-                    value={input}
-                    onChange={handleInputChange}
-                    placeholder="메시지를 입력하세요"
-                    disabled={!isConnected} // 연결 끊김 시 비활성화
-                />
-                <SendButton onClick={sendMessage} disabled={!isConnected}>전송</SendButton>
-            </ChatInputContainer>
-            {/* 컨텍스트 메뉴 */}
-            {contextMenu.visible && (
-                <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
-                    <ContextMenuItem onClick={handleForwardClick}>메시지 전달</ContextMenuItem>
-                </ContextMenu>
-            )}
-            {/* 전달 모달 */}
-            {showForwardModal && (
-                <ModalOverlay>
-                    <ModalContent>
-                        <h3>메시지 전달</h3>
-                        <p>전달할 대상 채팅방 ID를 입력하세요:</p>
-                        <input
-                            value={targetRoomId}
-                            onChange={(e) => setTargetRoomId(e.target.value)}
-                            placeholder="대상 채팅방 ID"
-                        />
-                        <ModalButtons>
-                            <button onClick={handleModalSubmit}>전달</button>
-                            <button onClick={handleModalCancel}>취소</button>
-                        </ModalButtons>
-                    </ModalContent>
-                </ModalOverlay>
-            )}
-        </ChatContainer>
+                </ChatArea>
+                <ChatInputContainer>
+                    <Input
+                        type="text"
+                        value={input}
+                        onChange={handleInputChange}
+                        placeholder="메시지를 입력하세요"
+                        disabled={!isConnected}
+                    />
+                    <SendButton onClick={sendMessage} disabled={!isConnected}>전송</SendButton>
+                </ChatInputContainer>
+                {contextMenu.visible && (
+                    <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
+                        <ContextMenuItem onClick={handleForwardClick}>메시지 전달</ContextMenuItem>
+                    </ContextMenu>
+                )}
+                {showForwardModal && (
+                    <ModalOverlay>
+                        <ModalContent>
+                            <h3>메시지 전달</h3>
+                            <p>전달할 대상 채팅방 ID를 입력하세요:</p>
+                            <input value={targetRoomId} onChange={(e) => setTargetRoomId(e.target.value)} placeholder="대상 채팅방 ID" />
+                            <ModalButtons>
+                                <button onClick={handleModalSubmit}>전달</button>
+                                <button onClick={handleModalCancel}>취소</button>
+                            </ModalButtons>
+                        </ModalContent>
+                    </ModalOverlay>
+                )}
+            </ChatContainer>
+        </ChatWrapper>
     );
 };
 
