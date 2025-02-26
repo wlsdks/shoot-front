@@ -257,6 +257,14 @@ const ChatRoom: React.FC = () => {
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
 
+    // 엔터로 채팅 입력 (Shift+Enter는 줄바꿈 허용, Enter만 치면 전송.)
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    };
+
     // 최하단 스크롤
     const scrollToBottom = useCallback(() => {
         if (chatAreaRef.current) {
@@ -268,8 +276,8 @@ const ChatRoom: React.FC = () => {
     const markAllRead = useCallback(() => {
         if (roomId && user) {
             markAllMessagesAsRead(roomId, user.id)
-                .then(() => console.log("All messages marked as read via REST"))
-                .catch((err) => console.error("Failed to mark all as read", err));
+                .then(() => console.log("모든 메시지 읽음처리 완료 REST API!!"))
+                .catch((err) => console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err));
         }
     }, [roomId, user]);
 
@@ -298,7 +306,8 @@ const ChatRoom: React.FC = () => {
         const client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
-            debug: (msg) => console.log("[STOMP]", msg),
+            // 메시지 내용 디버깅이 필요하면 주석 해제
+            // debug: (msg) => console.log("[STOMP]", msg),
             onConnect: () => {
                 console.log("WebSocket 연결됨");
                 setConnectionError(null); // 연결 성공 시 에러 제거
@@ -324,6 +333,8 @@ const ChatRoom: React.FC = () => {
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
+                    console.log("Received full message:", msg); // 전체 메시지 확인
+                    
                     setMessages((prev) => {
                         if (prev.some(m => m.id === msg.id)) {
                             return prev.map(m => m.id === msg.id ? msg : m); // 읽음 상태 업데이트
@@ -350,11 +361,10 @@ const ChatRoom: React.FC = () => {
                     console.log("Received typing message:", typingMsg);
                     setTypingUsers((prev) => {
                         const newUsers = typingMsg.isTyping
-                            ? prev.includes(typingMsg.username) ? prev : [...prev, typingMsg.username] // 중복 제거
-                            : prev.filter(u => u !== typingMsg.username);
+                            ? prev.includes(typingMsg.username || typingMsg.userId) ? prev : [...prev, typingMsg.username || typingMsg.userId]
+                            : prev.filter(u => u !== (typingMsg.username || typingMsg.userId));
 
                         console.log("Updated typingUsers:", newUsers);
-
                         if (newUsers.length > 0) scrollToBottom();
                         return newUsers;
                     });
@@ -423,7 +433,7 @@ const ChatRoom: React.FC = () => {
         const typingPayload: TypingIndicatorMessage = { 
             roomId,
             userId: user.id,
-            username: user.name,
+            username: user.name || "Unknown", // null 방어
             isTyping 
         };
     
@@ -549,6 +559,10 @@ const ChatRoom: React.FC = () => {
                     {messages.map((msg, idx) => {
                         const isOwn = msg.senderId === user?.id;
                         const unreadByOpponent = isOwn && Object.entries(msg.readBy).some(([id, read]) => id !== user?.id && !read);
+                        const allOthersRead = isOwn && Object.entries(msg.readBy)
+                            .filter(([id]) => id !== user?.id)
+                            .every(([, read]) => read);
+
                         return (
                             <MessageWrapper key={idx} isOwnMessage={isOwn}>
                                 <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
@@ -558,7 +572,7 @@ const ChatRoom: React.FC = () => {
                                     {msg.createdAt && <Timestamp isOwnMessage={isOwn}>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>}
                                     {isOwn && (
                                         <MessageStatusIndicator>
-                                            {Object.values(msg.readBy).every(read => read) ? "읽음" : unreadByOpponent ? "1" : ""}
+                                            {allOthersRead ? "읽음" : unreadByOpponent ? "1" : ""}
                                         </MessageStatusIndicator>
                                     )}
                                 </MessageFooter>
@@ -576,6 +590,7 @@ const ChatRoom: React.FC = () => {
                         type="text"
                         value={input}
                         onChange={handleInputChange}
+                        onKeyPress={handleKeyPress}
                         placeholder="메시지를 입력하세요"
                         disabled={!isConnected}
                     />
