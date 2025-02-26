@@ -139,32 +139,6 @@ const TimeContainer = styled.div<{ isOwnMessage: boolean }>`
     align-items: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
 `;
 
-// Indicator 스타일 (내 메시지일 때만 사용)
-const Indicator = styled.div`
-    color: #ff4d4f;
-    font-weight: bold;
-    margin-bottom: 2px; /* Indicator와 시간 사이 간격 */
-`;
-
-// const MessageFooter = styled.div<{ isOwnMessage: boolean }>`
-//     display: flex;
-//     justify-content: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-end")};
-//     align-items: center;
-//     margin-top: 4px;
-// `;
-
-// const Timestamp = styled.div<{ isOwnMessage: boolean }>`
-//     font-size: 0.65rem;
-//     color: ${({ isOwnMessage }) => (isOwnMessage ? "#999" : "#999")};
-//     text-align: ${({ isOwnMessage }) => (isOwnMessage ? "right" : "right")};
-// `;
-
-// const MessageStatusIndicator = styled.span`
-//     font-size: 0.65rem;
-//     color: #10380c;
-//     margin-left: 8px;
-// `;
-
 const TypingIndicatorContainer = styled.div`
     padding: 5px 10px;
     font-size: 0.9rem;
@@ -299,11 +273,30 @@ const ChatRoom: React.FC = () => {
     const markAllRead = useCallback(() => {
         if (roomId && user) {
             markAllMessagesAsRead(roomId, user.id)
-                .then(() => console.log("모든 메시지 읽음처리 완료 REST API!!"))
-                .catch((err) => console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err));
+                .then(() => {
+                    console.log("모든 메시지 읽음처리 완료");
+                    // 읽음 처리 후, 서버에서 최신 메시지를 다시 불러와서 상태를 업데이트합니다.
+                    getChatMessages(roomId).then((res) => {
+                        const sortedMessages = res.data.reverse();
+                        setMessages(sortedMessages);
+                    });
+                })
+                .catch((err) =>
+                    console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err)
+                );
         }
     }, [roomId, user]);
-    
+
+    // 여러 메시지 읽음 업데이트 처리 함수
+    const updateBulkMessageReadStatus = (messageIds: string[], userId: string) => {
+        setMessages((prev) =>
+            prev.map((msg) =>
+                messageIds.includes(msg.id)
+                    ? { ...msg, readBy: { ...msg.readBy, [userId]: true } }
+                    : msg
+            )
+        );
+    };
 
     // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
@@ -394,6 +387,13 @@ const ChatRoom: React.FC = () => {
                         if (newUsers.length > 0) scrollToBottom();
                         return newUsers;
                     });
+                });
+
+                // 예를 들어, WebSocket에서 read update 이벤트를 수신할 때
+                // WebSocket 구독 부분에 Bulk 이벤트 수신 추가
+                client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
+                    const { messageIds, userId } = JSON.parse(message.body);
+                    updateBulkMessageReadStatus(messageIds, userId);
                 });
             },
             onDisconnect: () => {
