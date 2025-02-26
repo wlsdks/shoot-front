@@ -290,7 +290,7 @@ const ChatRoom: React.FC = () => {
         // 초기 메시지 로드 및 읽음 처리
         const fetchInitialMessages = async () => {
             try {
-                const res = await getChatMessages(roomId); // before 파라미터 없음 → 최신 20개 (내림차순)
+                const res = await getChatMessages(roomId!); // before 파라미터 없음 → 최신 20개 (내림차순)
                 // 백엔드에서 내림차순으로 반환되므로 reverse하여 오름차순으로 정렬
                 const sortedMessages = res.data.reverse();
                 setMessages(sortedMessages);
@@ -415,23 +415,24 @@ const ChatRoom: React.FC = () => {
     // 2. 스크롤 이벤트 핸들러 (페이징)
     const handleScroll = () => {
         if (!chatAreaRef.current) return;
+
+        // ObjectId 기반 페이징 조회
         if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
             const oldestMessage = messages[0];
-            if (oldestMessage.createdAt) { // createdAt이 있을 때만 호출
-                const oldestTime = new Date(oldestMessage.createdAt).getTime() - 1;
-                fetchPreviousMessages(new Date(oldestTime).toISOString());
-            }
+            fetchPreviousMessages(oldestMessage.id);
         }
     };
 
-    const fetchPreviousMessages = async (beforeTime: string) => {
+    // 이전 메시지 조회
+    const fetchPreviousMessages = async (lastId: string) => {
         try {
             // before 파라미터를 넘겨 API 호출 (내림차순으로 20개)
-            const res = await getChatMessages(roomId!, beforeTime);
+            const res = await getChatMessages(roomId!, lastId);
             if (res.data.length === 0) return; // 더 이상 데이터 없음
         
             // 받은 데이터를 reverse()하여 오름차순 정렬
             const previousMessages = res.data.reverse();
+            
             // 스크롤 보정: 추가되기 전 스크롤 높이를 기억하고, prepend 후 차이만큼 스크롤 위치 보정
             const currentScrollHeight = chatAreaRef.current?.scrollHeight || 0;
             setMessages((prev) => [...previousMessages, ...prev]);
@@ -446,7 +447,7 @@ const ChatRoom: React.FC = () => {
         }
     };
 
-      // 3. ChatArea에 스크롤 이벤트 리스너 추가 (스크롤 이벤트가 너무 빈번하게 발생하는 것을 막기 위해 debounce나 throttle을 사용해 호출 빈도를 제한합니다.)
+    // 3. ChatArea에 스크롤 이벤트 리스너 추가 (스크롤 이벤트가 너무 빈번하게 발생하는 것을 막기 위해 debounce나 throttle을 사용해 호출 빈도를 제한합니다.)
     useEffect(() => {
         const chatArea = chatAreaRef.current;
         if (!chatArea) return;

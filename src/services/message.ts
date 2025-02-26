@@ -1,10 +1,15 @@
 import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
 import { AxiosResponse } from "axios";
 
-// 채팅 메시지 조회 API 호출
-export const getChatMessages = (roomId: string, before?: string, limit: number = 20) => {
-    return api.get(`/messages/get`, { params: { roomId, before, limit } });
+// 채팅 메시지 조회 API 호출 (lastId 기준)
+export const getChatMessages = (
+    roomId: string,
+    lastId?: string,
+    limit: number = 20
+) => {
+    return api.get(`/messages/get`, { params: { roomId, lastId, limit } });
 };
+
 
 // 메시지 수정하기
 export const editMessage = (messageId: string, newText: string): Promise<AxiosResponse<any>> => {
