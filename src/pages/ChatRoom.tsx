@@ -432,21 +432,10 @@ const ChatRoom: React.FC = () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
     }, [roomId, user, scrollToBottom, markAllRead]);
-
-
-    // 2. 스크롤 이벤트 핸들러 (페이징)
-    const handleScroll = () => {
-        if (!chatAreaRef.current) return;
-
-        // ObjectId 기반 페이징 조회
-        if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
-            const oldestMessage = messages[0];
-            fetchPreviousMessages(oldestMessage.id);
-        }
-    };
+    
 
     // 이전 메시지 조회
-    const fetchPreviousMessages = async (lastId: string) => {
+    const fetchPreviousMessages = useCallback(async (lastId: string) => {
         try {
             // before 파라미터를 넘겨 API 호출 (내림차순으로 20개)
             const res = await getChatMessages(roomId!, lastId);
@@ -467,7 +456,18 @@ const ChatRoom: React.FC = () => {
         } catch (err) {
             console.error("이전 메시지 로드 실패", err);
         }
-    };
+    }, [roomId]);
+
+    // 2. 스크롤 이벤트 핸들러 (페이징)
+    const handleScroll = useCallback(() => {
+        if (!chatAreaRef.current) return;
+
+        // ObjectId 기반 페이징 조회
+        if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
+            const oldestMessage = messages[0];
+            fetchPreviousMessages(oldestMessage.id);
+        }
+    }, [messages, fetchPreviousMessages]);
 
     // 3. ChatArea에 스크롤 이벤트 리스너 추가 (스크롤 이벤트가 너무 빈번하게 발생하는 것을 막기 위해 debounce나 throttle을 사용해 호출 빈도를 제한합니다.)
     useEffect(() => {
@@ -477,7 +477,7 @@ const ChatRoom: React.FC = () => {
         const throttledHandleScroll = throttle(handleScroll, 500); // 500ms 간격으로 실행
         chatArea.addEventListener("scroll", throttledHandleScroll);
         return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
-    }, [messages]);
+    }, [handleScroll]);
 
     // 메시지 및 타이핑 상태에 따른 스크롤 조정
     useEffect(() => {
@@ -517,29 +517,35 @@ const ChatRoom: React.FC = () => {
 
     // 입력값 변경 및 타이핑 디바운스 처리
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInput(e.target.value);
+        const value = e.target.value;
+        setInput(value);
+
         if (!stompClient || !roomId || !user || !stompClient.connected) return;
-    
-        const sendTyping = (isTyping: boolean) => {
-            sendTypingIndicator(isTyping);
-            if (isTyping) {
-                stompClient.publish({
-                    destination: "/app/active",
-                    body: JSON.stringify({ userId: user.id, roomId, active: true })
-                });
+
+        // 입력값이 비어있으면 타이핑 인디케이터 즉시 끄기
+        if (value.trim() === "") {
+            sendTypingIndicator(false);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
             }
-        };
-    
-        // 디바운스 추가
-        if (!typingTimeoutRef.current) {
-            sendTyping(true);
+            return;
         }
+    
+        // 입력 시 타이핑 인디케이터 전송
+        sendTypingIndicator(true);
+        stompClient.publish({
+            destination: "/app/active",
+            body: JSON.stringify({ userId: user.id, roomId, active: true })
+        });
+    
+        // 기존 타이핑 중 멈춤 로직은 유지 (입력이 없으면 1초 후 false 전송)
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
-            sendTyping(false);
+            sendTypingIndicator(false);
             typingTimeoutRef.current = null;
-        }, 1000);
-    };
+        }, 300);
+    };    
 
     // 메시지 전송
     const sendMessage = () => {
@@ -697,6 +703,13 @@ const ChatRoom: React.FC = () => {
                         value={input}
                         onChange={handleInputChange}
                         onKeyPress={handleKeyPress}
+                        onBlur={() => {
+                            sendTypingIndicator(false);
+                            if (typingTimeoutRef.current) {
+                                clearTimeout(typingTimeoutRef.current);
+                                typingTimeoutRef.current = null;
+                            }
+                        }}
                         placeholder="메시지를 입력하세요"
                         disabled={!isConnected}
                     />
