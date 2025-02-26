@@ -6,6 +6,7 @@ import { markAllMessagesAsRead } from "../services/chatRoom";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import styled from "styled-components";
+import { throttle } from "lodash";
 
 // 채팅 메시지 인터페이스
 export interface ChatMessageItem {
@@ -417,7 +418,8 @@ const ChatRoom: React.FC = () => {
         if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
             const oldestMessage = messages[0];
             if (oldestMessage.createdAt) { // createdAt이 있을 때만 호출
-                fetchPreviousMessages(oldestMessage.createdAt);
+                const oldestTime = new Date(oldestMessage.createdAt).getTime() - 1;
+                fetchPreviousMessages(new Date(oldestTime).toISOString());
             }
         }
     };
@@ -444,12 +446,14 @@ const ChatRoom: React.FC = () => {
         }
     };
 
-      // 3. ChatArea에 스크롤 이벤트 리스너 추가
+      // 3. ChatArea에 스크롤 이벤트 리스너 추가 (스크롤 이벤트가 너무 빈번하게 발생하는 것을 막기 위해 debounce나 throttle을 사용해 호출 빈도를 제한합니다.)
     useEffect(() => {
         const chatArea = chatAreaRef.current;
         if (!chatArea) return;
-        chatArea.addEventListener("scroll", handleScroll);
-        return () => chatArea.removeEventListener("scroll", handleScroll);
+        
+        const throttledHandleScroll = throttle(handleScroll, 500); // 500ms 간격으로 실행
+        chatArea.addEventListener("scroll", throttledHandleScroll);
+        return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
     }, [messages]);
 
     // 메시지 및 타이핑 상태에 따른 스크롤 조정
