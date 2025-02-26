@@ -252,42 +252,38 @@ const ChatRoom: React.FC = () => {
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);   // Heartbeat용 ref 추가
-    const [contextMenu, setContextMenu] = useState<{            // 컨텍스트 메뉴 및 모달 상태
-        visible: boolean;
-        x: number;
-        y: number;
-        message: ChatMessageItem | null;
-    }>({ visible: false, x: 0, y: 0, message: null });
+    const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; message: ChatMessageItem | null }>({ visible: false, x: 0, y: 0, message: null });
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
 
-    // 읽음 처리 함수 (디바운스 제거)
-    const markRead = useCallback(() => {
-        if (document.visibilityState === "visible" && roomId && user) {
-            markAllMessagesAsRead(roomId, user.id)
-                .then(() => console.log("읽음 처리 완료"))
-                .catch((err) => console.error("읽음 처리 실패", err));
-        }
-    }, [roomId, user]);
-
+    // 최하단 스크롤
     const scrollToBottom = useCallback(() => {
         if (chatAreaRef.current) {
             chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
         }
     }, []);
 
+    // 방 입장 시 모든 메시지 읽음 처리 (REST 호출)
+    const markAllRead = useCallback(() => {
+        if (roomId && user) {
+            markAllMessagesAsRead(roomId, user.id)
+                .then(() => console.log("All messages marked as read via REST"))
+                .catch((err) => console.error("Failed to mark all as read", err));
+        }
+    }, [roomId, user]);
+
     // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
         if (!roomId || !user) return;
 
-        // 초기 메시지 로드 후 읽음 처리
+        // 초기 메시지 로드 및 읽음 처리
         const fetchMessages = async () => {
             try {
                 const res = await getChatMessages(roomId);
                 setMessages(res.data);
-                markRead();
-                setTimeout(scrollToBottom, 0); // 비동기 렌더링 후 스크롤
+                markAllRead(); // 방 입장 시 모든 메시지 읽음 처리
+                setTimeout(scrollToBottom, 0);
             } catch (err) {
                 console.error("메시지 로드 실패", err);
             }
@@ -298,7 +294,6 @@ const ChatRoom: React.FC = () => {
         // STOMP 연결
         const token = localStorage.getItem("accessToken");
         console.log("Token:", token); // 토큰 값 확인
-        
         const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
         const client = new Client({
             webSocketFactory: () => socket,
@@ -308,6 +303,7 @@ const ChatRoom: React.FC = () => {
                 console.log("WebSocket 연결됨");
                 setConnectionError(null); // 연결 성공 시 에러 제거
                 setIsConnected(true);
+                fetchMessages();          // 연결 복구 시 최신 메시지 동기화
                 
                 // onConnect 시 활성 상태(active: true) 전송 (활성화 되었다면 채팅 안읽은 개수를 업데이트하지 않는다.)
                 client.publish({
@@ -325,22 +321,24 @@ const ChatRoom: React.FC = () => {
                     }
                 }, 30000); // 30초마다
 
-                let lastMarkReadTime = 0;
-                const MARK_READ_COOLDOWN = 5000;
-
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
                     setMessages((prev) => {
-                        if (prev.some(m => m.id === msg.id)) return prev;
+                        if (prev.some(m => m.id === msg.id)) {
+                            return prev.map(m => m.id === msg.id ? msg : m); // 읽음 상태 업데이트
+                        }
                         const updatedMessages = [...prev, msg].slice(-100);
-                        setTimeout(scrollToBottom, 0); // 비동기 렌더링 후 스크롤
+                        setTimeout(scrollToBottom, 0);
                         return updatedMessages;
                     });
-                    const now = Date.now();
-                    if (now - lastMarkReadTime > MARK_READ_COOLDOWN && document.visibilityState === "visible") {
-                        markRead();
-                        lastMarkReadTime = now;
+
+                    // 새 메시지 도착 시 내가 읽으면 실시간 처리
+                    if (document.visibilityState === "visible" && !msg.readBy[user!.id] && msg.senderId !== user!.id) {
+                        client.publish({
+                            destination: "/app/read",
+                            body: JSON.stringify({ messageId: msg.id, userId: user!.id }),
+                        });
                     }
                 });
 
@@ -354,18 +352,20 @@ const ChatRoom: React.FC = () => {
                         const newUsers = typingMsg.isTyping
                             ? prev.includes(typingMsg.username) ? prev : [...prev, typingMsg.username] // 중복 제거
                             : prev.filter(u => u !== typingMsg.username);
+
                         console.log("Updated typingUsers:", newUsers);
+
                         if (newUsers.length > 0) scrollToBottom();
                         return newUsers;
                     });
                 });
             },
             onDisconnect: () => {
-                setConnectionError("WebSocket 연결이 끊겼습니다. 재접속 중...");
+                setConnectionError("연결 끊김, 재접속 시도 중...");
                 setIsConnected(false);
             },
             onStompError: (frame) => {
-                setConnectionError("WebSocket 오류 발생: " + frame.body);
+                setConnectionError("연결 오류, 재접속 시도 중...");
                 setIsConnected(false);
             }
         });
@@ -392,13 +392,10 @@ const ChatRoom: React.FC = () => {
                 });
                 client.deactivate();
             }
-            // Heartbeat 정리
-            if (heartbeatRef.current) {
-                clearInterval(heartbeatRef.current);
-            }
+            if (heartbeatRef.current) clearInterval(heartbeatRef.current);
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
-    }, [roomId, user, markRead, scrollToBottom]);
+    }, [roomId, user, scrollToBottom, markAllRead]);
 
     // 메시지 및 타이핑 상태에 따른 스크롤 조정
     useEffect(() => {
@@ -411,16 +408,13 @@ const ChatRoom: React.FC = () => {
     // 3) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
     useEffect(() => {
         const handleFocus = () => {
-            if (user && roomId) {
-                // 창 포커스 시 호출
-                markAllMessagesAsRead(roomId, user.id)
-                    .then(() => console.log("Window focus: 모두 읽음 처리 완료"))
-                    .catch((err) => console.error("Window focus: 읽음 처리 실패", err));
+            if (user && roomId && isConnected) {
+                markAllRead();
             }
         };
         window.addEventListener("focus", handleFocus);
         return () => window.removeEventListener("focus", handleFocus);
-    }, [roomId, user]);
+    }, [roomId, user, isConnected, markAllRead]);
 
     // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
@@ -442,7 +436,6 @@ const ChatRoom: React.FC = () => {
     // 입력값 변경 및 타이핑 디바운스 처리
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInput(e.target.value);
-        
         if (!stompClient || !roomId || !user || !stompClient.connected) return;
     
         const sendTyping = (isTyping: boolean) => {
@@ -455,14 +448,15 @@ const ChatRoom: React.FC = () => {
             }
         };
     
-        // 입력 시작 시 즉시 타이핑 상태 전송
-        sendTyping(true);
-
-        // 이전 타이머 정리
+        // 디바운스 추가
+        if (!typingTimeoutRef.current) {
+            sendTyping(true);
+        }
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        
-        // 2초 후 타이핑 종료 전송
-        typingTimeoutRef.current = setTimeout(() => sendTyping(false), 2000);
+        typingTimeoutRef.current = setTimeout(() => {
+            sendTyping(false);
+            typingTimeoutRef.current = null;
+        }, 1000);
     };
 
     // 메시지 전송
@@ -547,7 +541,7 @@ const ChatRoom: React.FC = () => {
         <ChatWrapper>
             <ChatContainer>
                 <Header>
-                    <BackButton onClick={() => navigate("/")}>←</BackButton> {/* 경로 수정 */}
+                    <BackButton onClick={() => navigate("/")}>←</BackButton>
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
                 {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}
@@ -564,7 +558,7 @@ const ChatRoom: React.FC = () => {
                                     {msg.createdAt && <Timestamp isOwnMessage={isOwn}>{new Date(msg.createdAt).toLocaleTimeString()}</Timestamp>}
                                     {isOwn && (
                                         <MessageStatusIndicator>
-                                            {unreadByOpponent ? "1" : ""}
+                                            {Object.values(msg.readBy).every(read => read) ? "읽음" : unreadByOpponent ? "1" : ""}
                                         </MessageStatusIndicator>
                                     )}
                                 </MessageFooter>
