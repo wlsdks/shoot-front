@@ -488,9 +488,9 @@ const ChatRoom: React.FC = () => {
                 isEdited: false,
                 isDeleted: false,
             },
-            createdAt: new Date().toISOString(),
+            // createdAt은 백엔드에서 설정하도록 제거
             status: "SENT",
-            readBy: { [user.id]: true } // 초기 readBy 설정 (발신자만 읽음)
+            readBy: { [user.id]: true }
         };
 
         stompClient.publish({
