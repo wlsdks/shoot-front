@@ -280,6 +280,7 @@ const ChatRoom: React.FC = () => {
                 .catch((err) => console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err));
         }
     }, [roomId, user]);
+    
 
     // 1) 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
@@ -289,8 +290,15 @@ const ChatRoom: React.FC = () => {
         const fetchMessages = async () => {
             try {
                 const res = await getChatMessages(roomId);
-                setMessages(res.data);
-                markAllRead(); // 방 입장 시 모든 메시지 읽음 처리
+                console.log("Fetched messages from API:", res.data);
+                setMessages((prev) => {
+                    // 중복 제거 후 최신순으로 정렬
+                    const allMessages = [...prev, ...res.data]
+                        .filter((msg, index, self) => self.findIndex(m => m.id === msg.id) === index)
+                        .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
+                    return allMessages.slice(-20); // 최신 20개만 유지
+                });
+                markAllRead();
                 setTimeout(scrollToBottom, 0);
             } catch (err) {
                 console.error("메시지 로드 실패", err);
@@ -312,7 +320,7 @@ const ChatRoom: React.FC = () => {
                 console.log("WebSocket 연결됨");
                 setConnectionError(null); // 연결 성공 시 에러 제거
                 setIsConnected(true);
-                fetchMessages();          // 연결 복구 시 최신 메시지 동기화
+                // fetchMessages();          // 연결 복구 시 최신 메시지 동기화
                 
                 // onConnect 시 활성 상태(active: true) 전송 (활성화 되었다면 채팅 안읽은 개수를 업데이트하지 않는다.)
                 client.publish({
@@ -339,7 +347,7 @@ const ChatRoom: React.FC = () => {
                         if (prev.some(m => m.id === msg.id)) {
                             return prev.map(m => m.id === msg.id ? msg : m); // 읽음 상태 업데이트
                         }
-                        const updatedMessages = [...prev, msg].slice(-100);
+                        const updatedMessages = [...prev, msg].slice(-20); // 최신 20개 유지
                         setTimeout(scrollToBottom, 0);
                         return updatedMessages;
                     });
