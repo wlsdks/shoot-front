@@ -253,10 +253,24 @@ const ChatRoom: React.FC = () => {
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
+    const [isComposing, setIsComposing] = useState(false);
 
+    // 조합 시작 시
+    const handleCompositionStart = () => {
+        setIsComposing(true);
+    };
+    
+    // 조합 종료 시
+    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+        setIsComposing(false);
+        // 조합 종료 후 최종 값이 변경되었으므로 필요하면 handleInputChange 호출
+        // (이미 onChange가 발생할 수 있으므로 선택 사항)
+    };  
+
+    // Enter 키 처리: 조합 중이면 무시하도록 함
     // 엔터로 채팅 입력 (Shift+Enter는 줄바꿈 허용, Enter만 치면 전송.)
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && !e.shiftKey && !isComposing) {
             e.preventDefault();
             sendMessage();
         }
@@ -500,15 +514,13 @@ const ChatRoom: React.FC = () => {
 
     // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
-        if (!stompClient || !stompClient.connected || !roomId || !user) return;
-    
+        if (!stompClient || !roomId || !user || !stompClient.connected) return;
         const typingPayload: TypingIndicatorMessage = { 
             roomId,
             userId: user.id,
-            username: user.name || "Unknown", // null 방어
+            username: user.name || "Unknown",
             isTyping 
         };
-    
         stompClient.publish({
             destination: "/app/typing",
             body: JSON.stringify(typingPayload),
@@ -522,30 +534,34 @@ const ChatRoom: React.FC = () => {
 
         if (!stompClient || !roomId || !user || !stompClient.connected) return;
 
-        // 입력값이 비어있으면 타이핑 인디케이터 즉시 끄기
+        // 입력값이 비어있으면 즉시 타이핑 인디케이터 끄기
         if (value.trim() === "") {
             sendTypingIndicator(false);
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
                 typingTimeoutRef.current = null;
             }
-            return;
         }
     
-        // 입력 시 타이핑 인디케이터 전송
+        // 입력 중일 때는 타이핑 인디케이터 켜기
         sendTypingIndicator(true);
+
+        // 활성 여부를 알림 (타이핑 아님)
         stompClient.publish({
             destination: "/app/active",
-            body: JSON.stringify({ userId: user.id, roomId, active: true })
+            body: JSON.stringify({ userId: user.id, roomId, active: true }),
         });
-    
-        // 기존 타이핑 중 멈춤 로직은 유지 (입력이 없으면 1초 후 false 전송)
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+        // 기존 타이머 제거 후, 1초 후에 타이핑 인디케이터 끄기
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
         typingTimeoutRef.current = setTimeout(() => {
             sendTypingIndicator(false);
             typingTimeoutRef.current = null;
-        }, 300);
-    };    
+        }, 1000);
+    };
 
     // 메시지 전송
     const sendMessage = () => {
@@ -702,7 +718,9 @@ const ChatRoom: React.FC = () => {
                         type="text"
                         value={input}
                         onChange={handleInputChange}
-                        onKeyPress={handleKeyPress}
+                        onKeyDown={handleKeyDown}
+                        onCompositionStart={handleCompositionStart}
+                        onCompositionEnd={handleCompositionEnd}
                         onBlur={() => {
                             sendTypingIndicator(false);
                             if (typingTimeoutRef.current) {
