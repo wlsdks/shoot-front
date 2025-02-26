@@ -128,14 +128,22 @@ const ChatBubble = styled.div.withConfig({
     }
 `;
 
-// 타임스탬프 및 Indicator를 담는 컨테이너
-const TimeContainer = styled.div`
+// 타임스탬프 및 Indicator를 담는 컨테이너  
+// 내 메시지일 경우 오른쪽 정렬, 상대방일 경우 왼쪽 정렬
+const TimeContainer = styled.div<{ isOwnMessage: boolean }>`
     font-size: 0.65rem;
     color: #999;
     margin: 0 4px;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
+`;
+
+// Indicator 스타일 (내 메시지일 때만 사용)
+const Indicator = styled.div`
+    color: #ff4d4f;
+    font-weight: bold;
+    margin-bottom: 2px; /* Indicator와 시간 사이 간격 */
 `;
 
 // const MessageFooter = styled.div<{ isOwnMessage: boolean }>`
@@ -633,7 +641,15 @@ const ChatRoom: React.FC = () => {
                 <ChatArea ref={chatAreaRef}>
                     {messages.map((msg, idx) => {
                         const isOwn = msg.senderId === user?.id;
-                        // 내가 보낸 메시지일 때, 상대가 읽지 않았다면 Indicator "1" 표시
+                        
+                        // 현재 메시지와 다음 메시지의 시간(분 단위) 계산
+                        const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
+                        const nextMessage = messages[idx + 1];
+                        const nextTime = nextMessage && nextMessage.createdAt ? formatTime(nextMessage.createdAt) : "";
+                        // 그룹의 마지막 메시지이면 showTime은 true
+                        const showTime = !nextMessage || currentTime !== nextTime;
+                    
+                        // 내 메시지의 Indicator ("1")는 unread 조건에 따라 항상 표시
                         const unreadByOpponent = isOwn && Object.entries(msg.readBy).some(
                         ([id, read]) => id !== user?.id && !read
                         );
@@ -641,37 +657,32 @@ const ChatRoom: React.FC = () => {
                         .filter(([id]) => id !== user?.id)
                         .every(([, read]) => read);
                         const indicatorText = (isOwn && !allOthersRead && unreadByOpponent) ? "1" : "";
-                        
-                        // 시간 포맷팅 (예: "오전 9:34")
-                        const formattedTime = msg.createdAt
-                            ? formatTime(msg.createdAt)
-                            : "시간 정보 없음";
                     
                         return (
-                            <MessageRow key={idx} isOwnMessage={isOwn}>
-                                {isOwn ? (
-                                <>
-                                    {/* 내 메시지: 왼쪽에 시간/Indicator, 오른쪽에 말풍선 */}
-                                    <TimeContainer>
-                                    {indicatorText && <div>{indicatorText}</div>}
-                                    <div>{formattedTime}</div>
-                                    </TimeContainer>
-                                    <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                    <div>{msg.content.text}</div>
-                                    </ChatBubble>
-                                </>
-                                ) : (
-                                <>
-                                    {/* 상대방 메시지: 왼쪽에 말풍선, 오른쪽에 시간 */}
-                                    <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                    <div>{msg.content.text}</div>
-                                    </ChatBubble>
-                                    <TimeContainer>
-                                    <div>{formattedTime}</div>
-                                    </TimeContainer>
-                                </>
-                                )}
-                            </MessageRow>
+                        <MessageRow key={idx} isOwnMessage={isOwn}>
+                            {isOwn ? (
+                            <>
+                                {/* 내 메시지: Indicator와 시간이 왼쪽, 말풍선 오른쪽 */}
+                                <TimeContainer isOwnMessage={true}>
+                                {indicatorText && <div>{indicatorText}</div>}
+                                {showTime && <div>{currentTime}</div>}
+                                </TimeContainer>
+                                <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                <div>{msg.content.text}</div>
+                                </ChatBubble>
+                            </>
+                            ) : (
+                            <>
+                                {/* 상대 메시지: 말풍선 왼쪽, 시간 오른쪽 (Indicator 없음) */}
+                                <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                <div>{msg.content.text}</div>
+                                </ChatBubble>
+                                <TimeContainer isOwnMessage={false}>
+                                {showTime && <div>{currentTime}</div>}
+                                </TimeContainer>
+                            </>
+                            )}
+                        </MessageRow>
                         );
                     })}
                     {typingUsers.length > 0 && (
