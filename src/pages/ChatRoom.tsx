@@ -287,25 +287,20 @@ const ChatRoom: React.FC = () => {
         if (!roomId || !user) return;
 
         // 초기 메시지 로드 및 읽음 처리
-        const fetchMessages = async () => {
+        const fetchInitialMessages = async () => {
             try {
-                const res = await getChatMessages(roomId);
-                console.log("Fetched messages from API:", res.data);
-                setMessages((prev) => {
-                    // 중복 제거 후 최신순으로 정렬
-                    const allMessages = [...prev, ...res.data]
-                        .filter((msg, index, self) => self.findIndex(m => m.id === msg.id) === index)
-                        .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
-                    return allMessages.slice(-20); // 최신 20개만 유지
-                });
+                const res = await getChatMessages(roomId); // before 파라미터 없음 → 최신 20개 (내림차순)
+                // 백엔드에서 내림차순으로 반환되므로 reverse하여 오름차순으로 정렬
+                const sortedMessages = res.data.reverse();
+                setMessages(sortedMessages);
                 markAllRead();
                 setTimeout(scrollToBottom, 0);
             } catch (err) {
                 console.error("메시지 로드 실패", err);
             }
         };
-
-        fetchMessages();
+        
+        fetchInitialMessages();
 
         // STOMP 연결
         const token = localStorage.getItem("accessToken");
@@ -414,6 +409,48 @@ const ChatRoom: React.FC = () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
     }, [roomId, user, scrollToBottom, markAllRead]);
+
+
+    // 2. 스크롤 이벤트 핸들러 (페이징)
+    const handleScroll = () => {
+        if (!chatAreaRef.current) return;
+        if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
+            const oldestMessage = messages[0];
+            if (oldestMessage.createdAt) { // createdAt이 있을 때만 호출
+                fetchPreviousMessages(oldestMessage.createdAt);
+            }
+        }
+    };
+
+    const fetchPreviousMessages = async (beforeTime: string) => {
+        try {
+            // before 파라미터를 넘겨 API 호출 (내림차순으로 20개)
+            const res = await getChatMessages(roomId!, beforeTime);
+            if (res.data.length === 0) return; // 더 이상 데이터 없음
+        
+            // 받은 데이터를 reverse()하여 오름차순 정렬
+            const previousMessages = res.data.reverse();
+            // 스크롤 보정: 추가되기 전 스크롤 높이를 기억하고, prepend 후 차이만큼 스크롤 위치 보정
+            const currentScrollHeight = chatAreaRef.current?.scrollHeight || 0;
+            setMessages((prev) => [...previousMessages, ...prev]);
+            setTimeout(() => {
+            if (chatAreaRef.current) {
+                const newScrollHeight = chatAreaRef.current.scrollHeight;
+                chatAreaRef.current.scrollTop = newScrollHeight - currentScrollHeight;
+            }
+            }, 0);
+        } catch (err) {
+            console.error("이전 메시지 로드 실패", err);
+        }
+    };
+
+      // 3. ChatArea에 스크롤 이벤트 리스너 추가
+    useEffect(() => {
+        const chatArea = chatAreaRef.current;
+        if (!chatArea) return;
+        chatArea.addEventListener("scroll", handleScroll);
+        return () => chatArea.removeEventListener("scroll", handleScroll);
+    }, [messages]);
 
     // 메시지 및 타이핑 상태에 따른 스크롤 조정
     useEffect(() => {
