@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
+import InfiniteScroll from "react-infinite-scroll-component";
 import {
     getIncomingRequests,
     getOutgoingRequests,
@@ -98,22 +99,24 @@ const SocialTab: React.FC = () => {
     const [incoming, setIncoming] = useState<Friend[]>([]);
     const [outgoing, setOutgoing] = useState<Friend[]>([]);
     const [recommended, setRecommended] = useState<Friend[]>([]);
+    const [skip, setSkip] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const limit = 10;
 
-    const fetchData = useCallback(async () => {
+     // 기존 친구 요청 데이터 로드
+    const fetchSocialData = useCallback(async () => {
         if (!user) return;
         try {
             setLoading(true);
             setError("");
-            const [incRes, outRes, recRes] = await Promise.all([
+            const [incRes, outRes] = await Promise.all([
                 getIncomingRequests(user.id),
                 getOutgoingRequests(user.id),
-                getRecommendations(user.id, 3),
             ]);
             setIncoming(incRes.data);
             setOutgoing(outRes.data);
-            setRecommended(recRes.data);
         } catch (e) {
             console.error(e);
             setError("소셜 데이터 로드 실패");
@@ -122,44 +125,67 @@ const SocialTab: React.FC = () => {
         }
     }, [user]);
 
-    useEffect(() => {
-        if (user?.id) fetchData();
-    }, [user, fetchData]);
+    // 추천 친구 데이터 로드 (무한 스크롤)
+    const fetchRecommendations = useCallback(async (currentSkip: number) => {
+        if (!user) return;
+        try {
+            const recRes = await getRecommendations(user.id, limit, 2, currentSkip);
+            if (recRes.data.length < limit) {
+                setHasMore(false);  // 더 이상 데이터가 없으면 hasMore false 처리
+            }
+            setRecommended(prev => [...prev, ...recRes.data]);
+            setSkip(currentSkip + limit);
+        } catch (e) {
+            console.error(e);
+        }
+    }, [user]);
 
-    // 추천 친구 목록에서 "친구추가" 버튼 클릭 시 친구 요청 API 호출
+    useEffect(() => {
+        if (user?.id) {
+            fetchSocialData();
+            // 초기 추천 데이터 로드
+            fetchRecommendations(0);
+        }
+    }, [user, fetchSocialData, fetchRecommendations]);
+
+    // 친구 요청 보내기
     const handleSendFriendRequest = async (targetUserId: string) => {
         if (!user) return;
         try {
             const res = await sendFriendRequest(user.id, targetUserId);
             alert(`친구 요청 성공: ${res.data}`);
             // 요청 후 데이터를 새로 고침
-            fetchData();
+            fetchSocialData();
+            setRecommended([]); // 추천 목록 새로 로드
+            setSkip(0);
+            setHasMore(true);
+            fetchRecommendations(0);
         } catch (err) {
             console.error(err);
             alert("친구 요청 보내기에 실패했습니다.");
         }
     };
 
-    // 친구 요청 수락 처리
+    // 친구 요청 수락
     const handleAcceptRequest = async (requesterId: string) => {
         if (!user) return;
         try {
             await acceptFriendRequest(user.id, requesterId);
             alert("친구 요청을 수락했습니다.");
-            fetchData(); // 데이터 새로고침
+            fetchSocialData(); // 데이터 새로고침
         } catch (err) {
             console.error(err);
             alert("친구 요청 수락 실패");
         }
     };
 
-    // 친구 요청 거절 처리
+    // 친구 요청 거절
     const handleRejectRequest = async (requesterId: string) => {
         if (!user) return;
         try {
             await rejectFriendRequest(user.id, requesterId);
             alert("친구 요청을 거절했습니다.");
-            fetchData(); // 데이터 새로고침
+            fetchSocialData(); // 데이터 새로고침
         } catch (err) {
             console.error(err);
             alert("친구 요청 거절 실패");
@@ -203,20 +229,28 @@ const SocialTab: React.FC = () => {
             )}
 
             <SectionTitle>추천 친구</SectionTitle>
-            {recommended.length === 0 ? (
-                <StatusText>추천할 친구가 없습니다.</StatusText>
-            ) : (
-                <List>
-                    {recommended.map((friend) => (
-                        <ListItem key={friend.id}>
-                            <FriendName>{friend.username}</FriendName>
-                            <Button onClick={() => handleSendFriendRequest(friend.id)}>
-                                친구추가
-                            </Button>
-                        </ListItem>
-                    ))}
-                </List>
-            )}
+            <InfiniteScroll
+                dataLength={recommended.length}
+                next={() => fetchRecommendations(skip)}
+                hasMore={hasMore}
+                loader={<StatusText>로딩중...</StatusText>}
+                endMessage={<StatusText>더 이상 추천할 친구가 없습니다.</StatusText>}
+            >
+                {recommended.length === 0 ? (
+                    <StatusText>추천할 친구가 없습니다.</StatusText>
+                ) : (
+                    <List>
+                        {recommended.map((friend) => (
+                            <ListItem key={friend.id}>
+                                <FriendName>{friend.username}</FriendName>
+                                <Button onClick={() => handleSendFriendRequest(friend.id)}>
+                                    친구추가
+                                </Button>
+                            </ListItem>
+                        ))}
+                    </List>
+                )}
+            </InfiniteScroll>
         </Container>
     );
 };
