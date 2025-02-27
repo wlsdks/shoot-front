@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import FriendTab from "./tabs/FriendsTab";    // 위에서 완성한 친구 탭
 import SocialTab from "./tabs/SocialTab";     // 소셜 탭
@@ -58,7 +58,16 @@ const NavButton = styled.button<{ $active: boolean }>`
 `;
 
 const BottomNavLayout: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<number>(0);
+    // 초기 activeTab을 로컬 스토리지에서 불러오거나 기본값 0으로 설정
+    const [activeTab, setActiveTab] = useState<number>(() => {
+        const storedTab = localStorage.getItem("activeTab");
+        return storedTab ? Number(storedTab) : 0;
+    });
+
+     // activeTab이 변경될 때마다 로컬 스토리지에 저장
+    useEffect(() => {
+        localStorage.setItem("activeTab", activeTab.toString());
+    }, [activeTab]);
 
     return (
         <Container>
