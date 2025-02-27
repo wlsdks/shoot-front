@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import axios from "axios";
 import { EventSourcePolyfill } from "event-source-polyfill";
 import { loginCheckApi } from "../services/auth"; // => /api/v1/auth/me 호출
@@ -43,7 +43,122 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const sseSource = useRef<EventSourcePolyfill | null>(null);
     const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
 
-    // 1) 초기 로드 시 localStorage 검사
+    // SSE 연결 재설정 함수
+    // establishSseConnection 함수를 useCallback으로 감싸서 안정적인 참조를 제공합니다.
+    const establishSseConnection = useCallback((u: User, token: string) => {
+        console.log("AuthProvider: Establishing SSE connection...");
+        // 새 연결 생성
+        sseSource.current = new EventSourcePolyfill(
+            `http://localhost:8100/api/v1/chatrooms/updates/${u.id}`,
+            { headers: { "Authorization": `Bearer ${token}` } }
+        );
+
+        // 기본 message 이벤트: 로그 추가
+        (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
+            console.log("AuthProvider: SSE onmessage event received:", event);
+            const listenersForEvent = listeners.current.get("message") || new Set();
+            listenersForEvent.forEach(callback => callback(event));
+        };
+
+        // 커스텀 이벤트 friendAdded
+        (sseSource.current as any).addEventListener("friendAdded", function(this: EventSource, event: Event) {
+            console.log("AuthProvider: SSE friendAdded event received:", event);
+            const msgEvent = event as MessageEvent;
+            const listenersForEvent = listeners.current.get("friendAdded") || new Set();
+            listenersForEvent.forEach(callback => callback(msgEvent));
+        });
+
+        // 커스텀 이벤트 chatRoomCreated
+        (sseSource.current as any).addEventListener("chatRoomCreated", function(this: EventSource, event: Event) {
+            console.log("AuthProvider: SSE chatRoomCreated event received:", event);
+            const msgEvent = event as MessageEvent;
+            const listenersForEvent = listeners.current.get("chatRoomCreated") || new Set();
+            listenersForEvent.forEach(callback => callback(msgEvent));
+        });
+
+        // 커스텀 이벤트 heartbeat
+        (sseSource.current as any).addEventListener("heartbeat", function(this: EventSource, event: Event) {
+            console.log("AuthProvider: SSE heartbeat event received:", event);
+            const msgEvent = event as MessageEvent;
+            const listenersForEvent = listeners.current.get("heartbeat") || new Set();
+            listenersForEvent.forEach(callback => callback(msgEvent));
+        });
+
+        // onerror: 연결 오류 발생 시 재연결 시도
+        (sseSource.current as EventSource).onerror = function(this: EventSource, err: Event) {
+            console.error("AuthProvider: SSE connection error:", err);
+            // 연결이 끊어졌다면, 재연결 시도 (예: 5초 후)
+            if (sseSource.current) {
+                sseSource.current.close();
+            }
+            setTimeout(() => {
+                // 재연결 시도 (유저 정보와 토큰은 이미 있으므로 그대로 사용)
+                if (u.id && token) {
+                    establishSseConnection(u, token);
+                }
+            }, 5000);
+        };
+    }, []); // 의존성 배열을 빈 배열로 설정하여 한번만 생성
+
+    // login
+    const login = useCallback((u: User, token?: string) => {
+        console.log("AuthProvider: Logging in, user:", u, "token:", token);
+        if (!token) {
+            console.error("AuthProvider: No token provided during login");
+            return;
+        }
+
+        // 기존 SSE 연결이 있다면 먼저 종료
+        if (sseSource.current) {
+            console.log("AuthProvider: Existing SSE connection found. Closing it.");
+            sseSource.current.close();
+            sseSource.current = null;
+            listeners.current.clear();
+        }
+        
+        setUser(u);
+        setIsAuthenticated(true);
+        
+        localStorage.setItem("accessToken", token);
+
+        // 이 코드는 axios로 HTTP 요청을 보낼 때마다 기본적으로 "Authorization" 헤더에 해당 토큰을 포함시킵니다.
+        // 이를 통해 매번 개별 요청에 토큰을 수동으로 추가할 필요 없이, 인증이 필요한 API 호출 시 자동으로 토큰이 전달되어 인증이 이루어집니다.
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        // SSE 연결 시작 (자동 재연결 로직 포함)
+        if (u.id) {
+            establishSseConnection(u, token);
+        }
+    }, [establishSseConnection]);
+
+    // logout
+    const logout = () => {
+        console.log("AuthProvider: Logging out...");
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem("accessToken");
+        delete axios.defaults.headers.common["Authorization"];
+        
+        if (sseSource.current) {
+            console.log("AuthProvider: Closing SSE connection");
+            sseSource.current.close();
+            sseSource.current = null;
+            listeners.current.clear(); // 모든 리스너 초기화
+        }
+    };
+
+    // SSE 연결이 끊어진 경우, user가 있는 상태라면 재연결 시도
+    useEffect(() => {
+        if (user && !sseSource.current) {
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+                console.log("AuthProvider: SSE connection missing, re-establishing...");
+                establishSseConnection(user, token);
+            }
+        }
+    }, [user, establishSseConnection]);
+
+    // 초기 로드 시 localStorage 검사
     useEffect(() => {
         console.log("AuthProvider: Checking token...");
         const token = localStorage.getItem("accessToken");
@@ -68,93 +183,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 console.log("AuthProvider: Loading complete");
                 setLoading(false);
             });
-    }, []);
-
-    // 2) login
-    const login = (u: User, token?: string) => {
-        console.log("AuthProvider: Logging in, user:", u, "token:", token);
-        if (!token) {
-            console.error("AuthProvider: No token provided during login");
-            return;
-        }
-
-        // 기존 SSE 연결이 있다면 먼저 종료
-        if (sseSource.current) {
-            console.log("AuthProvider: Existing SSE connection found. Closing it.");
-            sseSource.current.close();
-            sseSource.current = null;
-            listeners.current.clear();
-        }
-        
-        setUser(u);
-        setIsAuthenticated(true);
-        
-        localStorage.setItem("accessToken", token);
-
-        // 이 코드는 axios로 HTTP 요청을 보낼 때마다 기본적으로 "Authorization" 헤더에 해당 토큰을 포함시킵니다.
-        // 이를 통해 매번 개별 요청에 토큰을 수동으로 추가할 필요 없이, 인증이 필요한 API 호출 시 자동으로 토큰이 전달되어 인증이 이루어집니다.
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        // SSE 연결 시작
-        if (u.id) {
-            console.log("AuthProvider: Starting SSE connection...");
-            sseSource.current = new EventSourcePolyfill(`http://localhost:8100/api/v1/chatrooms/updates/${u.id}`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            // 기본 message 이벤트: 로그 추가
-            (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
-                console.log("AuthProvider: SSE onmessage event received:", event);
-                const listenersForEvent = listeners.current.get("message") || new Set();
-                listenersForEvent.forEach(callback => callback(event));
-            };
-
-            // 커스텀 이벤트 friendAdded
-            (sseSource.current as any).addEventListener("friendAdded", function(this: EventSource, event: Event) {
-                console.log("AuthProvider: SSE friendAdded event received:", event);
-                const msgEvent = event as MessageEvent;
-                const listenersForEvent = listeners.current.get("friendAdded") || new Set();
-                listenersForEvent.forEach(callback => callback(msgEvent));
-            });
-
-            // 커스텀 이벤트 chatRoomCreated
-            (sseSource.current as any).addEventListener("chatRoomCreated", function(this: EventSource, event: Event) {
-                console.log("AuthProvider: SSE chatRoomCreated event received:", event);
-                const msgEvent = event as MessageEvent;
-                const listenersForEvent = listeners.current.get("chatRoomCreated") || new Set();
-                listenersForEvent.forEach(callback => callback(msgEvent));
-            });
-
-            // 커스텀 이벤트 heartbeat
-            (sseSource.current as any).addEventListener("heartbeat", function(this: EventSource, event: Event) {
-                console.log("AuthProvider: SSE heartbeat event received:", event);
-                const msgEvent = event as MessageEvent;
-                const listenersForEvent = listeners.current.get("heartbeat") || new Set();
-                listenersForEvent.forEach(callback => callback(msgEvent));
-            });
-
-            // onerror: 오류 발생 시 로그 출력
-            (sseSource.current as EventSource).onerror = function(this: EventSource, err: Event) {
-                console.error("AuthProvider: SSE connection error:", err);
-            };
-        }
-    };
-
-    // 3) logout
-    const logout = () => {
-        console.log("AuthProvider: Logging out...");
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem("accessToken");
-        delete axios.defaults.headers.common["Authorization"];
-        
-        if (sseSource.current) {
-            console.log("AuthProvider: Closing SSE connection");
-            sseSource.current.close();
-            sseSource.current = null;
-            listeners.current.clear(); // 모든 리스너 초기화
-        }
-    };
+    }, [login]);
 
     const subscribeToSse = (eventName: string, callback: (event: MessageEvent) => void) => {
         const eventListeners = listeners.current.get(eventName) || new Set();
