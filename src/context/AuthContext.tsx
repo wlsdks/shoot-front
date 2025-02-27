@@ -5,7 +5,7 @@ import { loginCheckApi } from "../services/auth"; // => /api/v1/auth/me 호출
 
 interface User {
     id: string;
-    name: string;
+    username: string;
 }
 
 interface AuthContextType {

@@ -4,11 +4,11 @@ import { useAuth } from "../../context/AuthContext";
 import { getFriends } from "../../services/friends";
 import FriendSearch from "../FriendSearch";
 import FriendCodePage from "../FriendCodePage";
-import { createDirectChat } from "../../services/chatRoom"
+import { createDirectChat } from "../../services/chatRoom";
 import { useNavigate } from "react-router-dom";
-import isEqual from 'lodash/isEqual';
+import isEqual from "lodash/isEqual";
 
-// FriendTab 컨테이너 (ContentArea에 채워질 카드)
+// FriendTab 컨테이너
 const TabContainer = styled.div`
     padding: 16px;
 `;
@@ -21,7 +21,6 @@ const Header = styled.div`
     margin-bottom: 16px;
 `;
 
-// 제목 스타일
 const Title = styled.h2`
     font-size: 20px;
     font-weight: 600;
@@ -29,13 +28,11 @@ const Title = styled.h2`
     margin: 0;
 `;
 
-// 버튼 그룹
 const ButtonGroup = styled.div`
     display: flex;
     gap: 8px;
 `;
 
-// 아이콘 버튼 (검색 토글)
 const IconButton = styled.button`
     background: transparent;
     border: none;
@@ -44,7 +41,6 @@ const IconButton = styled.button`
     cursor: pointer;
 `;
 
-// 텍스트 버튼 (코드 등록/찾기)
 const TextButton = styled.button`
     background: transparent;
     border: none;
@@ -53,32 +49,66 @@ const TextButton = styled.button`
     cursor: pointer;
 `;
 
-// 친구 목록 (카드 스타일)
+// 내 프로필 카드: 헤더 아래에 내 프로필을 표시하며, 테두리를 두껍게 처리
+const MyProfileCard = styled.div`
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #404143;
+`;
+
+// 친구 목록 컨테이너
 const FriendList = styled.ul`
     list-style: none;
     padding: 0;
     margin: 0;
 `;
 
+// 친구 아이템 (카드 형태)
+// 왼쪽에 아바타, 오른쪽에 친구 이름을 배치 (일반 테두리)
 const FriendItem = styled.li`
+    display: flex;
+    align-items: center;
     padding: 12px;
-    background: #f9f9f9;
+    background: #fff;
     border-radius: 12px;
     margin-bottom: 12px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    font-size: 16px;
-    color: #333;
     transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
     &:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 `;
 
-// 친구 인터페이스 정의
+// 아바타 이미지 스타일 (내 프로필 및 친구 아이템 모두 사용)
+const Avatar = styled.img`
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+    border: 1px solid #ddd;
+`;
+
+// 이름 텍스트 영역
+const FriendName = styled.div`
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+`;
+
+// Friend 인터페이스 정의 (avatarUrl는 선택사항)
+// 주의: 친구 목록에서 받아오는 데이터는 username 필드를 사용합니다.
 interface Friend {
     id: string;
     username: string;
+    avatarUrl?: string;
 }
 
 const FriendTab: React.FC = () => {
@@ -93,7 +123,6 @@ const FriendTab: React.FC = () => {
         if (!user) return;
         try {
             const response = await getFriends(user.id);
-            // 이전 상태는 함수형 업데이트로 가져오기
             setFriends((prevFriends) => {
                 if (!isEqual(prevFriends, response.data)) {
                     console.log("FriendTab: Friends fetched:", response.data);
@@ -104,14 +133,14 @@ const FriendTab: React.FC = () => {
         } catch (err) {
             console.error("FriendTab: Fetch friends failed:", err);
         }
-    }, [user]);    
+    }, [user]);
 
     // 초기 로드 시 친구 목록 불러오기
     useEffect(() => {
         if (!user?.id) return;
         console.log("FriendTab: Initializing friends...");
         fetchFriends();
-    }, [user?.id, fetchFriends]);    
+    }, [user?.id, fetchFriends]);
 
     // friendAdded 이벤트는 너무 자주 호출될 수 있으므로 throttle 적용
     const friendAddedThrottleRef = useRef<NodeJS.Timeout | null>(null);
@@ -138,15 +167,14 @@ const FriendTab: React.FC = () => {
         };
     }, [user?.id, subscribeToSse, unsubscribeFromSse, handleFriendAdded, handleHeartbeat]);
 
-    // 채팅방 생성
+    // 채팅방 생성: 친구 클릭 시 direct chat 생성 후 이동
     const handleFriendClick = useCallback(async (friendId: string) => {
         console.log("FriendTab: Friend clicked:", friendId);
         if (!user) return;
         try {
             const response = await createDirectChat(user.id, friendId);
             console.log("FriendTab: Chat created, roomId:", response.data.id);
-            const roomId = response.data.id;
-            navigate(`/chatroom/${roomId}`);
+            navigate(`/chatroom/${response.data.id}`);
         } catch (err) {
             console.error("FriendTab: Chat Room creation failed:", err);
             alert("채팅방 생성에 실패했습니다.");
@@ -174,6 +202,16 @@ const FriendTab: React.FC = () => {
             </Header>
             {showSearch && <FriendSearch />}
             {showCode && <FriendCodePage />}
+            {/* 내 프로필 카드: 헤더 아래에 내 프로필을 표시 (테두리는 두껍게) */}
+            {user && (
+                <MyProfileCard>
+                    <Avatar
+                        src={"https://via.placeholder.com/50"}
+                        alt={user.username}
+                    />
+                    <FriendName>{user.username}</FriendName>
+                </MyProfileCard>
+            )}
             {friends.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#888", fontSize: "16px" }}>
                     친구가 없습니다.
@@ -181,11 +219,12 @@ const FriendTab: React.FC = () => {
             ) : (
                 <FriendList>
                     {friends.map((friend) => (
-                        <FriendItem
-                            key={friend.id}
-                            onClick={() => handleFriendClick(friend.id)} // 클릭 이벤트 추가
-                        >
-                            {friend.username}
+                        <FriendItem key={friend.id} onClick={() => handleFriendClick(friend.id)}>
+                            <Avatar
+                                src={friend.avatarUrl ? friend.avatarUrl : "https://via.placeholder.com/50"}
+                                alt={friend.username}
+                            />
+                            <FriendName>{friend.username}</FriendName>
                         </FriendItem>
                     ))}
                 </FriendList>

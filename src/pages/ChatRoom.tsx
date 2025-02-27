@@ -518,7 +518,7 @@ const ChatRoom: React.FC = () => {
         const typingPayload: TypingIndicatorMessage = { 
             roomId,
             userId: user.id,
-            username: user.name || "Unknown",
+            username: user.username || "Unknown",
             isTyping 
         };
         stompClient.publish({

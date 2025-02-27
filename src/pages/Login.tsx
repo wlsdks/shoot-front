@@ -119,7 +119,7 @@ const Login: React.FC = () => {
             const response = await loginApi(username, password); // 로그인 API 호출 (예: /auth/login)
             console.log("Login response:", response.data);
             const { userId, accessToken } = response.data;
-            login({ id: userId, name: username }, accessToken); // AuthContext에 로그인 정보 업데이트
+            login({ id: userId, username: username }, accessToken); // AuthContext에 로그인 정보 업데이트
             navigate('/');
         } catch (err) {
             console.error("Login failed:", err);
