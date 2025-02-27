@@ -27,7 +27,7 @@ export const sendFriendRequest = (userId: string, targetUserId: string): Promise
     return api.post(`/friends/request`, null, { params: { userId, targetUserId } });
 };
 
-// 친구 요청 승인
+// 친구 요청 수락
 export const acceptFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
     return api.post(`/friends/accept`, null, {
         params: { userId, requesterId }
@@ -46,17 +46,12 @@ export const searchFriends = (userId: string, query: string): Promise<AxiosRespo
     return api.get(`/friends/search`, { params: { userId, query } });
 };
 
-/**
- * BFS 기반 친구 추천 API 호출
- * @param userId 추천 대상 사용자의 아이디
- * @param limit 반환할 추천 수 (기본값: 3)
- * @param maxDepth 친구 네트워크 탐색 최대 깊이 (기본값: 2)
- * @returns 추천 대상 사용자 목록
- */
+// BFS 기반 친구 추천 API 호출 (skip 파라미터 추가)
 export const getRecommendations = (
     userId: string,
-    limit: number = 3,
-    maxDepth: number = 2
+    limit: number = 10,       // 한 번에 가져올 추천 친구 수
+    maxDepth: number = 2,
+    skip: number = 0          // 이미 가져온 추천 수 (페이지네이션)
 ): Promise<AxiosResponse<Friend[]>> => {
-    return api.get(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth } });
+    return api.get(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth, skip } });
 };
