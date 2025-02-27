@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {
+    getFriends,
     getIncomingRequests,
     getOutgoingRequests,
     getRecommendations,
@@ -96,6 +97,7 @@ const LoadingContainer = styled.div`
 
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
+    const [friends, setFriends] = useState<Friend[]>([]);
     const [incoming, setIncoming] = useState<Friend[]>([]);
     const [outgoing, setOutgoing] = useState<Friend[]>([]);
     const [recommended, setRecommended] = useState<Friend[]>([]);
@@ -105,16 +107,19 @@ const SocialTab: React.FC = () => {
     const [error, setError] = useState("");
     const limit = 10;
 
-     // 기존 친구 요청 데이터 로드
+    // 기존 소셜 데이터 (친구 목록, 친구 요청) 로드
     const fetchSocialData = useCallback(async () => {
         if (!user) return;
         try {
             setLoading(true);
             setError("");
-            const [incRes, outRes] = await Promise.all([
+            // 친구 목록, 받은 요청, 보낸 요청 모두 함께 조회
+            const [friendsRes, incRes, outRes] = await Promise.all([
+                getFriends(user.id),
                 getIncomingRequests(user.id),
                 getOutgoingRequests(user.id),
             ]);
+            setFriends(friendsRes.data);
             setIncoming(incRes.data);
             setOutgoing(outRes.data);
         } catch (e) {
@@ -240,14 +245,22 @@ const SocialTab: React.FC = () => {
                     <StatusText>추천할 친구가 없습니다.</StatusText>
                 ) : (
                     <List>
-                        {recommended.map((friend) => (
-                            <ListItem key={friend.id}>
-                                <FriendName>{friend.username}</FriendName>
-                                <Button onClick={() => handleSendFriendRequest(friend.id)}>
-                                    친구추가
-                                </Button>
-                            </ListItem>
-                        ))}
+                        {recommended.map((candidate) => {
+                            // 현재 친구 목록에 이미 있는지 확인
+                            const alreadyFriend = friends.some(friend => friend.id === candidate.id);
+                            return (
+                                <ListItem key={candidate.id}>
+                                    <FriendName>{candidate.username}</FriendName>
+                                    {alreadyFriend ? (
+                                        <StatusText>이미 친구</StatusText>
+                                    ) : (
+                                        <Button onClick={() => handleSendFriendRequest(candidate.id)}>
+                                            친구추가
+                                        </Button>
+                                    )}
+                                </ListItem>
+                            );
+                        })}
                     </List>
                 )}
             </InfiniteScroll>
