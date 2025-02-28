@@ -205,48 +205,36 @@ const ChatRoomList: React.FC = () => {
                 
                 const { roomId, unreadCount, lastMessage } = data;
                 console.log("ChatRoomList: Message received:", { roomId, unreadCount, lastMessage });
-                
+
+                // lastMessage가 null이거나 비어있는 경우의 처리
+                if (lastMessage === null || lastMessage === undefined || lastMessage === "") {
+                    console.log(`ChatRoomList: 메시지 없음 (null/empty) - roomId: ${roomId}`);
+                    
+                    // unreadCount만 업데이트하고 lastMessage는 변경하지 않음
+                    if (unreadCount !== undefined) {
+                        setRooms((prev) => 
+                            prev.map((room) =>
+                                room.roomId === roomId 
+                                    ? { ...room, unreadMessages: unreadCount } 
+                                    : room
+                            )
+                        );
+                    }
+                    return;
+                }
+
+                // 정상 메시지가 있는 경우 모든 필드 업데이트
                 setRooms((prev) => {
-                    // 해당 roomId를 가진 채팅방 찾기
-                    const roomIndex = prev.findIndex(room => room.roomId === roomId);
+                    // 기존 방 찾기
+                    const roomIndex = prev.findIndex(r => r.roomId === roomId);
+                    if (roomIndex === -1) return prev; // 방이 없으면 무시
                     
-                    // 해당 채팅방이 없으면 업데이트할 필요 없음
-                    if (roomIndex === -1) {
-                        console.log(`ChatRoomList: Room ${roomId} not found in current list`);
-                        // 새 채팅방이라면 전체 목록을 새로고침
-                        if (!updatesReceivedRef.current) {
-                            setTimeout(fetchRooms, 300);
-                            updatesReceivedRef.current = true;
-                        }
-                        return prev;
-                    }
-                    
-                    // 현재 채팅방 정보
-                    const currentRoom = prev[roomIndex];
-                    
-                    // 업데이트할 필요가 있는지 확인
-                    const needsUpdate = 
-                        (unreadCount !== undefined && currentRoom.unreadMessages !== unreadCount) ||
-                        (lastMessage !== undefined && currentRoom.lastMessage !== lastMessage);
-                    
-                    if (!needsUpdate) {
-                        console.log(`ChatRoomList: No changes needed for room ${roomId}`);
-                        return prev;
-                    }
-                    
-                    console.log(`ChatRoomList: Updating room ${roomId}`, {
-                        before: { unread: currentRoom.unreadMessages, lastMessage: currentRoom.lastMessage },
-                        after: { unread: unreadCount, lastMessage }
-                    });
-                    
-                    // 새 배열 생성 (React 상태 업데이트를 위해)
+                    // 새 배열 생성
                     const newRooms = [...prev];
-                    
-                    // 해당 채팅방 정보 업데이트
                     newRooms[roomIndex] = {
-                        ...currentRoom,
-                        unreadMessages: unreadCount !== undefined ? unreadCount : currentRoom.unreadMessages,
-                        lastMessage: lastMessage !== undefined ? lastMessage : currentRoom.lastMessage
+                        ...newRooms[roomIndex],
+                        unreadMessages: unreadCount !== undefined ? unreadCount : newRooms[roomIndex].unreadMessages,
+                        lastMessage
                     };
                     
                     return newRooms;

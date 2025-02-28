@@ -28,21 +28,22 @@ export const updateChatRoomFavorite = (
  * @param userId 사용자 ID
  * @returns
  */
-export const markAllMessagesAsRead = (roomId: string, userId: string) => {
+// API 호출 함수 수정
+export const markAllMessagesAsRead = (roomId: string, userId: string, requestId?: string) => {
     const token = localStorage.getItem("accessToken");
-    console.log("markAllMessagesAsRead 호출:", { roomId, userId, token });
+    
+    // requestId 매개변수 추가 (세션 대신 단일 요청 식별자 사용)
+    const requestIdParam = requestId ? `&requestId=${requestId}` : '';
+    
     return axios.post(
-        `http://localhost:8100/api/v1/messages/mark-read?roomId=${roomId}&userId=${userId}`,
+        `http://localhost:8100/api/v1/messages/mark-read?roomId=${roomId}&userId=${userId}${requestIdParam}`,
         null,
         {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
         }
-    ).catch((error) => {
-        console.error("markAllMessagesAsRead 실패:", error.response || error);
-        throw error; // 에러를 상위로 전달
-    });
+    );
 };
 
 /**

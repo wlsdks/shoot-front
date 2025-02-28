@@ -283,6 +283,10 @@ const ChatRoom: React.FC = () => {
         }
     }, []);
 
+    // 읽음 처리 요청을 위한 세션 관리를 위한 상태 추가
+    const [sessionId] = useState<string>(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+    const lastReadTimeRef = useRef<number>(0);
+
     // 방 입장 시 모든 메시지 읽음 처리 (REST 호출)
     const markAllRead = useCallback(() => {
         if (roomId && user) {
