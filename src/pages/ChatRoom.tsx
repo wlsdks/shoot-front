@@ -289,21 +289,31 @@ const ChatRoom: React.FC = () => {
 
     // 방 입장 시 모든 메시지 읽음 처리 (REST 호출)
     const markAllRead = useCallback(() => {
-        if (roomId && user) {
-            markAllMessagesAsRead(roomId, user.id)
-                .then(() => {
-                    console.log("모든 메시지 읽음처리 완료");
-                    // 읽음 처리 후, 서버에서 최신 메시지를 다시 불러와서 상태를 업데이트합니다.
-                    getChatMessages(roomId).then((res) => {
-                        const sortedMessages = res.data.reverse();
-                        setMessages(sortedMessages);
-                    });
-                })
-                .catch((err) =>
-                    console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err)
-                );
+        if (!roomId || !user) return;
+        
+        // 마지막 읽음 처리 요청 후 2초 이내에는 다시 요청하지 않음
+        const now = Date.now();
+        if (now - lastReadTimeRef.current < 2000) {
+            console.log("읽음 처리 요청 간격이 너무 짧습니다. 무시합니다.");
+            return;
         }
-    }, [roomId, user]);
+        
+        lastReadTimeRef.current = now;
+        
+        markAllMessagesAsRead(roomId, user.id, sessionId) // sessionId 파라미터 추가
+            .then(() => {
+                console.log("모든 메시지 읽음처리 완료");
+                // 읽음 처리 후, 서버에서 최신 메시지를 다시 불러와서 상태를 업데이트합니다.
+                getChatMessages(roomId).then((res) => {
+                    const sortedMessages = res.data.reverse();
+                    setMessages(sortedMessages);
+                });
+            })
+            .catch((err) =>
+                console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err)
+            );
+    }, [roomId, user, sessionId]);
+    
 
     // 여러 메시지 읽음 업데이트 처리 함수
     const updateBulkMessageReadStatus = (messageIds: string[], userId: string) => {
