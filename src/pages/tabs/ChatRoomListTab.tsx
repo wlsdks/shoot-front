@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { getChatRooms, updateChatRoomFavorite } from '../../services/chatRoom';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
@@ -147,17 +147,21 @@ const ChatRoomList: React.FC = () => {
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const updatesReceivedRef = useRef(false);
 
     // 채팅방 목록을 불러오는 함수
     const fetchRooms = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
+            console.log("ChatRoomList: Fetching rooms for user:", user.id);
             const response = await getChatRooms(user.id);
             const roomsData: ChatRoom[] = response.data;
+            console.log("ChatRoomList: Received rooms:", roomsData);
             setRooms(roomsData);
+            updatesReceivedRef.current = false; // 새로운 데이터를 로드했으므로 플래그 초기화
         } catch (err) {
-            console.error(err);
+            console.error("ChatRoomList: Failed to fetch rooms:", err);
             setError("채팅방 목록 로드 실패");
         } finally {
             setLoading(false);
@@ -171,22 +175,90 @@ const ChatRoomList: React.FC = () => {
             setRooms([]);
             return;
         }
+        
         fetchRooms();
 
         // 메시지 수신 시 해당 채팅방의 마지막 메시지와 안읽은 수 업데이트
         const handleMessage = (event: MessageEvent) => {
-            const { roomId, unreadCount, lastMessage } = JSON.parse(event.data);
-            console.log("ChatRoomList: Message received:", { roomId, unreadCount, lastMessage });
-            setRooms((prev) =>
-                prev.map((room) =>
-                    room.roomId === roomId ? { ...room, unreadMessages: unreadCount, lastMessage } : room
-                )
-            );
+            try {
+                console.log("ChatRoomList: Raw message event received:", event.data);
+                
+                let data;
+                if (typeof event.data === 'string') {
+                    try {
+                        data = JSON.parse(event.data);
+                    } catch (e) {
+                        console.error("ChatRoomList: Failed to parse message data:", e);
+                        return;
+                    }
+                } else {
+                    data = event.data;
+                }
+                
+                console.log("ChatRoomList: Parsed message data:", data);
+                
+                // roomId 필드 확인
+                if (!data.roomId) {
+                    console.warn("ChatRoomList: Missing roomId in SSE data:", data);
+                    return;
+                }
+                
+                const { roomId, unreadCount, lastMessage } = data;
+                console.log("ChatRoomList: Message received:", { roomId, unreadCount, lastMessage });
+                
+                setRooms((prev) => {
+                    // 해당 roomId를 가진 채팅방 찾기
+                    const roomIndex = prev.findIndex(room => room.roomId === roomId);
+                    
+                    // 해당 채팅방이 없으면 업데이트할 필요 없음
+                    if (roomIndex === -1) {
+                        console.log(`ChatRoomList: Room ${roomId} not found in current list`);
+                        // 새 채팅방이라면 전체 목록을 새로고침
+                        if (!updatesReceivedRef.current) {
+                            setTimeout(fetchRooms, 300);
+                            updatesReceivedRef.current = true;
+                        }
+                        return prev;
+                    }
+                    
+                    // 현재 채팅방 정보
+                    const currentRoom = prev[roomIndex];
+                    
+                    // 업데이트할 필요가 있는지 확인
+                    const needsUpdate = 
+                        (unreadCount !== undefined && currentRoom.unreadMessages !== unreadCount) ||
+                        (lastMessage !== undefined && currentRoom.lastMessage !== lastMessage);
+                    
+                    if (!needsUpdate) {
+                        console.log(`ChatRoomList: No changes needed for room ${roomId}`);
+                        return prev;
+                    }
+                    
+                    console.log(`ChatRoomList: Updating room ${roomId}`, {
+                        before: { unread: currentRoom.unreadMessages, lastMessage: currentRoom.lastMessage },
+                        after: { unread: unreadCount, lastMessage }
+                    });
+                    
+                    // 새 배열 생성 (React 상태 업데이트를 위해)
+                    const newRooms = [...prev];
+                    
+                    // 해당 채팅방 정보 업데이트
+                    newRooms[roomIndex] = {
+                        ...currentRoom,
+                        unreadMessages: unreadCount !== undefined ? unreadCount : currentRoom.unreadMessages,
+                        lastMessage: lastMessage !== undefined ? lastMessage : currentRoom.lastMessage
+                    };
+                    
+                    return newRooms;
+                });
+            } catch (error) {
+                console.error("ChatRoomList: Error processing message event:", error);
+            }
         };
 
         // 채팅방 생성 이벤트 발생 시 목록 새로고침
         const handleChatRoomCreated = (event: MessageEvent) => {
-            console.log("ChatRoomList: Chat room created event:", event);
+            console.log("ChatRoomList: Chat room created event received:", event);
             fetchRooms();
         };
 
@@ -195,11 +267,20 @@ const ChatRoomList: React.FC = () => {
             console.log("ChatRoomList: Heartbeat received:", event);
         };
 
+        // 주기적으로 채팅방 목록 새로고침 (SSE가 제대로 동작하지 않을 경우를 대비)
+        const refreshInterval = setInterval(() => {
+            if (!updatesReceivedRef.current) {
+                console.log("ChatRoomList: Periodic refresh (no updates received)");
+                fetchRooms();
+            }
+        }, 30000); // 30초마다
+
         subscribeToSse("message", handleMessage);
         subscribeToSse("chatRoomCreated", handleChatRoomCreated);
         subscribeToSse("heartbeat", handleHeartbeat);
 
         return () => {
+            clearInterval(refreshInterval);
             unsubscribeFromSse("message", handleMessage);
             unsubscribeFromSse("chatRoomCreated", handleChatRoomCreated);
             unsubscribeFromSse("heartbeat", handleHeartbeat);
@@ -217,7 +298,7 @@ const ChatRoomList: React.FC = () => {
         }
     };
 
-    if (loading) return <p>로딩중...</p>;
+    if (loading && rooms.length === 0) return <p>로딩중...</p>;
     if (error) return <ErrorMessage>{error}</ErrorMessage>;
 
     return (

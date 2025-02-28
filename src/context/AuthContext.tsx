@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import axios from "axios";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { loginCheckApi } from "../services/auth"; // => /api/v1/auth/me 호출
+import { loginCheckApi } from "../services/auth";
 
 interface User {
     id: string;
@@ -44,61 +44,90 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
 
     // SSE 연결 재설정 함수
-    // establishSseConnection 함수를 useCallback으로 감싸서 안정적인 참조를 제공합니다.
     const establishSseConnection = useCallback((u: User, token: string) => {
         console.log("AuthProvider: Establishing SSE connection...");
-        // 새 연결 생성
-        sseSource.current = new EventSourcePolyfill(
-            `http://localhost:8100/api/v1/chatrooms/updates/${u.id}`,
-            { headers: { "Authorization": `Bearer ${token}` } }
-        );
-
-        // 기본 message 이벤트: 로그 추가
-        (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
-            console.log("AuthProvider: SSE onmessage event received:", event);
-            const listenersForEvent = listeners.current.get("message") || new Set();
-            listenersForEvent.forEach(callback => callback(event));
-        };
-
-        // 커스텀 이벤트 friendAdded
-        (sseSource.current as any).addEventListener("friendAdded", function(this: EventSource, event: Event) {
-            console.log("AuthProvider: SSE friendAdded event received:", event);
-            const msgEvent = event as MessageEvent;
-            const listenersForEvent = listeners.current.get("friendAdded") || new Set();
-            listenersForEvent.forEach(callback => callback(msgEvent));
-        });
-
-        // 커스텀 이벤트 chatRoomCreated
-        (sseSource.current as any).addEventListener("chatRoomCreated", function(this: EventSource, event: Event) {
-            console.log("AuthProvider: SSE chatRoomCreated event received:", event);
-            const msgEvent = event as MessageEvent;
-            const listenersForEvent = listeners.current.get("chatRoomCreated") || new Set();
-            listenersForEvent.forEach(callback => callback(msgEvent));
-        });
-
-        // 커스텀 이벤트 heartbeat
-        (sseSource.current as any).addEventListener("heartbeat", function(this: EventSource, event: Event) {
-            console.log("AuthProvider: SSE heartbeat event received:", event);
-            const msgEvent = event as MessageEvent;
-            const listenersForEvent = listeners.current.get("heartbeat") || new Set();
-            listenersForEvent.forEach(callback => callback(msgEvent));
-        });
-
-        // onerror: 연결 오류 발생 시 재연결 시도
-        (sseSource.current as EventSource).onerror = function(this: EventSource, err: Event) {
-            console.error("AuthProvider: SSE connection error:", err);
-            // 연결이 끊어졌다면, 재연결 시도 (예: 5초 후)
-            if (sseSource.current) {
-                sseSource.current.close();
-            }
-            setTimeout(() => {
-                // 재연결 시도 (유저 정보와 토큰은 이미 있으므로 그대로 사용)
-                if (u.id && token) {
-                    establishSseConnection(u, token);
+        try {
+            // 새 연결 생성
+            sseSource.current = new EventSourcePolyfill(
+                `http://localhost:8100/api/v1/chatrooms/updates/${u.id}`,
+                { 
+                    headers: { "Authorization": `Bearer ${token}` },
+                    heartbeatTimeout: 60000, // 60초 하트비트 타임아웃
                 }
-            }, 5000);
-        };
-    }, []); // 의존성 배열을 빈 배열로 설정하여 한번만 생성
+            );
+
+            // 디버깅용 이벤트 핸들러
+            sseSource.current.onopen = () => {
+                console.log("AuthProvider: SSE connection opened");
+            };
+
+            // 기본 message 이벤트: 로그 추가
+            (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
+                console.log("AuthProvider: SSE onmessage event received:", event.data);
+                try {
+                    const parsedData = JSON.parse(event.data);
+                    console.log("AuthProvider: Parsed SSE data:", parsedData);
+                    
+                    // 메시지 이벤트 리스너 호출
+                    const listenersForEvent = listeners.current.get("message") || new Set();
+                    listenersForEvent.forEach(callback => callback(event));
+                } catch (err) {
+                    console.error("AuthProvider: Failed to parse SSE data:", err);
+                }
+            };
+
+
+            // 기본 message 이벤트: 로그 추가
+            (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
+                console.log("AuthProvider: SSE onmessage event received:", event);
+                const listenersForEvent = listeners.current.get("message") || new Set();
+                listenersForEvent.forEach(callback => callback(event));
+            };
+
+            // 커스텀 이벤트 friendAdded
+            (sseSource.current as any).addEventListener("friendAdded", function(this: EventSource, event: Event) {
+                console.log("AuthProvider: SSE friendAdded event received:", event);
+                const msgEvent = event as MessageEvent;
+                const listenersForEvent = listeners.current.get("friendAdded") || new Set();
+                listenersForEvent.forEach(callback => callback(msgEvent));
+            });
+
+            // 커스텀 이벤트 chatRoomCreated
+            (sseSource.current as any).addEventListener("chatRoomCreated", function(this: EventSource, event: Event) {
+                console.log("AuthProvider: SSE chatRoomCreated event received:", event);
+                const msgEvent = event as MessageEvent;
+                const listenersForEvent = listeners.current.get("chatRoomCreated") || new Set();
+                listenersForEvent.forEach(callback => callback(msgEvent));
+            });
+
+            // 커스텀 이벤트 heartbeat
+            (sseSource.current as any).addEventListener("heartbeat", function(this: EventSource, event: Event) {
+                console.log("AuthProvider: SSE heartbeat event received:", event);
+                const msgEvent = event as MessageEvent;
+                const listenersForEvent = listeners.current.get("heartbeat") || new Set();
+                listenersForEvent.forEach(callback => callback(msgEvent));
+            });
+
+            // onerror: 연결 오류 발생 시 재연결 시도
+            (sseSource.current as EventSource).onerror = function(this: EventSource, err: Event) {
+                console.error("AuthProvider: SSE connection error:", err);
+                if (sseSource.current) {
+                    sseSource.current.close();
+                    sseSource.current = null;
+                }
+                
+                // 지수 백오프로 재연결 (5초 후)
+                setTimeout(() => {
+                    if (u.id && token) {
+                        console.log("AuthProvider: Attempting to reconnect SSE...");
+                        establishSseConnection(u, token);
+                    }
+                }, 5000);
+            };
+        } catch (error) {
+            console.error("AuthProvider: Failed to establish SSE connection:", error);
+        }
+    }, []);
 
     // login
     const login = useCallback((u: User, token?: string) => {
