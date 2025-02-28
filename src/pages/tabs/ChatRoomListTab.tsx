@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from "react-router-dom";
 import { getChatRooms, updateChatRoomFavorite } from '../../services/chatRoom';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
@@ -143,11 +144,13 @@ const ErrorMessage = styled.div`
 `;
 
 const ChatRoomList: React.FC = () => {
-    const { user, subscribeToSse, unsubscribeFromSse } = useAuth();
+    const { user, subscribeToSse, unsubscribeFromSse, reconnectSse } = useAuth();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const updatesReceivedRef = useRef(false);
+    const location = useLocation(); // 현재 라우트의 state 확인
+    const navigate = useNavigate(); // 상태 초기화용
 
     // 채팅방 목록을 불러오는 함수
     const fetchRooms = useCallback(async () => {
@@ -167,6 +170,20 @@ const ChatRoomList: React.FC = () => {
             setLoading(false);
         }
     }, [user]);
+
+    // 뒤로 가기로 채팅방 목록에 들어올 때 자동 새로고침 및 SSE 재연결
+    useEffect(() => {
+        if (location.state?.refresh) {
+            console.log("뒤로 가기 감지됨, 채팅방 목록 새로고침");
+            fetchRooms();
+            
+            // 상태 초기화 (무한 새로고침 방지)
+            navigate(".", { replace: true, state: {} });
+        }
+
+        // 마운트될 때도 SSE 재연결 시도 (채팅방에서 나갔을 때 연결이 끊겼을 수 있으므로)
+        reconnectSse();
+    }, [location, fetchRooms, navigate, reconnectSse]);
 
     // SSE 이벤트를 통해 채팅방 목록을 실시간으로 업데이트
     useEffect(() => {

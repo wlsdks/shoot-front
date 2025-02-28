@@ -284,10 +284,12 @@ const ChatRoom: React.FC = () => {
     }, []);
 
     // 읽음 처리 요청을 위한 세션 관리를 위한 상태 추가
-    const [sessionId] = useState<string>(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+    const [sessionId] = useState<string>(
+        () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    );
     const lastReadTimeRef = useRef<number>(0);
 
-    // 방 입장 시 모든 메시지 읽음 처리 (REST 호출)
+    // 모든 메시지 읽음 처리 (REST 호출)
     const markAllRead = useCallback(() => {
         if (!roomId || !user) return;
         
@@ -313,7 +315,6 @@ const ChatRoom: React.FC = () => {
                 console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err)
             );
     }, [roomId, user, sessionId]);
-    
 
     // 여러 메시지 읽음 업데이트 처리 함수
     const updateBulkMessageReadStatus = (messageIds: string[], userId: string) => {
@@ -324,6 +325,12 @@ const ChatRoom: React.FC = () => {
                     : msg
             )
         );
+    };
+
+    // 뒤로가기 클릭시 동작
+    const handleBack = () => {
+        // 채팅방 페이지에서는 별도 SSE 재연결 없이, 단순히 채팅방 목록으로 이동
+        navigate("/", { state: { refresh: true } });
     };
 
     // 1) 초기 메시지 로드 및 STOMP 연결
@@ -670,7 +677,7 @@ const ChatRoom: React.FC = () => {
         <ChatWrapper>
             <ChatContainer>
                 <Header>
-                    <BackButton onClick={() => navigate("/")}>←</BackButton>
+                    <BackButton onClick={handleBack}>←</BackButton> {/* ✅ 뒤로가기 이벤트 연결 */}
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
                 {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}

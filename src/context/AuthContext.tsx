@@ -16,6 +16,7 @@ interface AuthContextType {
     logout: () => void;
     subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
+    reconnectSse: () => void;
 }
 
 // AuthContext 기본값은 children이 없는 빈 객체로 타입 추론되기 때문에,
@@ -32,6 +33,7 @@ const AuthContext = createContext<AuthContextType>({
     logout: () => {},
     subscribeToSse: () => {},
     unsubscribeFromSse: () => {},
+    reconnectSse: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -74,14 +76,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 } catch (err) {
                     console.error("AuthProvider: Failed to parse SSE data:", err);
                 }
-            };
-
-
-            // 기본 message 이벤트: 로그 추가
-            (sseSource.current.onmessage as any) = function(this: EventSource, event: MessageEvent) {
-                console.log("AuthProvider: SSE onmessage event received:", event);
-                const listenersForEvent = listeners.current.get("message") || new Set();
-                listenersForEvent.forEach(callback => callback(event));
             };
 
             // 커스텀 이벤트 friendAdded
@@ -128,6 +122,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error("AuthProvider: Failed to establish SSE connection:", error);
         }
     }, []);
+
+    // reconnectSse 함수 추가 (기존 코드 변경 없이 추가)
+    const reconnectSse = useCallback(() => {
+        if (user) {
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+                console.log("AuthProvider: Forcing SSE reconnection...");
+                if (sseSource.current) {
+                    sseSource.current.close();
+                    sseSource.current = null;
+                }
+                establishSseConnection(user, token);
+            }
+        }
+    }, [user, establishSseConnection]);
 
     // login
     const login = useCallback((u: User, token?: string) => {
@@ -214,6 +223,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
     }, [login]);
 
+    // SSE 구독 관리
     const subscribeToSse = (eventName: string, callback: (event: MessageEvent) => void) => {
         const eventListeners = listeners.current.get(eventName) || new Set();
         eventListeners.add(callback);
@@ -231,7 +241,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, subscribeToSse, unsubscribeFromSse }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, subscribeToSse, unsubscribeFromSse, reconnectSse }}>
             {children}
         </AuthContext.Provider>
     );
