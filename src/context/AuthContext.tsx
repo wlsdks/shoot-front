@@ -204,7 +204,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .then((res) => {
                 console.log("AuthProvider: Token valid, user:", res.data);
                 const data = res.data;
-                login(data, token);
+                // 여기서 refresh token도 localStorage에서 가져와서 함께 전달합니다.
+                const storedRefreshToken = localStorage.getItem("refreshToken") || undefined;
+                login(data, token, storedRefreshToken);
             })
             .catch((err) => {
                 console.error("토큰검증 실패:", err);

@@ -90,13 +90,13 @@ const RoomTitle = styled.h3`
 `;
 
 // 즐겨찾기 버튼: 즐겨찾기 상태에 따라 채워진 별(★) 또는 빈 별(☆) 표시, 글자 크기 줄임
-const FavoriteButton = styled.button<{ active: boolean }>`
+const FavoriteButton = styled.button<{ $active: boolean }>`
     background: none;
     border: none;
     cursor: pointer;
     font-size: 1rem;
     margin-left: 6px;
-    color: ${(props) => (props.active ? "#ffbb00" : "#ccc")};
+    color: ${(props) => (props.$active ? "#ffbb00" : "#ccc")};
 `;
 
 // 활동 시간 (글자 크기 약 0.7rem)
@@ -324,9 +324,9 @@ const ChatRoomList: React.FC = () => {
                                 <TitleWrapper>
                                     <RoomTitle>{room.title}</RoomTitle>
                                     <FavoriteButton
-                                        active={room.isPinned}
+                                        $active={room.isPinned}
                                         onClick={(e) => {
-                                            e.preventDefault(); // 즐겨찾기 클릭 시 페이지 이동 방지
+                                            e.preventDefault();
                                             toggleFavorite(room.roomId, room.isPinned);
                                         }}
                                     >

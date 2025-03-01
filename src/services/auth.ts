@@ -1,5 +1,5 @@
 import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
-// import { AxiosResponse } from "axios";
+import { authApi } from './authApi';
 
 // 회원가입 API 호출
 export const signup = (username: string, nickname: string) => {
@@ -19,9 +19,9 @@ export const loginCheckApi = () => {
 
 // refresh token API 호출 함수
 export const refreshTokenApi = (refreshToken: string) => {
-    return api.post('/auth/refresh-token', null, {
+    return authApi.post('/auth/refresh-token', null, {
         headers: {
-        Authorization: `Bearer ${refreshToken}`
+            Authorization: `Bearer ${refreshToken}`
         }
     });
 };

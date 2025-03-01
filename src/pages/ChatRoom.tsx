@@ -102,10 +102,10 @@ const ChatArea = styled.div`
 `;
 
 // 전체 메시지 행: 채팅 말풍선과 시간/Indicator를 수평 배치 (보낸 사람에 따라 순서가 달라짐)
-const MessageRow = styled.div<{ isOwnMessage: boolean }>`
+const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
     display: flex;
     align-items: flex-end;
-    justify-content: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
+    justify-content: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
     margin-bottom: 10px;
 `;
 
@@ -130,13 +130,13 @@ const ChatBubble = styled.div.withConfig({
 
 // 타임스탬프 및 Indicator를 담는 컨테이너  
 // 내 메시지일 경우 오른쪽 정렬, 상대방일 경우 왼쪽 정렬
-const TimeContainer = styled.div<{ isOwnMessage: boolean }>`
+const TimeContainer = styled.div<{ $isOwnMessage: boolean }>`
     font-size: 0.65rem;
     color: #999;
     margin: 0 4px;
     display: flex;
     flex-direction: column;
-    align-items: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
+    align-items: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
 `;
 
 const TypingIndicatorContainer = styled.div`
@@ -702,11 +702,11 @@ const ChatRoom: React.FC = () => {
                         const indicatorText = (isOwn && !allOthersRead && unreadByOpponent) ? "1" : "";
                     
                         return (
-                        <MessageRow key={idx} isOwnMessage={isOwn}>
+                        <MessageRow key={idx} $isOwnMessage={isOwn}>
                             {isOwn ? (
                             <>
                                 {/* 내 메시지: Indicator와 시간이 왼쪽, 말풍선 오른쪽 */}
-                                <TimeContainer isOwnMessage={true}>
+                                <TimeContainer $isOwnMessage={true}>
                                 {indicatorText && <div>{indicatorText}</div>}
                                 {showTime && <div>{currentTime}</div>}
                                 </TimeContainer>
@@ -720,7 +720,7 @@ const ChatRoom: React.FC = () => {
                                 <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
                                 <div>{msg.content.text}</div>
                                 </ChatBubble>
-                                <TimeContainer isOwnMessage={false}>
+                                <TimeContainer $isOwnMessage={false}>
                                 {showTime && <div>{currentTime}</div>}
                                 </TimeContainer>
                             </>
