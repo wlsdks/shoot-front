@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import axios from "axios";
+import api from "../services/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { loginCheckApi } from "../services/auth";
+import { loginCheckApi, refreshTokenApi } from "../services/auth";
 
 interface User {
     id: string;
@@ -12,7 +13,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
     loading: boolean;
-    login: (user: User, token?: string) => void;
+    login: (user: User, token: string, refreshToken?: string) => void;
     logout: () => void;
     subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
@@ -123,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     }, []);
 
-    // reconnectSse 함수 추가 (기존 코드 변경 없이 추가)
+    // reconnectSse 함수
     const reconnectSse = useCallback(() => {
         if (user) {
             const token = localStorage.getItem("accessToken");
@@ -138,15 +139,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     }, [user, establishSseConnection]);
 
-    // login
-    const login = useCallback((u: User, token?: string) => {
-        console.log("AuthProvider: Logging in, user:", u, "token:", token);
+    // login 함수 (token과 refreshToken과 함께 로그인)
+    const login = useCallback((u: User, token: string, refreshToken?: string) => {
+        console.log("AuthProvider: Logging in, user:", u, "token:", token, "refreshToken:", refreshToken);
         if (!token) {
             console.error("AuthProvider: No token provided during login");
             return;
         }
 
-        // 기존 SSE 연결이 있다면 먼저 종료
+        // 기존 SSE 연결이 있다면 종료
         if (sseSource.current) {
             console.log("AuthProvider: Existing SSE connection found. Closing it.");
             sseSource.current.close();
@@ -157,13 +158,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(u);
         setIsAuthenticated(true);
         
+        // accessToken과 refreshToken을 localStorage에 저장
         localStorage.setItem("accessToken", token);
+        if (refreshToken) {
+            localStorage.setItem("refreshToken", refreshToken);
+        }
 
-        // 이 코드는 axios로 HTTP 요청을 보낼 때마다 기본적으로 "Authorization" 헤더에 해당 토큰을 포함시킵니다.
-        // 이를 통해 매번 개별 요청에 토큰을 수동으로 추가할 필요 없이, 인증이 필요한 API 호출 시 자동으로 토큰이 전달되어 인증이 이루어집니다.
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-        // SSE 연결 시작 (자동 재연결 로직 포함)
+        // SSE 연결 시작
         if (u.id) {
             establishSseConnection(u, token);
         }
@@ -185,18 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    // SSE 연결이 끊어진 경우, user가 있는 상태라면 재연결 시도
-    useEffect(() => {
-        if (user && !sseSource.current) {
-            const token = localStorage.getItem("accessToken");
-            if (token) {
-                console.log("AuthProvider: SSE connection missing, re-establishing...");
-                establishSseConnection(user, token);
-            }
-        }
-    }, [user, establishSseConnection]);
-
-    // 초기 로드 시 localStorage 검사
+    // 초기 로드 시 localStorage의 token 검사 및 자동 로그인 처리
     useEffect(() => {
         console.log("AuthProvider: Checking token...");
         const token = localStorage.getItem("accessToken");
@@ -211,7 +203,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .then((res) => {
                 console.log("AuthProvider: Token valid, user:", res.data);
                 const data = res.data;
-                // 자동 로그인 시 login 함수를 호출하여 SSE 연결도 생성
                 login(data, token);
             })
             .catch((err) => {
@@ -222,6 +213,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setLoading(false);
             });
     }, [login]);
+
+    // SSE 연결이 끊어진 경우, user가 있는 상태라면 재연결 시도
+    useEffect(() => {
+        if (user && !sseSource.current) {
+            const token = localStorage.getItem("accessToken");
+            if (token) {
+                console.log("AuthProvider: SSE connection missing, re-establishing...");
+                establishSseConnection(user, token);
+            }
+        }
+    }, [user, establishSseConnection]);
 
     // SSE 구독 관리
     const subscribeToSse = (eventName: string, callback: (event: MessageEvent) => void) => {
@@ -239,6 +241,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
         }
     };
+
+    // ── refresh token을 통한 accessToken 재발급 로직 ──
+    useEffect(() => {
+        const interceptor = api.interceptors.response.use(
+            response => response,
+            async (error) => {
+                const originalRequest = error.config;
+
+                if (error.response?.status === 401 && !originalRequest._retry) {
+                    originalRequest._retry = true;
+                    const storedRefreshToken = localStorage.getItem("refreshToken");
+                    
+                    if (storedRefreshToken) {
+                        try {
+                            console.log("AuthProvider: Attempting to refresh token...");
+                            const response = await refreshTokenApi(storedRefreshToken);
+                            const { accessToken, refreshToken: newRefreshToken } = response.data;
+
+                            localStorage.setItem("accessToken", accessToken);
+                            localStorage.setItem("refreshToken", newRefreshToken);
+
+                            api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+                            originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;
+
+                            if (user) {
+                                establishSseConnection(user, accessToken);
+                            }
+                            return api(originalRequest);
+                        } catch (refreshError) {
+                            console.error("AuthProvider: Token refresh failed", refreshError);
+                            logout();
+                        }
+                    } else {
+                        logout();
+                    }
+                }
+                return Promise.reject(error);
+            }
+        );
+        return () => api.interceptors.response.eject(interceptor);
+    }, [user, establishSseConnection]);
 
     return (
         <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, subscribeToSse, unsubscribeFromSse, reconnectSse }}>

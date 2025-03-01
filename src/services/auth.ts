@@ -16,3 +16,12 @@ export const loginCheckApi = () => {
     // 별도의 token 매개변수 없이, axios가 common header로 토큰을 포함
     return api.get("/auth/me");
 };
+
+// refresh token API 호출 함수
+export const refreshTokenApi = (refreshToken: string) => {
+    return api.post('/auth/refresh-token', null, {
+        headers: {
+        Authorization: `Bearer ${refreshToken}`
+        }
+    });
+};

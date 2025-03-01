@@ -86,13 +86,29 @@ const FriendItem = styled.li`
     }
 `;
 
-// 아바타 이미지 스타일 (내 프로필 및 친구 아이템 모두 사용)
-const Avatar = styled.img`
+// 아바타 관련 스타일
+// 이미지가 있는 경우 사용하는 컴포넌트
+const AvatarImage = styled.img`
     width: 50px;
     height: 50px;
     border-radius: 50%;
     object-fit: cover;
     margin-right: 12px;
+    border: 1px solid #ddd;
+`;
+
+// 사진이 없을 때 username 첫 글자를 표시할 컨테이너
+const AvatarContainer = styled.div`
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #ccc;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #fff;
     border: 1px solid #ddd;
 `;
 
@@ -202,28 +218,30 @@ const FriendTab: React.FC = () => {
             </Header>
             {showSearch && <FriendSearch />}
             {showCode && <FriendCodePage />}
-            {/* 내 프로필 카드: 헤더 아래에 내 프로필을 표시 (테두리는 두껍게) */}
+            {/* 내 프로필 카드 - user에는 avatarUrl이 없으므로 항상 fallback 사용 */}
             {user && (
                 <MyProfileCard>
-                    <Avatar
-                        src={"https://via.placeholder.com/50"}
-                        alt={user.username}
-                    />
-                    <FriendName>{user.username}</FriendName>
+                <AvatarContainer>
+                    {user.username.charAt(0).toUpperCase()}
+                </AvatarContainer>
+                <FriendName>{user.username}</FriendName>
                 </MyProfileCard>
             )}
             {friends.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#888", fontSize: "16px" }}>
-                    친구가 없습니다.
+                친구가 없습니다.
                 </p>
             ) : (
                 <FriendList>
                     {friends.map((friend) => (
                         <FriendItem key={friend.id} onClick={() => handleFriendClick(friend.id)}>
-                            <Avatar
-                                src={friend.avatarUrl ? friend.avatarUrl : "https://via.placeholder.com/50"}
-                                alt={friend.username}
-                            />
+                            {friend.avatarUrl ? (
+                                <AvatarImage src={friend.avatarUrl} alt={friend.username} />
+                            ) : (
+                                <AvatarContainer>
+                                {friend.username.charAt(0).toUpperCase()}
+                                </AvatarContainer>
+                            )}
                             <FriendName>{friend.username}</FriendName>
                         </FriendItem>
                     ))}
