@@ -1,104 +1,98 @@
-// 회원가입 페이지
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signup } from '../services/auth';
 import styled, { keyframes } from 'styled-components';
 
+// 배경 그라데이션 애니메이션
+const backgroundAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
+// 전체 화면을 채우는 컨테이너
+const FullScreen = styled.div`
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fad0c4, #ff9a9e);
+  background-size: 400% 400%;
+  animation: ${backgroundAnimation} 15s ease infinite;
+`;
+
+// 카드가 등장하는 애니메이션
 const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(-10%);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 `;
 
-const rotateBackground = keyframes`
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-`;
-
-const Container = styled.div`
+// 회원가입 카드 (글래스모픽 효과 적용)
+const Card = styled.div`
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 2rem 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   max-width: 400px;
-  margin: 5rem auto;
-  padding: 2rem;
-  border: 1px solid rgba(238, 238, 238, 0.5);
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  background: #fff;
-  position: relative;
-  overflow: hidden;
+  width: 90%;
   animation: ${fadeIn} 0.8s ease-out;
 `;
 
-const AnimatedBackground = styled.div`
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, rgba(75, 108, 183, 0.15), rgba(24, 40, 72, 0.15));
-  animation: ${rotateBackground} 20s linear infinite;
-  z-index: -1;
-`;
-
+// 제목 스타일
 const Title = styled.h2`
   text-align: center;
   margin-bottom: 1.5rem;
-  font-size: 2rem;
+  font-size: 2.2rem;
   color: #333;
-  font-weight: 600;
+  font-weight: bold;
 `;
 
+// 폼 레이아웃
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.2rem;
 `;
 
+// 입력창 스타일
 const Input = styled.input`
-  box-sizing: border-box;
-  width: 100%;
-  padding: 0.8rem 1rem;
+  padding: 0.85rem 1rem;
   font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f9f9f9;
+  transition: border-color 0.3s, box-shadow 0.3s;
   &:focus {
-    outline: none;
     border-color: #007bff;
-    box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+    outline: none;
+    box-shadow: 0 0 10px rgba(0,123,255,0.3);
   }
 `;
 
+// 버튼 스타일 (hover 시 살짝 떠오르는 효과)
 const Button = styled.button`
-  width: 100%;
-  padding: 0.8rem;
-  background-color: #28a745;
-  border: none;
-  border-radius: 6px;
+  padding: 0.85rem;
+  background: linear-gradient(90deg, #28a745, #218838);
   color: #fff;
+  border: none;
+  border-radius: 8px;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
+  transition: transform 0.3s, background 0.3s;
   &:hover {
-    background-color: #218838;
-    transform: scale(1.02);
+    transform: translateY(-3px);
+    background: linear-gradient(90deg, #218838, #1e7e34);
   }
 `;
 
+// 오류 메시지 스타일
 const ErrorMessage = styled.div`
-  color: #ff3333;
+  color: #d9534f;
   text-align: center;
   margin-top: 1rem;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 `;
 
 const Signup: React.FC = () => {
@@ -120,28 +114,29 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <Container>
-      <AnimatedBackground />
-      <Title>회원가입</Title>
-      <Form onSubmit={handleSubmit}>
-        <Input
-          type="text"
-          placeholder="아이디"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-        <Input
-          type="text"
-          placeholder="닉네임"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          required
-        />
-        <Button type="submit">회원가입</Button>
-      </Form>
-      {error && <ErrorMessage>{error}</ErrorMessage>}
-    </Container>
+    <FullScreen>
+      <Card>
+        <Title>회원가입</Title>
+        <Form onSubmit={handleSubmit}>
+          <Input
+            type="text"
+            placeholder="아이디"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+          <Input
+            type="text"
+            placeholder="닉네임"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            required
+          />
+          <Button type="submit">회원가입</Button>
+        </Form>
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+      </Card>
+    </FullScreen>
   );
 };
 
