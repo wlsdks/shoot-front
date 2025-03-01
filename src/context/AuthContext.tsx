@@ -178,6 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken"); // refreshToken도 삭제
         delete axios.defaults.headers.common["Authorization"];
         
         if (sseSource.current) {
@@ -252,7 +253,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     originalRequest._retry = true;
                     const storedRefreshToken = localStorage.getItem("refreshToken");
-                    
+
                     if (storedRefreshToken) {
                         try {
                             console.log("AuthProvider: Attempting to refresh token...");
