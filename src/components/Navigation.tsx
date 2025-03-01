@@ -1,57 +1,60 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+
+// 슬라이드 다운 애니메이션
+const slideDown = keyframes`
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+`;
 
 const NavBar = styled.nav`
-    background: linear-gradient(90deg, #4b6cb7, #182848);
-    padding: 1rem 2rem;
-    display: flex;
-    align-items: center;
-    color: #fff;
-    position: fixed; /* 상단 고정 */
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 30px; /* 고정 높이 설정 */
-    z-index: 1000;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 2rem;
+    z-index: 1100;
+    animation: ${slideDown} 0.5s ease-out;
 `;
 
 const Brand = styled(Link)`
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: bold;
-    color: #fff;
+    color: #007bff;
     text-decoration: none;
 `;
 
-const NavMenu = styled.div`
-    margin-left: auto;
+const NavLinks = styled.div`
     display: flex;
-    align-items: center;
     gap: 1.5rem;
 `;
 
 const NavLink = styled(Link)`
-    color: #fff;
-    text-decoration: none;
     font-size: 1rem;
-    transition: color 0.2s;
+    color: #333;
+    text-decoration: none;
+    transition: color 0.3s;
     &:hover {
-        color: #ffd700;
+        color: #007bff;
     }
 `;
 
 const LogoutButton = styled.button`
+    border: none;
     background: transparent;
-    border: 1px solid #fff;
-    border-radius: 4px;
-    color: #fff;
-    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    color: #333;
     cursor: pointer;
-    transition: background 0.2s, color 0.2s;
+    transition: color 0.3s;
     &:hover {
-        background: #fff;
-        color: #182848;
+        color: #007bff;
     }
 `;
 
@@ -61,25 +64,25 @@ const Navigation: React.FC = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/');
+        navigate('/login');
     };
 
     return (
         <NavBar>
-            <Brand to="/">Shoot</Brand>
-            <NavMenu>
-                {isAuthenticated ? (
-                    <>
-                        <NavLink to="/">채팅방</NavLink> {/* 경로 수정 */}
-                        <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
-                    </>
-                ) : (
-                    <>
-                        <NavLink to="/login">로그인</NavLink>
-                        <NavLink to="/signup">회원가입</NavLink>
-                    </>
-                )}
-            </NavMenu>
+        <Brand to="/">SHOOT</Brand>
+        <NavLinks>
+            {isAuthenticated ? (
+            <>
+                <NavLink to="/">채팅방</NavLink>
+                <LogoutButton onClick={handleLogout}>로그아웃</LogoutButton>
+            </>
+            ) : (
+            <>
+                <NavLink to="/login">로그인</NavLink>
+                <NavLink to="/signup">회원가입</NavLink>
+            </>
+            )}
+        </NavLinks>
         </NavBar>
     );
 };
