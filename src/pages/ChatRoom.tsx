@@ -357,12 +357,19 @@ const ChatRoom: React.FC = () => {
         // 초기 메시지 로드 및 읽음 처리
         const fetchInitialMessages = async () => {
             try {
-                const res = await getChatMessages(roomId!); // before 파라미터 없음 → 최신 20개 (내림차순)
+                // before 파라미터 없음 → 최신 20개 (내림차순)
+                const res = await getChatMessages(roomId!);
                 // 백엔드에서 내림차순으로 반환되므로 reverse하여 오름차순으로 정렬
                 const sortedMessages = res.data.reverse();
                 setMessages(sortedMessages);
                 markAllRead();
-                setTimeout(scrollToBottom, 0);
+                
+                // 메시지 설정 직후 즉시 스크롤 다운
+                requestAnimationFrame(() => {
+                    if (chatAreaRef.current) {
+                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                    }
+                });
             } catch (err) {
                 console.error("메시지 로드 실패", err);
             }
