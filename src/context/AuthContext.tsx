@@ -7,6 +7,10 @@ import { loginCheckApi, refreshTokenApi } from "../services/auth";
 interface User {
     id: string;
     username: string;
+    nickname?: string;
+    bio?: string; // 한줄 소개
+    profileImageUrl?: string;
+    status?: string; // 내 상태
 }
 
 interface AuthContextType {
@@ -15,6 +19,8 @@ interface AuthContextType {
     loading: boolean;
     login: (user: User, token: string, refreshToken?: string) => void;
     logout: () => void;
+    deleteUser: () => Promise<void>; // 회원 탈퇴 함수 추가
+    updateStatus: (status: string) => Promise<void>; // 상태 변경 함수 추가
     subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     reconnectSse: () => void;
@@ -32,6 +38,8 @@ const AuthContext = createContext<AuthContextType>({
     loading: false,
     login: () => {},
     logout: () => {},
+    deleteUser: async () => {},
+    updateStatus: async () => {},
     subscribeToSse: () => {},
     unsubscribeFromSse: () => {},
     reconnectSse: () => {},
@@ -189,6 +197,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
+    // 회원탈퇴
+    const deleteUser = async () => {
+        const token = localStorage.getItem('accessToken');
+        if (!token || !user) throw new Error('User not authenticated');
+
+        try {
+            await api.delete('/users/me', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            logout(); // 탈퇴 후 로그아웃
+        } catch (error) {
+            console.error('AuthProvider: Failed to delete user', error);
+            throw error;
+        }
+    };
+
+    // 회원상태 업데이트
+    const updateStatus = async (status: string) => {
+        const token = localStorage.getItem('accessToken');
+        if (!token || !user?.id) throw new Error('User not authenticated');
+    
+        try {
+            await api.put(
+                '/users/me/status',
+                { userId: user.id, status }, // userId 포함
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            setUser((prev) => (prev ? { ...prev, status } : null));
+        } catch (error) {
+            console.error('AuthProvider: Failed to update status', error);
+            throw error;
+        }
+    };
+
     // 초기 로드 시 localStorage의 token 검사 및 자동 로그인 처리
     useEffect(() => {
         console.log("AuthProvider: Checking token...");
@@ -248,7 +291,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // ── refresh token을 통한 accessToken 재발급 로직 ──
     useEffect(() => {
         const interceptor = api.interceptors.response.use(
-            response => response,
+            (response) => response,
             async (error) => {
                 const originalRequest = error.config;
 
@@ -271,6 +314,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                             if (user) {
                                 establishSseConnection(user, accessToken);
                             }
+
                             return api(originalRequest);
                         } catch (refreshError) {
                             console.error("AuthProvider: Token refresh failed", refreshError);
@@ -287,7 +331,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, [user, establishSseConnection]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, subscribeToSse, unsubscribeFromSse, reconnectSse }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, deleteUser, updateStatus, subscribeToSse, unsubscribeFromSse, reconnectSse }}>
             {children}
         </AuthContext.Provider>
     );
