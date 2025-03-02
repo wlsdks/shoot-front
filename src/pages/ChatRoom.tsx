@@ -10,7 +10,7 @@ import { throttle } from "lodash";
 
 // 채팅 메시지 인터페이스
 export interface ChatMessageItem {
-    id: string; // 메시지 식별자 (서버에서 생성)
+    id: string;      // 메시지 식별자 (서버에서 생성)
     tempId?: string; // 추가: 임시 ID (상태 추적용)
     roomId: string;
     senderId: string;
@@ -243,22 +243,27 @@ const ModalButtons = styled.div`
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
-    const navigate = useNavigate();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
     const [input, setInput] = useState("");
     const [typingUsers, setTypingUsers] = useState<string[]>([]); // Set<string> 대신 string[]로 변경
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const [connectionError, setConnectionError] = useState<string | null>(null);  // 에러 상태 추가
-    const chatAreaRef = useRef<HTMLDivElement>(null);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);   // Heartbeat용 ref 추가
-    const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; message: ChatMessageItem | null }>({ visible: false, x: 0, y: 0, message: null });
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
     const [isComposing, setIsComposing] = useState(false);
-    // ChatRoom 컴포넌트 내부 상단에 선언
+    const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; message: ChatMessageItem | null }>({ visible: false, x: 0, y: 0, message: null });
+    const navigate = useNavigate();
+    const chatAreaRef = useRef<HTMLDivElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);   // Heartbeat용 ref 추가
     const bottomRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<ChatMessageItem[]>([]);
+
+    // 최신 메시지를 유지하기 위함
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
 
     // 메시지 목록 업데이트 후 스크롤 처리 (useEffect로 DOM 업데이트 이후 호출)
     useEffect(() => {
@@ -421,16 +426,19 @@ const ChatRoom: React.FC = () => {
                         setTimeout(scrollToBottom, 0);
                         return updatedMessages;
                     });
-
+                    
                     // 새 메시지 도착 시 내가 읽으면 실시간 처리
+                    const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
+                    
                     if (
                         document.visibilityState === "visible" &&
-                        !msg.readBy[user!.id] && 
-                        msg.senderId !== user!.id
-                    ) {
+                            !msg.readBy[user!.id] && 
+                            msg.senderId !== user!.id &&
+                            persistedId // persistedId가 있는 경우에만 호출
+                        ) {
                         client.publish({
                             destination: "/app/read",
-                            body: JSON.stringify({ messageId: msg.id, userId: user!.id }),
+                            body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
                         });
                     }
                 });
@@ -469,16 +477,28 @@ const ChatRoom: React.FC = () => {
                     // 메시지 배열 업데이트: 백엔드에서 createdAt이 제공되지 않는 경우, saved 상태라면 현재 시간으로 설정
                     setMessages((prev) =>
                         prev.map((msg) =>
-                        msg.tempId === statusUpdate.tempId
-                            ? {
-                                ...msg,
-                                status: statusUpdate.status,
-                                id: statusUpdate.persistedId || msg.id,
-                                createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
-                            }
-                            : msg
-                        )
+                            msg.tempId === statusUpdate.tempId
+                                ? {
+                                    ...msg,
+                                    status: statusUpdate.status,
+                                    id: statusUpdate.persistedId || msg.id,
+                                    createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
+                                }
+                                : msg
+                            )
                     );
+
+                    // 상태가 SAVED이고 persistedId가 존재할 때만 읽음 API 호출
+                    if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
+                        // 최신 메시지 상태 참조
+                        const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
+                        if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
+                            client.publish({
+                                destination: "/app/read",
+                                body: JSON.stringify({ messageId: statusUpdate.persistedId, userId: user!.id }),
+                            });
+                        }
+                    }
                     
                     // 실패 상태일 경우 UI에 알림
                     if (statusUpdate.status === 'failed') {
