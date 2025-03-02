@@ -767,31 +767,27 @@ const ChatRoom: React.FC = () => {
                         // 그룹의 마지막 메시지이면 showTime은 true
                         const showTime = !nextMessage || currentTime !== nextTime;
 
-                        // 메시지 상태가 'saved'인지 체크 (임시 메시지인 경우)
-                        const isSaved = msg.tempId ? messageStatuses[msg.tempId]?.status === "saved" : true;
-                    
-                        // 내 메시지의 Indicator ("1")는 unread 조건에 따라 항상 표시
-                        // 상대방이 아직 읽지 않았는지 확인 (내 메시지이고, 저장된 상태인 경우에 한정)
-                        // 내 메시지의 unread indicator ("1")는 아래 조건에 따라 계산
-                        const unreadByOpponent =
-                            isOwn && Object.entries(msg.readBy).some(
-                                ([id, read]) => id !== user?.id && !read
-                            );
+                        // 백엔드 API에서 받은 메시지의 상태와, 웹소켓 업데이트를 통해 받은 상태를 통합해서 사용
+                        // 첫 로딩 시 API에서 받은 msg.status가 "SENT"이면 persistedStatus는 "SENT"가 되고, isPersisted는 true로 간주합니다.
+                        const persistedStatus =
+                            (msg.tempId && messageStatuses[msg.tempId]?.status) || msg.status;
 
-                        // 상대방 모두가 읽었는지 여부
-                        const allOthersRead =
-                            isOwn && Object.entries(msg.readBy)
-                                .filter(([id]) => id !== user?.id)
-                                .every(([, read]) => read);
+                        // 저장된 상태로 간주할 값: "saved" 또는 "SENT" (대소문자 구분 없이)
+                        // 웹소켓 업데이트가 오면 messageStatuses에 "saved"로 업데이트되어, persistedStatus도 "saved"가 됩니다.
+                        const isPersisted =
+                            persistedStatus &&
+                            (persistedStatus.toLowerCase() === "saved" ||
+                            persistedStatus.toUpperCase() === "SENT");
 
-                        // 조건에 따라 Indicator 표시 ("1" 또는 빈 문자열)
-                        // 1:1 채팅이라고 가정할 때, 내 메시지의 경우
+                        // 내 메시지의 경우, 내 ID를 제외한 참여자(readBy에서 내 ID 제외)가 읽은(true) 항목이 있는지 확인
+                        // 둘 다 저장된 상태로 판단되므로, 내 메시지의 readBy를 확인해 상대방이 읽지 않았다면 indicator "1"이 표시됩니다.
+                        const otherHasRead = Object.entries(msg.readBy)
+                            .filter(([id]) => id !== user?.id)
+                            .some(([, read]) => read === true);
+
+                        // indicatorText: 내 메시지이고, 저장된 상태이며, 상대방이 아직 읽지 않았다면 "1"
                         const indicatorText =
-                            isOwn &&
-                            messageStatus === "saved" &&
-                            Object.keys(msg.readBy).length === 1
-                                ? "1"
-                                : "";
+                            isOwn && isPersisted && !otherHasRead ? "1" : "";
 
                         // statusIndicator는 메시지가 전송중, 서버로 전송됨 또는 전송 실패인 경우에만 표시하고,
                         // 저장(saved)된 경우에는 표시하지 않음
