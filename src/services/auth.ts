@@ -2,8 +2,9 @@ import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100
 import { authApi } from './authApi';
 
 // 회원가입 API 호출
-export const signup = (username: string, nickname: string) => {
-    return api.post('/users', { username, nickname });
+export const signup = async (formData: FormData) => {
+    const response = await api.post('/users', formData); // Axios로 변경
+    return response.data;
 };
 
 // 로그인 API 호출 (예: JWT 토큰 발급)
