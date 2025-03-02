@@ -467,7 +467,7 @@ const ChatRoom: React.FC = () => {
                                 ...msg,
                                 status: statusUpdate.status,
                                 id: statusUpdate.persistedId || msg.id,
-                                createdAt: statusUpdate.createdAt || (statusUpdate.status === "saved" ? new Date().toISOString() : msg.createdAt)
+                                createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
                             }
                             : msg
                         )
@@ -756,28 +756,17 @@ const ChatRoom: React.FC = () => {
                         // 내 메시지인가?
                         const isOwn = msg.senderId === user?.id;
 
-                        // 메시지 상태 (임시 id)
-                        const messageStatus = msg.tempId ? messageStatuses[msg.tempId]?.status : null;
-                        
-                        // 현재 메시지와 다음 메시지의 시간(분 단위) 계산
-                        const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
-                        const nextMessage = messages[idx + 1];
-                        const nextTime = nextMessage && nextMessage.createdAt ? formatTime(nextMessage.createdAt) : "";
-
-                        // 그룹의 마지막 메시지이면 showTime은 true
-                        const showTime = !nextMessage || currentTime !== nextTime;
-
-                        // 백엔드 API에서 받은 메시지의 상태와, 웹소켓 업데이트를 통해 받은 상태를 통합해서 사용
-                        // 첫 로딩 시 API에서 받은 msg.status가 "SENT"이면 persistedStatus는 "SENT"가 되고, isPersisted는 true로 간주합니다.
-                        const persistedStatus =
-                            (msg.tempId && messageStatuses[msg.tempId]?.status) || msg.status;
+                        // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
+                        const currentStatus = msg.tempId
+                            ? messageStatuses[msg.tempId]?.status || msg.status
+                            : msg.status;
 
                         // 저장된 상태로 간주할 값: "saved" 또는 "SENT" (대소문자 구분 없이)
                         // 웹소켓 업데이트가 오면 messageStatuses에 "saved"로 업데이트되어, persistedStatus도 "saved"가 됩니다.
+                        // 저장된 상태는 백엔드에서 "SENT" 또는 "SAVED"로 반환
                         const isPersisted =
-                            persistedStatus &&
-                            (persistedStatus.toLowerCase() === "saved" ||
-                            persistedStatus.toUpperCase() === "SENT");
+                            currentStatus &&
+                            currentStatus.toUpperCase() === "SAVED";
 
                         // 내 메시지의 경우, 내 ID를 제외한 참여자(readBy에서 내 ID 제외)가 읽은(true) 항목이 있는지 확인
                         // 둘 다 저장된 상태로 판단되므로, 내 메시지의 readBy를 확인해 상대방이 읽지 않았다면 indicator "1"이 표시됩니다.
@@ -789,16 +778,23 @@ const ChatRoom: React.FC = () => {
                         const indicatorText =
                             isOwn && isPersisted && !otherHasRead ? "1" : "";
 
-                        // statusIndicator는 메시지가 전송중, 서버로 전송됨 또는 전송 실패인 경우에만 표시하고,
-                        // 저장(saved)된 경우에는 표시하지 않음
+                        // 상태표시는 내 메시지이며, 아직 저장 전 상태("SENDING", "PROCESSING", "SENT_TO_KAFKA", "FAILED")일 때만
                         const statusIndicator =
-                            isOwn && messageStatus && messageStatus !== "saved" ? (
+                            isOwn && currentStatus && !isPersisted ? (
                                 <div className="status-indicator">
-                                {messageStatus === "sending" && "전송 중..."}
-                                {messageStatus === "sent_to_kafka" && "서버로 전송됨"}
-                                {messageStatus === "failed" && "전송 실패"}
+                                    {currentStatus === "SENDING" && "전송 중..."}
+                                    {currentStatus === "SENT_TO_KAFKA" && "서버로 전송됨"}
+                                    {currentStatus === "FAILED" && "전송 실패"}
                                 </div>
                             ) : null;
+
+                        // 현재 메시지와 다음 메시지의 시간(분 단위) 계산
+                        const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
+                        const nextMessage = messages[idx + 1];
+                        const nextTime = nextMessage && nextMessage.createdAt ? formatTime(nextMessage.createdAt) : "";
+
+                        // 그룹의 마지막 메시지이면 showTime은 true
+                        const showTime = !nextMessage || currentTime !== nextTime;
                     
                     return (
                         <MessageRow key={idx} $isOwnMessage={isOwn}>
@@ -818,10 +814,10 @@ const ChatRoom: React.FC = () => {
                                 <>
                                     {/* 상대 메시지: 말풍선 왼쪽, 시간 오른쪽 (Indicator 없음) */}
                                     <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                    <div>{msg.content.text}</div>
+                                        <div>{msg.content.text}</div>
                                     </ChatBubble>
                                     <TimeContainer $isOwnMessage={false}>
-                                    {showTime && <div>{currentTime}</div>}
+                                        {showTime && <div>{currentTime}</div>}
                                     </TimeContainer>
                                 </>
                             )}
