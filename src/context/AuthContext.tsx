@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import axios from "axios";
 import api from "../services/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { loginCheckApi, refreshTokenApi } from "../services/auth";
+import { refreshTokenApi, fetchUserInfo } from "../services/auth";
 
 interface User {
     id: string;
@@ -19,15 +19,14 @@ interface AuthContextType {
     loading: boolean;
     login: (user: User, token: string, refreshToken?: string) => void;
     logout: () => void;
-    deleteUser: () => Promise<void>; // 회원 탈퇴 함수 추가
-    updateStatus: (status: string) => Promise<void>; // 상태 변경 함수 추가
+    deleteUser: () => Promise<void>; // 회원 탈퇴 함수
+    updateStatus: (status: string) => Promise<void>; // 상태 변경 함수
     subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     reconnectSse: () => void;
+    fetchCurrentUser: () => Promise<User | undefined>; // 현재 사용자 정보를 가져오는 함수 추가
 }
 
-// AuthContext 기본값은 children이 없는 빈 객체로 타입 추론되기 때문에,
-// 별도의 props 타입을 만들어 children을 명시해 줍니다.
 interface AuthProviderProps {
     children: ReactNode;
 }  
@@ -43,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
     subscribeToSse: () => {},
     unsubscribeFromSse: () => {},
     reconnectSse: () => {},
+    fetchCurrentUser: async () => undefined, // 기본값에도 추가
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -53,6 +53,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const sseSource = useRef<EventSourcePolyfill | null>(null);
     const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
+
+    // 현재 사용자 정보를 가져오는 함수 - auth 서비스의 fetchUserInfo 활용
+    const fetchCurrentUser = useCallback(async (): Promise<User | undefined> => {
+        console.log("AuthProvider: Fetching current user data...");
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            console.log("AuthProvider: No token, skipping user fetch");
+            return undefined;
+        }
+        
+        try {
+            // 기존 api.get 직접 호출 대신 서비스 함수 사용
+            const userData = await fetchUserInfo();
+            console.log("AuthProvider: User data fetched successfully:", userData);
+            
+            // 가져온 사용자 정보로 상태 업데이트
+            setUser(userData);
+            
+            // 인증 상태가 아직 설정되지 않은 경우에만 업데이트
+            if (!isAuthenticated) {
+                setIsAuthenticated(true);
+            }
+            
+            return userData;
+        } catch (error) {
+            console.error('AuthProvider: Failed to fetch current user:', error);
+            
+            // 401 오류가 발생하면 자동으로 토큰 갱신 인터셉터가 처리
+            if (axios.isAxiosError(error) && error.response?.status !== 401) {
+                throw error;
+            }
+            return undefined;
+        }
+    }, [isAuthenticated]);
 
     // SSE 연결 재설정 함수
     const establishSseConnection = useCallback((u: User, token: string) => {
@@ -243,22 +277,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        loginCheckApi()
-            .then((res) => {
-                console.log("AuthProvider: Token valid, user:", res.data);
-                const data = res.data;
-                // 여기서 refresh token도 localStorage에서 가져와서 함께 전달합니다.
-                const storedRefreshToken = localStorage.getItem("refreshToken") || undefined;
-                login(data, token, storedRefreshToken);
+        
+        // loginCheckApi 대신 fetchCurrentUser 사용
+        fetchCurrentUser()
+            .then((userData) => {
+                if (userData) {
+                    console.log("AuthProvider: Token valid, user:", userData);
+                    // 여기서 refresh token도 localStorage에서 가져와서 함께 전달합니다.
+                    const storedRefreshToken = localStorage.getItem("refreshToken") || undefined;
+                    login(userData, token, storedRefreshToken);
+                }
             })
             .catch((err) => {
                 console.error("토큰검증 실패:", err);
+                logout();
             })
             .finally(() => {
                 console.log("AuthProvider: Loading complete");
                 setLoading(false);
             });
-    }, [login]);
+    }, [fetchCurrentUser, login]);
 
     // SSE 연결이 끊어진 경우, user가 있는 상태라면 재연결 시도
     useEffect(() => {
@@ -331,7 +369,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, [user, establishSseConnection]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout, deleteUser, updateStatus, subscribeToSse, unsubscribeFromSse, reconnectSse }}>
+        <AuthContext.Provider value={{ 
+            isAuthenticated, 
+            user, 
+            loading, 
+            login, 
+            logout, 
+            deleteUser, 
+            updateStatus, 
+            subscribeToSse, 
+            unsubscribeFromSse, 
+            reconnectSse,
+            fetchCurrentUser  // 새로 추가한 함수
+        }}>
             {children}
         </AuthContext.Provider>
     );
