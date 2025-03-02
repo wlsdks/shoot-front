@@ -416,7 +416,11 @@ const ChatRoom: React.FC = () => {
                     });
 
                     // 새 메시지 도착 시 내가 읽으면 실시간 처리
-                    if (document.visibilityState === "visible" && !msg.readBy[user!.id] && msg.senderId !== user!.id) {
+                    if (
+                        document.visibilityState === "visible" &&
+                        !msg.readBy[user!.id] && 
+                        msg.senderId !== user!.id
+                    ) {
                         client.publish({
                             destination: "/app/read",
                             body: JSON.stringify({ messageId: msg.id, userId: user!.id }),
@@ -446,6 +450,7 @@ const ChatRoom: React.FC = () => {
                     const statusUpdate = JSON.parse(message.body);
                     console.log("Message status update:", statusUpdate);
                     
+                    // 메시지 상태 업데이트
                     setMessageStatuses((prev) => ({
                         ...prev,
                         [statusUpdate.tempId]: {
@@ -453,6 +458,20 @@ const ChatRoom: React.FC = () => {
                             persistedId: statusUpdate.persistedId
                         }
                     }));
+
+                    // 메시지 배열 업데이트: 백엔드에서 createdAt이 제공되지 않는 경우, saved 상태라면 현재 시간으로 설정
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                        msg.tempId === statusUpdate.tempId
+                            ? {
+                                ...msg,
+                                status: statusUpdate.status,
+                                id: statusUpdate.persistedId || msg.id,
+                                createdAt: statusUpdate.createdAt || (statusUpdate.status === "saved" ? new Date().toISOString() : msg.createdAt)
+                            }
+                            : msg
+                        )
+                    );
                     
                     // 실패 상태일 경우 UI에 알림
                     if (statusUpdate.status === 'failed') {
@@ -737,7 +756,7 @@ const ChatRoom: React.FC = () => {
                         // 내 메시지인가?
                         const isOwn = msg.senderId === user?.id;
 
-                        // 메시지 상태는? (임시 id)
+                        // 메시지 상태 (임시 id)
                         const messageStatus = msg.tempId ? messageStatuses[msg.tempId]?.status : null;
                         
                         // 현재 메시지와 다음 메시지의 시간(분 단위) 계산
@@ -753,39 +772,37 @@ const ChatRoom: React.FC = () => {
                     
                         // 내 메시지의 Indicator ("1")는 unread 조건에 따라 항상 표시
                         // 상대방이 아직 읽지 않았는지 확인 (내 메시지이고, 저장된 상태인 경우에 한정)
+                        // 내 메시지의 unread indicator ("1")는 아래 조건에 따라 계산
                         const unreadByOpponent =
-                            isOwn &&
-                            isSaved &&
-                            Object.entries(msg.readBy).some(
+                            isOwn && Object.entries(msg.readBy).some(
                                 ([id, read]) => id !== user?.id && !read
                             );
 
                         // 상대방 모두가 읽었는지 여부
                         const allOthersRead =
-                            isOwn &&
-                            isSaved &&
-                            Object.entries(msg.readBy)
+                            isOwn && Object.entries(msg.readBy)
                                 .filter(([id]) => id !== user?.id)
                                 .every(([, read]) => read);
 
                         // 조건에 따라 Indicator 표시 ("1" 또는 빈 문자열)
+                        // 1:1 채팅이라고 가정할 때, 내 메시지의 경우
                         const indicatorText =
-                            isOwn && 
-                            isSaved &&
-                            !allOthersRead 
-                            && unreadByOpponent 
-                                ? "1" 
+                            isOwn &&
+                            messageStatus === "saved" &&
+                            Object.keys(msg.readBy).length === 1
+                                ? "1"
                                 : "";
 
-                        // 상태 보여줄 것 (메시지 전송 상태)
-                        const statusIndicator = isOwn && messageStatus ? (
-                            <div className="status-indicator">
+                        // statusIndicator는 메시지가 전송중, 서버로 전송됨 또는 전송 실패인 경우에만 표시하고,
+                        // 저장(saved)된 경우에는 표시하지 않음
+                        const statusIndicator =
+                            isOwn && messageStatus && messageStatus !== "saved" ? (
+                                <div className="status-indicator">
                                 {messageStatus === "sending" && "전송 중..."}
                                 {messageStatus === "sent_to_kafka" && "서버로 전송됨"}
-                                {messageStatus === "saved" && "저장됨"}
                                 {messageStatus === "failed" && "전송 실패"}
-                            </div>
-                        ) : null;
+                                </div>
+                            ) : null;
                     
                     return (
                         <MessageRow key={idx} $isOwnMessage={isOwn}>
