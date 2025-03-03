@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import EditProfile from '../EditProfile'; // 수정된 EditProfile 컴포넌트 import
+import { useAuth } from '../../context/AuthContext'; // 인증 컨텍스트 import
+import EditProfile from '../EditProfile';
 
 const TabContainer = styled.div`
     height: 100%;
@@ -118,6 +120,70 @@ const ProfileContent = styled.div`
     overflow-y: auto;
 `;
 
+// 모달 스타일
+const ModalOverlay = styled.div`
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    width: 80%;
+    max-width: 320px;
+    text-align: center;
+`;
+
+const ModalTitle = styled.h3`
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: #333;
+`;
+
+const ModalText = styled.p`
+    margin-bottom: 1.5rem;
+    color: #555;
+    font-size: 0.9rem;
+`;
+
+const ModalButtonGroup = styled.div`
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+`;
+
+const ModalButton = styled.button<{ $primary?: boolean }>`
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    background: ${props => props.$primary ? '#dc3545' : '#f0f0f0'};
+    color: ${props => props.$primary ? 'white' : '#333'};
+    
+    &:hover {
+        background: ${props => props.$primary ? '#c82333' : '#e0e0e0'};
+        transform: translateY(-2px);
+    }
+    
+    &:active {
+        transform: translateY(0);
+    }
+`;
+
 // 아이콘 컴포넌트
 const IconSVG = ({ children }: { children: React.ReactNode }) => (
     <svg
@@ -138,10 +204,45 @@ const IconSVG = ({ children }: { children: React.ReactNode }) => (
 // 설정 탭 컴포넌트
 const SettingsTab: React.FC = () => {
     const [activeSection, setActiveSection] = useState<string>('main');
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const { logout } = useAuth(); // useAuth에서 logout 함수 가져오기
+    const navigate = useNavigate();
 
     const handleBack = () => {
         setActiveSection('main');
     };
+
+    // 로그아웃 처리 함수
+    const handleLogout = async () => {
+        try {
+        await logout();
+        // 로그아웃 성공 후 처리 (예: 로그인 페이지로 리다이렉트)
+        navigate('/login'); // 로그인 페이지로 이동
+        } catch (error) {
+        console.error('로그아웃 실패:', error);
+        // 에러 처리 (필요한 경우)
+        } finally {
+        setShowLogoutModal(false);
+        }
+    };
+
+    // 로그아웃 확인 모달
+    const LogoutConfirmModal = () => (
+        <ModalOverlay onClick={() => setShowLogoutModal(false)}>
+        <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>로그아웃</ModalTitle>
+            <ModalText>정말 로그아웃 하시겠습니까?</ModalText>
+            <ModalButtonGroup>
+            <ModalButton onClick={() => setShowLogoutModal(false)}>
+                취소
+            </ModalButton>
+            <ModalButton $primary onClick={handleLogout}>
+                로그아웃
+            </ModalButton>
+            </ModalButtonGroup>
+        </ModalContent>
+        </ModalOverlay>
+    );
 
     // 메인 설정 화면
     if (activeSection === 'main') {
@@ -238,7 +339,7 @@ const SettingsTab: React.FC = () => {
                 </Icon>
             </SettingItem>
             
-            <SettingItem>
+            <SettingItem onClick={() => setShowLogoutModal(true)}>
                 <SettingText>
                 <SettingTitle>로그아웃</SettingTitle>
                 <SettingDescription>계정에서 로그아웃</SettingDescription>
@@ -252,6 +353,9 @@ const SettingsTab: React.FC = () => {
                 </Icon>
             </SettingItem>
             </SettingsList>
+            
+            {/* 로그아웃 확인 모달 */}
+            {showLogoutModal && <LogoutConfirmModal />}
         </TabContainer>
         );
     }
