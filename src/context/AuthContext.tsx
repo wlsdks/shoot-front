@@ -3,6 +3,7 @@ import axios from "axios";
 import api from "../services/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
 import { refreshTokenApi, fetchUserInfo } from "../services/auth";
+import { updateUserStatus } from '../services/profile';
 
 interface User {
     id: string;
@@ -253,13 +254,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!token || !user?.id) throw new Error('User not authenticated');
     
         try {
-            await api.put(
-                '/users/me/status',
-                { userId: user.id, status }, // userId 포함
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
+            const response = await updateUserStatus(user.id, status);
+            
+            // 사용자 정보 업데이트
             setUser((prev) => (prev ? { ...prev, status } : null));
+            
+            return response.data;
         } catch (error) {
             console.error('AuthProvider: Failed to update status', error);
             throw error;

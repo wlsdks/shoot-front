@@ -8,6 +8,7 @@ import BottomNavLayout from './pages/BottomNavLayout';
 import PrivateRoute from './components/PrivateRoute';
 import FriendCodePage from './pages/FriendCodePage';
 import ChatRoom from './pages/ChatRoom';
+import EditProfile from './pages/EditProfile';
 
 const App: React.FC = () => {
   return (
@@ -23,6 +24,7 @@ const App: React.FC = () => {
             <Route path="/" element={<BottomNavLayout />} />
             <Route path="/chatroom/:roomId" element={<ChatRoom />} />
             <Route path="/friend-code" element={<FriendCodePage />} />
+            <Route path="/settings/edit-profile" element={<EditProfile />} />
           </Route>
         </Routes>
       </BrowserRouter>

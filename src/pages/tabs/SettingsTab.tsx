@@ -1,264 +1,282 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { useAuth } from '../../context/AuthContext';
+import EditProfile from '../EditProfile'; // 수정된 EditProfile 컴포넌트 import
 
-// 스타일링 코드 (유지)
-const Container = styled.div`
-    padding: 1.5rem;
+const TabContainer = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: #ffffff;
 `;
 
+const Header = styled.div`
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    background-color: #fff;
+`;
+
+const Title = styled.h2`
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+`;
+
+const SettingsList = styled.div`
+    flex: 1;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+`;
+
+const SettingItem = styled.div`
+    padding: 1rem;
+    margin: 0.5rem;
+    margin-bottom: 0;
+    border-radius: 10px;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    
+    &:hover {
+        background-color: #f5f5f5;
+        transform: translateY(-2px);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    &:active {
+        transform: translateY(0);
+    }
+`;
+
+const SettingText = styled.div`
+    display: flex;
+    flex-direction: column;
+`;
+
+const SettingTitle = styled.span`
+    font-weight: 500;
+    color: #333;
+`;
+
+const SettingDescription = styled.span`
+    font-size: 0.8rem;
+    color: #777;
+    margin-top: 0.25rem;
+`;
+
+const Icon = styled.div`
+    color: #777;
+    display: flex;
+    align-items: center;
+`;
+
+// 프로필 섹션 컨테이너
 const ProfileSection = styled.div`
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 1.5rem;
-    background: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    margin-bottom: 1.5rem;
-`;
-
-const ProfileImage = styled.img`
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 1rem;
-    border: 2px solid #f0f0f0;
-`;
-
-const Nickname = styled.h2`
-    font-size: 1.6rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-`;
-
-const Bio = styled.p`
-    font-size: 0.9rem;
-    color: #606060;
-    margin: 0.5rem 0 1rem;
-    text-align: center;
-    max-width: 80%;
-`;
-
-const StatusSelect = styled.select`
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    background: #fafafa;
-    color: #333;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    &:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 6px rgba(99, 102, 241, 0.2);
-        outline: none;
-    }
-`;
-
-const EditProfileButton = styled.button`
-    padding: 0.6rem 1.4rem;
-    background: #6366f1;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 1rem;
-    transition: background 0.3s, transform 0.2s;
-    &:hover {
-        background: #4f46e5;
-        transform: translateY(-2px);
-    }
-`;
-
-const SettingsList = styled.ul`
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    flex: 1;
-`;
-
-const ListItem = styled.li`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.2rem;
-    background: #ffffff;
-    margin-bottom: 0.8rem;
-    border-radius: 12px;
-    border: 1px solid #e8ecef;
-    cursor: pointer;
-    transition: background 0.2s ease, box-shadow 0.2s ease;
-    &:hover {
-        background: #f9fafb;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-    }
-`;
-
-const ItemText = styled.span`
-    font-size: 1rem;
-    color: #1a1a1a;
-    font-weight: 500;
-`;
-
-const ActionButton = styled.button<{ danger?: boolean }>`
-    padding: 0.5rem 1rem;
-    background: ${(props) => (props.danger ? '#f43f5e' : '#10b981')};
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.3s, transform 0.2s;
-    &:hover {
-        background: ${(props) => (props.danger ? '#e11d48' : '#059669')};
-        transform: translateY(-2px);
-    }
-`;
-
-// 로딩 컴포넌트 추가
-const LoadingSpinner = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
     height: 100%;
-    width: 100%;
-    font-size: 1.2rem;
-    color: #6366f1;
-    padding: 2rem;
+    background-color: #fff;
+`;
+
+const ProfileHeader = styled.div`
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+`;
+
+const BackButton = styled.button`
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: #007bff;
+    cursor: pointer;
+    padding: 0.4rem;
+    margin-right: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
     
-    &::after {
-        content: '';
-        width: 30px;
-        height: 30px;
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #6366f1;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-left: 10px;
+    &:hover {
+        background-color: rgba(0, 123, 255, 0.1);
     }
     
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    &:active {
+        background-color: rgba(0, 123, 255, 0.2);
     }
 `;
 
+const ProfileContent = styled.div`
+    flex: 1;
+    overflow-y: auto;
+`;
+
+// 아이콘 컴포넌트
+const IconSVG = ({ children }: { children: React.ReactNode }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        {children}
+    </svg>
+);
+
+// 설정 탭 컴포넌트
 const SettingsTab: React.FC = () => {
-    const { user, logout, deleteUser, updateStatus, fetchCurrentUser } = useAuth();
-    const navigate = useNavigate();
-    const [status, setStatus] = useState(user?.status || 'ONLINE');
-    const [isLoading, setIsLoading] = useState(true); // 초기 로딩 상태 true로 설정
+    const [activeSection, setActiveSection] = useState<string>('main');
 
-    // 컴포넌트가 마운트될 때 사용자 정보 가져오기
-    useEffect(() => {
-        const loadUserData = async () => {
-            try {
-                await fetchCurrentUser();
-            } catch (error) {
-                console.error('프로필 정보를 불러오는 데 실패했습니다:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadUserData();
-    }, [fetchCurrentUser]);
-
-    // user 상태가 업데이트되면 status 상태도 업데이트
-    useEffect(() => {
-        if (user?.status) {
-            setStatus(user.status);
-        }
-    }, [user]);
-
-    const handleLogout = () => {
-        if (window.confirm('정말 로그아웃 하시겠습니까?')) {
-            logout();
-            navigate('/login');
-        }
+    const handleBack = () => {
+        setActiveSection('main');
     };
 
-    const handleDeleteAccount = async () => {
-        if (window.confirm('정말 회원 탈퇴 하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-            try {
-                await deleteUser();
-                navigate('/login');
-            } catch (error) {
-                alert('회원 탈퇴에 실패했습니다.');
-            }
-        }
-    };
-
-    const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newStatus = e.target.value;
-        setStatus(newStatus);
-
-        try {
-            if (!user?.id) throw new Error('User ID not available');
-            await updateStatus(newStatus);
-        } catch (error) {
-            alert('상태 변경에 실패했습니다.');
-            setStatus(user?.status || 'ONLINE');
-        }
-    };
-
-    const handleEditProfile = () => {
-        navigate('/settings/edit-profile');
-    };
-
-    // 로딩 중 상태 표시
-    if (isLoading) {
+    // 메인 설정 화면
+    if (activeSection === 'main') {
         return (
-            <Container>
-                <LoadingSpinner>프로필 정보를 불러오는 중...</LoadingSpinner>
-            </Container>
+        <TabContainer>
+            <Header>
+            <Title>설정</Title>
+            </Header>
+            <SettingsList>
+            <SettingItem onClick={() => setActiveSection('profile')}>
+                <SettingText>
+                <SettingTitle>프로필 관리</SettingTitle>
+                <SettingDescription>개인 정보 및 프로필 사진 수정</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <circle cx="12" cy="7" r="4" />
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            
+            <SettingItem>
+                <SettingText>
+                <SettingTitle>알림 설정</SettingTitle>
+                <SettingDescription>알림 및 소리 설정 관리</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            
+            <SettingItem>
+                <SettingText>
+                <SettingTitle>개인정보 보호</SettingTitle>
+                <SettingDescription>개인정보 보호 및 보안 설정</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            
+            <SettingItem>
+                <SettingText>
+                <SettingTitle>테마</SettingTitle>
+                <SettingDescription>앱 디자인 테마 변경</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <circle cx="12" cy="12" r="5" />
+                    <line x1="12" y1="1" x2="12" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="23" />
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                    <line x1="1" y1="12" x2="3" y2="12" />
+                    <line x1="21" y1="12" x2="23" y2="12" />
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            
+            <SettingItem>
+                <SettingText>
+                <SettingTitle>언어</SettingTitle>
+                <SettingDescription>앱 언어 설정</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            
+            <SettingItem>
+                <SettingText>
+                <SettingTitle>도움말 및 지원</SettingTitle>
+                <SettingDescription>자주 묻는 질문 및 지원받기</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            
+            <SettingItem>
+                <SettingText>
+                <SettingTitle>로그아웃</SettingTitle>
+                <SettingDescription>계정에서 로그아웃</SettingDescription>
+                </SettingText>
+                <Icon>
+                <IconSVG>
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </IconSVG>
+                </Icon>
+            </SettingItem>
+            </SettingsList>
+        </TabContainer>
         );
     }
 
-    return (
-        <Container>
-            <ProfileSection>
-                <ProfileImage
-                    src={user?.profileImageUrl || 'https://via.placeholder.com/90'}
-                    alt="Profile"
-                />
-                <Nickname>{user?.nickname || '사용자'}</Nickname>
-                <Bio>{user?.bio || '한줄 소개가 없습니다.'}</Bio>
-                <StatusSelect value={status} onChange={handleStatusChange}>
-                    <option value="ONLINE">온라인</option>
-                    <option value="BUSY">바쁨</option>
-                    <option value="AWAY">자리 비움</option>
-                    <option value="INVISIBLE">보이지 않음</option>
-                    <option value="DO_NOT_DISTURB">방해 금지</option>
-                    <option value="IDLE">대기 중</option>
-                    <option value="OFFLINE">오프라인</option>
-                </StatusSelect>
-                <EditProfileButton onClick={handleEditProfile}>회원정보 변경</EditProfileButton>
-            </ProfileSection>
+    // 프로필 관리 화면
+    if (activeSection === 'profile') {
+        return (
+        <ProfileSection>
+            <ProfileHeader>
+            <BackButton onClick={handleBack}>
+                <IconSVG>
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+                </IconSVG>
+            </BackButton>
+            <Title>프로필 관리</Title>
+            </ProfileHeader>
+            <ProfileContent>
+            <EditProfile onClose={handleBack} />
+            </ProfileContent>
+        </ProfileSection>
+        );
+    }
 
-            <SettingsList>
-                <ListItem onClick={handleLogout}>
-                    <ItemText>로그아웃</ItemText>
-                    <ActionButton>로그아웃</ActionButton>
-                </ListItem>
-                <ListItem onClick={handleDeleteAccount}>
-                    <ItemText>회원 탈퇴</ItemText>
-                    <ActionButton danger>탈퇴</ActionButton>
-                </ListItem>
-            </SettingsList>
-        </Container>
-    );
+    return null;
 };
 
 export default SettingsTab;
