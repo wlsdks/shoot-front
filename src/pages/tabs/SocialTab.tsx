@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import styled, { keyframes } from "styled-components";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {
@@ -364,10 +364,13 @@ const SocialTab: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const limit = 10;
+    
+    // API 중복 호출 방지를 위한 초기화 플래그
+    const initialized = useRef(false);
 
     // 기존 소셜 데이터 (친구 목록, 친구 요청) 로드
     const fetchSocialData = useCallback(async () => {
-        if (!user) return;
+        if (!user?.id) return;
         try {
             setLoading(true);
             setError("");
@@ -386,11 +389,11 @@ const SocialTab: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user?.id]); // user 대신 user?.id만 의존성으로 사용
 
     // 추천 친구 데이터 로드 (무한 스크롤)
     const fetchRecommendations = useCallback(async (currentSkip: number) => {
-        if (!user) return;
+        if (!user?.id) return;
         try {
             const recRes = await getRecommendations(user.id, limit, 2, currentSkip);
             if (recRes.data.length < limit) {
@@ -401,15 +404,23 @@ const SocialTab: React.FC = () => {
         } catch (e) {
             console.error(e);
         }
-    }, [user]);
+    }, [user?.id, limit]); // user 대신 user?.id와 limit만 의존성으로 사용
 
+    // 최초 데이터 로드 (중복 호출 방지)
     useEffect(() => {
+        // 이미 초기화되었으면 더 이상 실행하지 않음
+        if (initialized.current) return;
+        
+        // 사용자 정보가 있는 경우에만 데이터 로드
         if (user?.id) {
+            // 초기화 플래그 설정
+            initialized.current = true;
+            
+            // 데이터 로드
             fetchSocialData();
-            // 초기 추천 데이터 로드
             fetchRecommendations(0);
         }
-    }, [user, fetchSocialData, fetchRecommendations]);
+    }, [user?.id, fetchSocialData, fetchRecommendations]);
 
     // 친구 요청 보내기
     const handleSendFriendRequest = async (targetUserId: string) => {
