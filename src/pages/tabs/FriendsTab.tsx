@@ -557,7 +557,7 @@ const FriendTab: React.FC = () => {
                     <UserDetails>
                         <FriendName>{friend.username}</FriendName>
                         <FriendStatus>
-                        <StatusText>마지막 접속: 1시간 전</StatusText>
+                        <StatusText>{user?.bio}</StatusText>
                         </FriendStatus>
                     </UserDetails>
                     </UserInfo>
