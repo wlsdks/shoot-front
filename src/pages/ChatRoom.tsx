@@ -133,39 +133,6 @@ const ChatArea = styled.div`
     }
 `;
 
-// 메시지 컨테이너 (날짜 포함)
-const MessageDateGroup = styled.div`
-    margin-bottom: 16px;
-`;
-
-// 날짜 구분선
-const DateDivider = styled.div`
-    text-align: center;
-    margin: 8px 0 16px;
-    position: relative;
-    
-    &::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 50%;
-        width: 100%;
-        height: 1px;
-        background: rgba(0, 0, 0, 0.1);
-        z-index: 1;
-    }
-`;
-
-const DateLabel = styled.span`
-    background: #f8f9fa;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    color: #777;
-    position: relative;
-    z-index: 2;
-`;
-
 // 메시지 행: 채팅 말풍선과 시간/Indicator를 수평 배치
 const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
     display: flex;
@@ -173,14 +140,6 @@ const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
     justify-content: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
     margin-bottom: 10px;
     animation: ${fadeIn} 0.3s ease-out;
-`;
-
-// 채팅 메시지 및 시간 컨테이너
-const MessageContainer = styled.div<{ $isOwnMessage: boolean }>`
-    display: flex;
-    flex-direction: ${({ $isOwnMessage }) => ($isOwnMessage ? "row-reverse" : "row")};
-    align-items: flex-end;
-    max-width: 85%;
 `;
 
 // 채팅 말풍선
@@ -464,47 +423,6 @@ const ErrorIcon = () => (
 
 // ============= 유틸리티 함수 =============
 
-// 날짜 포맷팅 함수
-const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const messageDate = new Date(date);
-    messageDate.setHours(0, 0, 0, 0);
-    
-    if (messageDate.getTime() === today.getTime()) {
-        return "오늘";
-    } else if (messageDate.getTime() === yesterday.getTime()) {
-        return "어제";
-    } else {
-        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
-    }
-};
-
-// 시간 포맷팅 함수
-const formatTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const period = hours < 12 ? "오전" : "오후";
-    const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-    return `${period} ${hour12}:${formattedMinutes}`;
-};
-
-// 날짜 변경 확인 함수
-const isDifferentDay = (date1: string, date2: string): boolean => {
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
-    
-    return d1.getFullYear() !== d2.getFullYear() ||
-            d1.getMonth() !== d2.getMonth() ||
-            d1.getDate() !== d2.getDate();
-};
 
 // ============= 컴포넌트 =============
 const ChatRoom: React.FC = () => {
@@ -795,6 +713,7 @@ const ChatRoom: React.FC = () => {
             if (heartbeatRef.current) clearInterval(heartbeatRef.current);
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
+        // eslint-disable-next-line
     }, [roomId, user, scrollToBottom, markAllRead]);
     
 
