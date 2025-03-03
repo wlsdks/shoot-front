@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {
     getFriends,
@@ -12,23 +12,118 @@ import {
 } from "../../services/friends";
 import { useAuth } from "../../context/AuthContext";
 
-// Friend 인터페이스 정의 (타입 통일)
+// 애니메이션 정의
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+const pulse = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+`;
+
+// Friend 인터페이스 정의
 interface Friend {
     id: string;
     username: string;
+    profileImageUrl?: string; // 프로필 이미지 URL (옵션)
 }
 
+// 전체 컨테이너 - 스크롤바 문제 해결을 위해 수정
 const Container = styled.div`
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+`;
+
+// 고정된 헤더
+const Header = styled.div`
     padding: 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+`;
+
+const HeaderContent = styled.div`
+    text-align: center;
+    padding-bottom: 0.5rem;
+`;
+
+const Title = styled.h1`
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+`;
+
+const Subtitle = styled.p`
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin: 0.5rem 0 0;
+`;
+
+// 스크롤 영역
+const ScrollableContent = styled.div`
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    padding-top: 0;
+
+    /* 스크롤바 스타일링 */
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background: #aaa;
+    }
+`;
+
+const SectionHeader = styled.div`
+    display: flex;
+    align-items: center;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+`;
+
+const SectionIcon = styled.div`
+    margin-right: 0.75rem;
+    color: #007bff;
+    display: flex;
+    align-items: center;
 `;
 
 const SectionTitle = styled.h2`
     font-size: 1.1rem;
-    margin-top: 0;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e0e0e0;
+    margin: 0;
     color: #333;
+    flex: 1;
+`;
+
+const Badge = styled.span`
+    background-color: #007bff;
+    color: white;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-weight: 600;
 `;
 
 const List = styled.ul`
@@ -41,16 +136,61 @@ const ListItem = styled.li`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px;
+    padding: 1rem;
     background-color: #fff;
-    margin-bottom: 12px;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s;
+    margin-bottom: 0.75rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    animation: ${fadeIn} 0.3s ease-out;
+    
     &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
     }
+`;
+
+const UserInfo = styled.div`
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0; // 자식 요소의 text-overflow가 작동하도록
+`;
+
+const ProfileImageContainer = styled.div`
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 0.75rem;
+    background-color: #e9ecef;
+    flex-shrink: 0;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+const ProfileImage = styled.img`
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+`;
+
+const ProfileInitial = styled.div`
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #007bff;
+    color: white;
+    font-weight: 600;
+    font-size: 1.2rem;
+`;
+
+const FriendInfo = styled.div`
+    display: flex;
+    flex-direction: column;
+    min-width: 0; // flex item이 0보다 작아질 수 있게 함
 `;
 
 const FriendName = styled.span`
@@ -62,38 +202,145 @@ const FriendName = styled.span`
     white-space: nowrap;
 `;
 
-const Actions = styled.div`
-    display: flex;
-    gap: 12px;
+const FriendStatus = styled.span`
+    font-size: 0.8rem;
+    color: #6c757d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
-const Button = styled.button`
-    background: #007bff;
-    color: #fff;
-    padding: 6px 12px;
+const Actions = styled.div`
+    display: flex;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+`;
+
+const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disabled?: boolean }>`
+    background: ${(props) => 
+        props.disabled ? '#f1f3f5' :
+        props.$primary ? '#007bff' : 
+        props.$danger ? '#dc3545' : '#f8f9fa'};
+    color: ${(props) => 
+        props.disabled ? '#adb5bd' :
+        (props.$primary || props.$danger) ? '#fff' : '#6c757d'};
+    padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s ease;
+    border-radius: 8px;
+    cursor: ${(props) => props.disabled ? 'default' : 'pointer'};
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+    
     &:hover {
-        background: #0056b3;
+        background: ${(props) => 
+            props.disabled ? '#f1f3f5' :
+            props.$primary ? '#0069d9' : 
+            props.$danger ? '#c82333' : '#e9ecef'};
+        transform: ${(props) => props.disabled ? 'none' : 'translateY(-2px)'};
+    }
+    
+    svg {
+        margin-right: ${(props) => (props.children && props.children !== "친구" && props.children !== "요청됨") ? '0.4rem' : '0'};
+    }
+`;
+
+const IconButton = styled(ActionButton)`
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    svg {
+        margin-right: 0;
+    }
+`;
+
+const EmptyState = styled.div`
+    text-align: center;
+    padding: 2rem 1rem;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin: 1rem 0;
+`;
+
+const EmptyStateIcon = styled.div`
+    color: #adb5bd;
+    margin-bottom: 1rem;
+    
+    svg {
+        width: 48px;
+        height: 48px;
+    }
+`;
+
+const EmptyStateText = styled.p`
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin: 0;
+`;
+
+const LoadingContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #6c757d;
+    
+    svg {
+        animation: ${pulse} 1.2s infinite;
+        margin-bottom: 1rem;
     }
 `;
 
 const StatusText = styled.p`
     text-align: center;
     font-size: 0.875rem;
-    color: #999;
-    margin-top: 20px;
+    color: #6c757d;
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 `;
 
-const LoadingContainer = styled.div`
+const ErrorContainer = styled.div`
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
     display: flex;
-    justify-content: center;
     align-items: center;
-    height: 100%;
+    
+    svg {
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
 `;
+
+// 아이콘 컴포넌트
+const Icon = ({ children }: { children: React.ReactNode }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        {children}
+    </svg>
+);
 
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
@@ -157,17 +404,19 @@ const SocialTab: React.FC = () => {
     const handleSendFriendRequest = async (targetUserId: string) => {
         if (!user) return;
         try {
-            const res = await sendFriendRequest(user.id, targetUserId);
-            alert(`친구 요청 성공: ${res.data}`);
-            // 요청 후 데이터를 새로 고침
-            fetchSocialData();
-            setRecommended([]); // 추천 목록 새로 로드
-            setSkip(0);
-            setHasMore(true);
-            fetchRecommendations(0);
+            await sendFriendRequest(user.id, targetUserId);
+            
+            // 추천 목록에서 해당 사용자를 보낸 요청 목록으로 이동
+            const requestedUser = recommended.find(r => r.id === targetUserId);
+            if (requestedUser) {
+                setOutgoing(prev => [...prev, requestedUser]);
+                setRecommended(prev => prev.filter(r => r.id !== targetUserId));
+            }
+            
+            // 성공 메시지 없이 UI만 업데이트 (더 나은 UX)
         } catch (err) {
             console.error(err);
-            alert("친구 요청 보내기에 실패했습니다.");
+            setError("친구 요청 보내기에 실패했습니다.");
         }
     };
 
@@ -176,11 +425,16 @@ const SocialTab: React.FC = () => {
         if (!user) return;
         try {
             await acceptFriendRequest(user.id, requesterId);
-            alert("친구 요청을 수락했습니다.");
-            fetchSocialData(); // 데이터 새로고침
+            
+            // 받은 요청에서 해당 사용자를 찾아 친구 목록으로 이동
+            const acceptedUser = incoming.find(r => r.id === requesterId);
+            if (acceptedUser) {
+                setFriends(prev => [...prev, acceptedUser]);
+                setIncoming(prev => prev.filter(r => r.id !== requesterId));
+            }
         } catch (err) {
             console.error(err);
-            alert("친구 요청 수락 실패");
+            setError("친구 요청 수락 실패");
         }
     };
 
@@ -189,81 +443,266 @@ const SocialTab: React.FC = () => {
         if (!user) return;
         try {
             await rejectFriendRequest(user.id, requesterId);
-            alert("친구 요청을 거절했습니다.");
-            fetchSocialData(); // 데이터 새로고침
+            
+            // 받은 요청에서 해당 사용자 제거
+            setIncoming(prev => prev.filter(r => r.id !== requesterId));
         } catch (err) {
             console.error(err);
-            alert("친구 요청 거절 실패");
+            setError("친구 요청 거절 실패");
         }
     };
 
-    if (loading) return <LoadingContainer>로딩중...</LoadingContainer>;
-    if (error) return <Container>{error}</Container>;
+    // 프로필 이미지가 없을 경우 이니셜로 대체
+    const renderProfileImage = (friend: Friend) => {
+        if (friend.profileImageUrl) {
+            return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
+        }
+        return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
+    };
+
+    // 로딩 중 표시
+    if (loading) {
+        return (
+            <Container>
+                <Header>
+                    <HeaderContent>
+                        <Title>소셜</Title>
+                        <Subtitle>친구 관리 및 새로운 친구 찾기</Subtitle>
+                    </HeaderContent>
+                </Header>
+                <ScrollableContent>
+                    <LoadingContainer>
+                        <Icon>
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </Icon>
+                        <span>소셜 데이터를 불러오는 중...</span>
+                    </LoadingContainer>
+                </ScrollableContent>
+            </Container>
+        );
+    }
 
     return (
         <Container>
-            <SectionTitle>받은 친구 요청</SectionTitle>
-            {incoming.length === 0 ? (
-                <StatusText>받은 요청이 없습니다.</StatusText>
-            ) : (
-                <List>
-                    {incoming.map((friend) => (
-                        <ListItem key={friend.id}>
-                            <FriendName>{friend.username}</FriendName>
-                            <Actions>
-                                <Button onClick={() => handleAcceptRequest(friend.id)}>수락</Button>
-                                <Button onClick={() => handleRejectRequest(friend.id)}>거절</Button>
-                            </Actions>
-                        </ListItem>
-                    ))}
-                </List>
-            )}
+            <Header>
+                <HeaderContent>
+                    <Title>소셜</Title>
+                    <Subtitle>친구 관리 및 새로운 친구 찾기</Subtitle>
+                </HeaderContent>
+            </Header>
+            
+            <ScrollableContent id="scrollableContent">
+                {error && (
+                    <ErrorContainer>
+                        <Icon>
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </Icon>
+                        <span>{error}</span>
+                    </ErrorContainer>
+                )}
 
-            <SectionTitle>보낸 친구 요청</SectionTitle>
-            {outgoing.length === 0 ? (
-                <StatusText>보낸 요청이 없습니다.</StatusText>
-            ) : (
-                <List>
-                    {outgoing.map((friend) => (
-                        <ListItem key={friend.id}>
-                            <FriendName>{friend.username}</FriendName>
-                            <StatusText style={{ color: "#888" }}>대기중</StatusText>
-                        </ListItem>
-                    ))}
-                </List>
-            )}
+                {/* 받은 친구 요청 섹션 */}
+                <SectionHeader>
+                    <SectionIcon>
+                        <Icon>
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <line x1="9" y1="1" x2="9" y2="4" />
+                            <line x1="9" y1="10" x2="9" y2="13" />
+                            <line x1="6" y1="7" x2="12" y2="7" />
+                        </Icon>
+                    </SectionIcon>
+                    <SectionTitle>받은 친구 요청</SectionTitle>
+                    {incoming.length > 0 && <Badge>{incoming.length}</Badge>}
+                </SectionHeader>
 
-            <SectionTitle>추천 친구</SectionTitle>
-            <InfiniteScroll
-                dataLength={recommended.length}
-                next={() => fetchRecommendations(skip)}
-                hasMore={hasMore}
-                loader={<StatusText>로딩중...</StatusText>}
-                endMessage={<StatusText>더 이상 추천할 친구가 없습니다.</StatusText>}
-            >
-                {recommended.length === 0 ? (
-                    <StatusText>추천할 친구가 없습니다.</StatusText>
+                {incoming.length === 0 ? (
+                    <EmptyState>
+                        <EmptyStateIcon>
+                            <Icon>
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <line x1="17" y1="8" x2="17" y2="14" />
+                                <line x1="14" y1="11" x2="20" y2="11" />
+                            </Icon>
+                        </EmptyStateIcon>
+                        <EmptyStateText>아직 받은 친구 요청이 없습니다.</EmptyStateText>
+                    </EmptyState>
                 ) : (
                     <List>
-                        {recommended.map((candidate) => {
-                            // 현재 친구 목록에 이미 있는지 확인
-                            const alreadyFriend = friends.some(friend => friend.id === candidate.id);
-                            return (
-                                <ListItem key={candidate.id}>
-                                    <FriendName>{candidate.username}</FriendName>
-                                    {alreadyFriend ? (
-                                        <StatusText>이미 친구</StatusText>
-                                    ) : (
-                                        <Button onClick={() => handleSendFriendRequest(candidate.id)}>
-                                            친구추가
-                                        </Button>
-                                    )}
-                                </ListItem>
-                            );
-                        })}
+                        {incoming.map((friend) => (
+                            <ListItem key={friend.id}>
+                                <UserInfo>
+                                    <ProfileImageContainer>
+                                        {renderProfileImage(friend)}
+                                    </ProfileImageContainer>
+                                    <FriendInfo>
+                                        <FriendName>{friend.username}</FriendName>
+                                        <FriendStatus>친구 요청을 보냈습니다</FriendStatus>
+                                    </FriendInfo>
+                                </UserInfo>
+                                <Actions>
+                                    <ActionButton $primary onClick={() => handleAcceptRequest(friend.id)}>
+                                        <Icon>
+                                            <polyline points="20 6 9 17 4 12" />
+                                        </Icon>
+                                        수락
+                                    </ActionButton>
+                                    <ActionButton $danger onClick={() => handleRejectRequest(friend.id)}>
+                                        <Icon>
+                                            <line x1="18" y1="6" x2="6" y2="18" />
+                                            <line x1="6" y1="6" x2="18" y2="18" />
+                                        </Icon>
+                                        거절
+                                    </ActionButton>
+                                </Actions>
+                            </ListItem>
+                        ))}
                     </List>
                 )}
-            </InfiniteScroll>
+
+                {/* 보낸 친구 요청 섹션 */}
+                <SectionHeader>
+                    <SectionIcon>
+                        <Icon>
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <polyline points="16 11 18 13 22 9" />
+                        </Icon>
+                    </SectionIcon>
+                    <SectionTitle>보낸 친구 요청</SectionTitle>
+                    {outgoing.length > 0 && <Badge>{outgoing.length}</Badge>}
+                </SectionHeader>
+
+                {outgoing.length === 0 ? (
+                    <EmptyState>
+                        <EmptyStateIcon>
+                            <Icon>
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <line x1="17" y1="8" x2="17" y2="14" />
+                                <line x1="14" y1="11" x2="20" y2="11" />
+                            </Icon>
+                        </EmptyStateIcon>
+                        <EmptyStateText>보낸 친구 요청이 없습니다.</EmptyStateText>
+                    </EmptyState>
+                ) : (
+                    <List>
+                        {outgoing.map((friend) => (
+                            <ListItem key={friend.id}>
+                                <UserInfo>
+                                    <ProfileImageContainer>
+                                        {renderProfileImage(friend)}
+                                    </ProfileImageContainer>
+                                    <FriendInfo>
+                                        <FriendName>{friend.username}</FriendName>
+                                        <FriendStatus>친구 수락 대기중</FriendStatus>
+                                    </FriendInfo>
+                                </UserInfo>
+                                <Actions>
+                                    <IconButton>
+                                        <Icon>
+                                            <circle cx="12" cy="12" r="10" />
+                                            <polyline points="12 6 12 12 16 14" />
+                                        </Icon>
+                                    </IconButton>
+                                </Actions>
+                            </ListItem>
+                        ))}
+                    </List>
+                )}
+
+                {/* 추천 친구 섹션 */}
+                <SectionHeader>
+                    <SectionIcon>
+                        <Icon>
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </Icon>
+                    </SectionIcon>
+                    <SectionTitle>추천 친구</SectionTitle>
+                </SectionHeader>
+
+                <InfiniteScroll
+                    dataLength={recommended.length}
+                    next={() => fetchRecommendations(skip)}
+                    hasMore={hasMore}
+                    loader={
+                        <StatusText>
+                            <Icon>
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="6" x2="12" y2="12" />
+                                <line x1="12" y1="18" x2="12.01" y2="18" />
+                            </Icon>
+                            더 많은 추천 친구를 불러오는 중...
+                        </StatusText>
+                    }
+                    endMessage={<StatusText>더 이상 추천할 친구가 없습니다.</StatusText>}
+                    scrollableTarget="scrollableContent"
+                >
+                    {recommended.length === 0 ? (
+                        <EmptyState>
+                            <EmptyStateIcon>
+                                <Icon>
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                </Icon>
+                            </EmptyStateIcon>
+                            <EmptyStateText>현재 추천할 친구가 없습니다.</EmptyStateText>
+                        </EmptyState>
+                    ) : (
+                        <List>
+                            {recommended.map((candidate) => {
+                                // 현재 친구 목록에 이미 있는지 확인
+                                const alreadyFriend = friends.some(friend => friend.id === candidate.id);
+                                // 이미 요청을 보냈는지 확인
+                                const alreadyRequested = outgoing.some(request => request.id === candidate.id);
+                                
+                                return (
+                                    <ListItem key={candidate.id}>
+                                        <UserInfo>
+                                            <ProfileImageContainer>
+                                                {renderProfileImage(candidate)}
+                                            </ProfileImageContainer>
+                                            <FriendInfo>
+                                                <FriendName>{candidate.username}</FriendName>
+                                                <FriendStatus>
+                                                    {alreadyFriend 
+                                                        ? '이미 친구입니다' 
+                                                        : alreadyRequested 
+                                                            ? '친구 요청 보냄' 
+                                                            : '추천 친구'}
+                                                </FriendStatus>
+                                            </FriendInfo>
+                                        </UserInfo>
+                                        {alreadyFriend ? (
+                                            <ActionButton disabled>친구</ActionButton>
+                                        ) : alreadyRequested ? (
+                                            <ActionButton disabled>요청됨</ActionButton>
+                                        ) : (
+                                            <ActionButton $primary onClick={() => handleSendFriendRequest(candidate.id)}>
+                                                <Icon>
+                                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                                    <circle cx="9" cy="7" r="4" />
+                                                    <line x1="19" y1="8" x2="19" y2="14" />
+                                                    <line x1="16" y1="11" x2="22" y2="11" />
+                                                </Icon>
+                                                친구 추가
+                                            </ActionButton>
+                                        )}
+                                    </ListItem>
+                                );
+                            })}
+                        </List>
+                    )}
+                </InfiniteScroll>
+            </ScrollableContent>
         </Container>
     );
 };
