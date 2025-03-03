@@ -5,7 +5,7 @@ import { getChatMessages, forwardMessage } from "../services/message";
 import { markAllMessagesAsRead } from "../services/chatRoom";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { throttle } from "lodash";
 
 // 채팅 메시지 인터페이스
@@ -22,7 +22,7 @@ export interface ChatMessageItem {
         isDeleted: boolean;
     };
     createdAt?: string;
-    status: string; // "SENT", "DELIVERED", "READ" 등
+    status: string; // "SAVED", "PROCESSED" 등
     readBy: { [userId: string]: boolean }; // 읽음 상태 추가
 }
 
@@ -34,15 +34,27 @@ interface TypingIndicatorMessage {
     isTyping: boolean;
 }
 
-// 스타일 컴포넌트들
+// 애니메이션 정의
+const fadeIn = keyframes`
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+`;
+
+const bounce = keyframes`
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+`;
+
+// ============= 스타일 컴포넌트 정의 =============
+
+// 채팅 컨테이너
 const ChatWrapper = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    /* 전체 뷰 높이에서 네비게이션 높이를 뺀 후, 상단에 여백 추가 */
     min-height: calc(100vh - 60px);
     padding-top: 60px;
-    background-color: #f5f5f5;
+    background-color: #f5f7fa;
     overflow: hidden;
 `;
 
@@ -50,142 +62,251 @@ const ChatContainer = styled.div`
     width: 375px;
     height: 667px;
     background-color: #fff;
-    border-radius: 30px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* 컨테이너 내부에서만 스크롤 */
+    overflow: hidden;
     position: relative;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 `;
 
+// 헤더 스타일
 const Header = styled.div`
-    padding: 8px 10px; /* 크기 축소 */
+    padding: 14px 16px;
     background: #fff;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #eee;
     display: flex;
     align-items: center;
     z-index: 10;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 `;
 
 const BackButton = styled.button`
-    background: none;
+    background: #f0f7ff;
     border: none;
-    font-size: 1.2rem; /* 크기 조정 */
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     cursor: pointer;
     color: #007bff;
-    margin-right: 8px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    
+    &:hover {
+        background: #e1ecff;
+        transform: translateX(-2px);
+    }
 `;
 
 const HeaderTitle = styled.h2`
-    font-size: 1.1rem; /* 글자 크기 축소 */
+    font-size: 1.1rem;
     margin: 0;
     color: #333;
+    font-weight: 600;
+    flex: 1;
 `;
 
+// 채팅 영역 스타일
 const ChatArea = styled.div`
     flex: 1;
-    padding: 10px 15px;
-    background: #f8f8f8;
-    overflow-y: auto; /* 채팅 영역에서만 스크롤 */
+    padding: 16px;
+    background: #f8f9fa;
+    overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #888 transparent;
+    scrollbar-color: #ddd transparent;
+    
     &::-webkit-scrollbar {
-        width: 6px;
+        width: 5px;
     }
+    
     &::-webkit-scrollbar-thumb {
-        background: #888;
+        background: #ddd;
         border-radius: 3px;
     }
+    
     &::-webkit-scrollbar-track {
         background: transparent;
     }
-    &:hover::-webkit-scrollbar-thumb {
-        background: #555;
+`;
+
+// 메시지 컨테이너 (날짜 포함)
+const MessageDateGroup = styled.div`
+    margin-bottom: 16px;
+`;
+
+// 날짜 구분선
+const DateDivider = styled.div`
+    text-align: center;
+    margin: 8px 0 16px;
+    position: relative;
+    
+    &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 100%;
+        height: 1px;
+        background: rgba(0, 0, 0, 0.1);
+        z-index: 1;
     }
 `;
 
-// 전체 메시지 행: 채팅 말풍선과 시간/Indicator를 수평 배치 (보낸 사람에 따라 순서가 달라짐)
+const DateLabel = styled.span`
+    background: #f8f9fa;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: #777;
+    position: relative;
+    z-index: 2;
+`;
+
+// 메시지 행: 채팅 말풍선과 시간/Indicator를 수평 배치
 const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
     display: flex;
     align-items: flex-end;
     justify-content: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
     margin-bottom: 10px;
+    animation: ${fadeIn} 0.3s ease-out;
+`;
+
+// 채팅 메시지 및 시간 컨테이너
+const MessageContainer = styled.div<{ $isOwnMessage: boolean }>`
+    display: flex;
+    flex-direction: ${({ $isOwnMessage }) => ($isOwnMessage ? "row-reverse" : "row")};
+    align-items: flex-end;
+    max-width: 85%;
 `;
 
 // 채팅 말풍선
-const ChatBubble = styled.div.withConfig({
-    shouldForwardProp: (prop) => prop !== "isOwnMessage"
-})<{ isOwnMessage: boolean }>`
-    max-width: 80%;
-    padding: 8px 12px;
-    border-radius: 16px;
-    background: ${({ isOwnMessage }) =>
-        isOwnMessage ? "linear-gradient(135deg, #007bff, #0056b3)" : "#e5e5ea"};
-    color: ${({ isOwnMessage }) => (isOwnMessage ? "#fff" : "#000")};
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    font-size: 0.9rem;
+const ChatBubble = styled.div<{ $isOwnMessage: boolean }>`
+    max-width: 100%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    background: ${({ $isOwnMessage }) =>
+        $isOwnMessage 
+        ? "linear-gradient(135deg, #007bff, #0056b3)" 
+        : "#ffffff"};
+    color: ${({ $isOwnMessage }) => ($isOwnMessage ? "#fff" : "#333")};
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-size: 0.95rem;
+    border: ${({ $isOwnMessage }) => $isOwnMessage ? "none" : "1px solid #eee"};
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: all 0.2s;
+    word-break: break-word;
+    
     &:hover {
         transform: translateY(-2px);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
     }
 `;
 
-// 타임스탬프 및 Indicator를 담는 컨테이너  
-// 내 메시지일 경우 오른쪽 정렬, 상대방일 경우 왼쪽 정렬
+// 시간 및 상태 컨테이너
 const TimeContainer = styled.div<{ $isOwnMessage: boolean }>`
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     color: #999;
-    margin: 0 4px;
+    margin: 0 6px;
     display: flex;
     flex-direction: column;
     align-items: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
 `;
 
+// 타이핑 인디케이터
 const TypingIndicatorContainer = styled.div`
-    padding: 5px 10px;
-    font-size: 0.9rem;
-    color: #555;
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 10px;
-    margin-bottom: 10px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: #666;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 18px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    max-width: 75%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
+const TypingDots = styled.div`
+    display: flex;
+    margin-left: 8px;
+    
+    span {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: #aaa;
+        margin: 0 2px;
+        animation: ${bounce} 1s infinite;
+        
+        &:nth-child(2) {
+        animation-delay: 0.2s;
+        }
+        
+        &:nth-child(3) {
+        animation-delay: 0.4s;
+        }
+    }
+`;
+
+// 입력 영역
 const ChatInputContainer = styled.div`
     display: flex;
-    padding: 10px;
+    padding: 12px 16px;
     background: #fff;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #eee;
     z-index: 10;
 `;
 
 const Input = styled.input`
     flex: 1;
-    padding: 10px;
-    font-size: 1rem;
+    padding: 12px 16px;
+    font-size: 0.95rem;
     border: none;
     border-radius: 20px;
-    background: #f0f0f0;
+    background: #f0f2f5;
+    
     &:focus {
         outline: none;
-        background: #e8e8e8;
+        background: #e8eaed;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+    }
+    
+    &::placeholder {
+        color: #aaa;
     }
 `;
 
 const SendButton = styled.button`
-    padding: 10px 20px;
-    margin-left: 10px;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    margin-left: 8px;
     background: linear-gradient(135deg, #007bff, #0056b3);
     color: #fff;
     border: none;
-    border-radius: 20px;
+    border-radius: 50%;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
     &:hover {
         transform: scale(1.05);
+        box-shadow: 0 2px 5px rgba(0, 123, 255, 0.4);
+    }
+    
+    &:disabled {
+        background: #ccc;
+        cursor: not-allowed;
     }
 `;
 
+// 에러 메시지
 const ErrorMessage = styled.div`
     padding: 10px;
     background: #ffebee;
@@ -193,22 +314,41 @@ const ErrorMessage = styled.div`
     text-align: center;
     font-size: 0.9rem;
     border-radius: 10px;
-`;
+    margin: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    svg {
+        margin-right: 6px;
+    }
+    `;
 
-/* 컨텍스트 메뉴 및 모달 스타일 (생략) */
+// 컨텍스트 메뉴 및 모달
 const ContextMenu = styled.div`
     position: absolute;
     background: white;
-    border: 1px solid #ccc;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     z-index: 1000;
+    overflow: hidden;
+    border: 1px solid #eee;
 `;
 
 const ContextMenuItem = styled.div`
-    padding: 8px 12px;
+    padding: 10px 14px;
     cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    
+    svg {
+        margin-right: 8px;
+        color: #666;
+    }
+    
     &:hover {
-        background: #f0f0f0;
+        background: #f5f9ff;
     }
 `;
 
@@ -218,7 +358,7 @@ const ModalOverlay = styled.div`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -228,8 +368,28 @@ const ModalOverlay = styled.div`
 const ModalContent = styled.div`
     background: white;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 10px;
     min-width: 300px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    
+    h3 {
+        margin-top: 0;
+        color: #333;
+    }
+    
+    input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        margin: 10px 0;
+        font-size: 0.95rem;
+        
+        &:focus {
+        outline: none;
+        border-color: #007bff;
+        }
+    }
 `;
 
 const ModalButtons = styled.div`
@@ -237,17 +397,124 @@ const ModalButtons = styled.div`
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+    
+    button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        
+        &:first-child {
+        background: #f0f0f0;
+        border: none;
+        color: #333;
+        
+        &:hover {
+            background: #e0e0e0;
+        }
+        }
+        
+        &:last-child {
+        background: #007bff;
+        border: none;
+        color: white;
+        
+        &:hover {
+            background: #0056b3;
+        }
+        }
+    }
 `;
 
-// ChatRoom 컴포넌트
+// ============= 아이콘 컴포넌트 =============
+
+// 뒤로가기 아이콘
+const BackIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+);
+
+// 전송 아이콘
+const SendIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+);
+
+// 전달 아이콘
+const ForwardIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="17 8 22 12 17 16"></polyline>
+        <line x1="4" y1="12" x2="22" y2="12"></line>
+    </svg>
+);
+
+// 에러 아이콘
+const ErrorIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+);
+
+// ============= 유틸리티 함수 =============
+
+// 날짜 포맷팅 함수
+const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const messageDate = new Date(date);
+    messageDate.setHours(0, 0, 0, 0);
+    
+    if (messageDate.getTime() === today.getTime()) {
+        return "오늘";
+    } else if (messageDate.getTime() === yesterday.getTime()) {
+        return "어제";
+    } else {
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+    }
+};
+
+// 시간 포맷팅 함수
+const formatTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const period = hours < 12 ? "오전" : "오후";
+    const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    return `${period} ${hour12}:${formattedMinutes}`;
+};
+
+// 날짜 변경 확인 함수
+const isDifferentDay = (date1: string, date2: string): boolean => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    
+    return d1.getFullYear() !== d2.getFullYear() ||
+            d1.getMonth() !== d2.getMonth() ||
+            d1.getDate() !== d2.getDate();
+};
+
+// ============= 컴포넌트 =============
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
     const [input, setInput] = useState("");
-    const [typingUsers, setTypingUsers] = useState<string[]>([]); // Set<string> 대신 string[]로 변경
+    const [typingUsers, setTypingUsers] = useState<string[]>([]); 
     const [stompClient, setStompClient] = useState<Client | null>(null);
-    const [connectionError, setConnectionError] = useState<string | null>(null);  // 에러 상태 추가
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
@@ -256,19 +523,24 @@ const ChatRoom: React.FC = () => {
     const navigate = useNavigate();
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);   // Heartbeat용 ref 추가
+    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<ChatMessageItem[]>([]);
+
+    // 메시지 상태 추적
+    const [messageStatuses, setMessageStatuses] = useState<{
+        [tempId: string]: { status: string; persistedId: string | null }
+    }>({});
 
     // 최신 메시지를 유지하기 위함
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
 
-    // 메시지 목록 업데이트 후 스크롤 처리 (useEffect로 DOM 업데이트 이후 호출)
-    useEffect(() => {
+    // 메시지 목록 업데이트 후 스크롤 처리
+    const scrollToBottom = useCallback(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, []);
 
     // 조합 시작 시
     const handleCompositionStart = () => {
@@ -276,14 +548,11 @@ const ChatRoom: React.FC = () => {
     };
     
     // 조합 종료 시
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    const handleCompositionEnd = () => {
         setIsComposing(false);
-        // 조합 종료 후 최종 값이 변경되었으므로 필요하면 handleInputChange 호출
-        // (이미 onChange가 발생할 수 있으므로 선택 사항)
     };  
 
-    // Enter 키 처리: 조합 중이면 무시하도록 함
-    // 엔터로 채팅 입력 (Shift+Enter는 줄바꿈 허용, Enter만 치면 전송.)
+    // Enter 키 처리
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && !e.shiftKey && !isComposing) {
             e.preventDefault();
@@ -291,43 +560,27 @@ const ChatRoom: React.FC = () => {
         }
     };
 
-    const scrollToBottom = useCallback(() => {
-        if (chatAreaRef.current) {
-            chatAreaRef.current.scrollTo({
-                top: chatAreaRef.current.scrollHeight,
-                behavior: 'smooth' // 부드러운 스크롤 효과 (선택사항)
-            });
-        }
-    }, []);
-
-    // 읽음 처리 요청을 위한 세션 관리를 위한 상태 추가
+    // 읽음 처리를 위한 세션 ID
     const [sessionId] = useState<string>(
         () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
     );
     const lastReadTimeRef = useRef<number>(0);
 
-    // 1. 메시지 상태 추적을 위한 상태 추가
-    const [messageStatuses, setMessageStatuses] = useState<{
-        [tempId: string]: { status: string; persistedId: string | null }
-    }>({});
-
-    // 모든 메시지 읽음 처리 (REST 호출)
+    // 모든 메시지 읽음 처리
     const markAllRead = useCallback(() => {
         if (!roomId || !user) return;
         
         // 마지막 읽음 처리 요청 후 2초 이내에는 다시 요청하지 않음
         const now = Date.now();
         if (now - lastReadTimeRef.current < 2000) {
-            console.log("읽음 처리 요청 간격이 너무 짧습니다. 무시합니다.");
             return;
         }
         
         lastReadTimeRef.current = now;
         
-        markAllMessagesAsRead(roomId, user.id, sessionId) // sessionId 파라미터 추가
+        markAllMessagesAsRead(roomId, user.id, sessionId)
             .then(() => {
-                console.log("모든 메시지 읽음처리 완료");
-                // 읽음 처리 후, 서버에서 최신 메시지를 다시 불러와서 상태를 업데이트합니다.
+                // 읽음 처리 후, 최신 메시지 다시 불러오기
                 getChatMessages(roomId).then((res) => {
                     const sortedMessages = res.data.reverse();
                     setMessages(sortedMessages);
@@ -351,20 +604,17 @@ const ChatRoom: React.FC = () => {
 
     // 뒤로가기 클릭시 동작
     const handleBack = () => {
-        // 채팅방 페이지에서는 별도 SSE 재연결 없이, 단순히 채팅방 목록으로 이동
         navigate("/", { state: { refresh: true } });
     };
 
-    // 1) 초기 메시지 로드 및 STOMP 연결
+    // 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
         if (!roomId || !user) return;
 
         // 초기 메시지 로드 및 읽음 처리
         const fetchInitialMessages = async () => {
             try {
-                // before 파라미터 없음 → 최신 20개 (내림차순)
                 const res = await getChatMessages(roomId!);
-                // 백엔드에서 내림차순으로 반환되므로 reverse하여 오름차순으로 정렬
                 const sortedMessages = res.data.reverse();
                 setMessages(sortedMessages);
                 markAllRead();
@@ -384,20 +634,16 @@ const ChatRoom: React.FC = () => {
 
         // STOMP 연결
         const token = localStorage.getItem("accessToken");
-        console.log("Token:", token); // 토큰 값 확인
         const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
         const client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
-            // 메시지 내용 디버깅이 필요하면 주석 해제
-            // debug: (msg) => console.log("[STOMP]", msg),
             onConnect: () => {
                 console.log("WebSocket 연결됨");
-                setConnectionError(null); // 연결 성공 시 에러 제거
+                setConnectionError(null);
                 setIsConnected(true);
-                // fetchMessages();          // 연결 복구 시 최신 메시지 동기화
                 
-                // onConnect 시 활성 상태(active: true) 전송 (활성화 되었다면 채팅 안읽은 개수를 업데이트하지 않는다.)
+                // 활성 상태 전송
                 client.publish({
                     destination: "/app/active",
                     body: JSON.stringify({ userId: user.id, roomId, active: true })
@@ -416,14 +662,16 @@ const ChatRoom: React.FC = () => {
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
-                    console.log("Received full message:", msg); // 전체 메시지 확인
                     
                     setMessages((prev) => {
                         if (prev.some(m => m.id === msg.id)) {
-                            return prev.map(m => m.id === msg.id ? msg : m); // 읽음 상태 업데이트
+                            return prev.map(m => m.id === msg.id ? msg : m);
                         }
-                        const updatedMessages = [...prev, msg].slice(-20); // 최신 20개 유지
-                        setTimeout(scrollToBottom, 0);
+                        const updatedMessages = [...prev, msg].slice(-50);
+                        // 내가 보낸 메시지가 아니고 새 메시지일 때만 스크롤
+                        if (msg.senderId !== user!.id) {
+                            setTimeout(() => scrollToBottom(), 0); // 새 메시지일 때만 스크롤
+                        }
                         return updatedMessages;
                     });
                     
@@ -434,7 +682,7 @@ const ChatRoom: React.FC = () => {
                         document.visibilityState === "visible" &&
                             !msg.readBy[user!.id] && 
                             msg.senderId !== user!.id &&
-                            persistedId // persistedId가 있는 경우에만 호출
+                            persistedId 
                         ) {
                         client.publish({
                             destination: "/app/read",
@@ -448,22 +696,21 @@ const ChatRoom: React.FC = () => {
                     const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
                     if (typingMsg.userId === user?.id) return;
 
-                    console.log("Received typing message:", typingMsg);
                     setTypingUsers((prev) => {
                         const newUsers = typingMsg.isTyping
-                            ? prev.includes(typingMsg.username || typingMsg.userId) ? prev : [...prev, typingMsg.username || typingMsg.userId]
+                            ? prev.includes(typingMsg.username || typingMsg.userId) 
+                                ? prev 
+                                : [...prev, typingMsg.username || typingMsg.userId]
                             : prev.filter(u => u !== (typingMsg.username || typingMsg.userId));
 
-                        console.log("Updated typingUsers:", newUsers);
                         if (newUsers.length > 0) scrollToBottom();
                         return newUsers;
                     });
                 });
 
-                // 2. STOMP 연결 설정 부분에 상태 채널 구독 추가 (onConnect 내부)
+                // 메시지 상태 채널 구독
                 client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
                     const statusUpdate = JSON.parse(message.body);
-                    console.log("Message status update:", statusUpdate);
                     
                     // 메시지 상태 업데이트
                     setMessageStatuses((prev) => ({
@@ -474,7 +721,7 @@ const ChatRoom: React.FC = () => {
                         }
                     }));
 
-                    // 메시지 배열 업데이트: 백엔드에서 createdAt이 제공되지 않는 경우, saved 상태라면 현재 시간으로 설정
+                    // 메시지 배열 업데이트
                     setMessages((prev) =>
                         prev.map((msg) =>
                             msg.tempId === statusUpdate.tempId
@@ -502,14 +749,12 @@ const ChatRoom: React.FC = () => {
                     
                     // 실패 상태일 경우 UI에 알림
                     if (statusUpdate.status === 'failed') {
-                        // 에러 메시지 표시
                         setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
                         setTimeout(() => setConnectionError(null), 3000);
                     }
                 });
 
-                // 예를 들어, WebSocket에서 read update 이벤트를 수신할 때
-                // WebSocket 구독 부분에 Bulk 이벤트 수신 추가
+                // 읽음 처리 상태 구독
                 client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
                     const { messageIds, userId } = JSON.parse(message.body);
                     updateBulkMessageReadStatus(messageIds, userId);
@@ -519,7 +764,7 @@ const ChatRoom: React.FC = () => {
                 setConnectionError("연결 끊김, 재접속 시도 중...");
                 setIsConnected(false);
             },
-            onStompError: (frame) => {
+            onStompError: () => {
                 setConnectionError("연결 오류, 재접속 시도 중...");
                 setIsConnected(false);
             }
@@ -567,28 +812,28 @@ const ChatRoom: React.FC = () => {
             const currentScrollHeight = chatAreaRef.current?.scrollHeight || 0;
             setMessages((prev) => [...previousMessages, ...prev]);
             setTimeout(() => {
-            if (chatAreaRef.current) {
-                const newScrollHeight = chatAreaRef.current.scrollHeight;
-                chatAreaRef.current.scrollTop = newScrollHeight - currentScrollHeight;
-            }
+                if (chatAreaRef.current) {
+                    const newScrollHeight = chatAreaRef.current.scrollHeight;
+                    chatAreaRef.current.scrollTop = newScrollHeight - currentScrollHeight;
+                }
             }, 0);
         } catch (err) {
             console.error("이전 메시지 로드 실패", err);
         }
     }, [roomId]);
 
-    // 2. 스크롤 이벤트 핸들러 (페이징)
+    // 스크롤 이벤트 핸들러 (페이징)
     const handleScroll = useCallback(() => {
         if (!chatAreaRef.current) return;
 
-        // ObjectId 기반 페이징 조회
+        // ObjectId 기준 페이징 조회
         if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
             const oldestMessage = messages[0];
             fetchPreviousMessages(oldestMessage.id);
         }
     }, [messages, fetchPreviousMessages]);
 
-    // 3. ChatArea에 스크롤 이벤트 리스너 추가 (스크롤 이벤트가 너무 빈번하게 발생하는 것을 막기 위해 debounce나 throttle을 사용해 호출 빈도를 제한합니다.)
+    // ChatArea에 스크롤 이벤트 리스너 추가
     useEffect(() => {
         const chatArea = chatAreaRef.current;
         if (!chatArea) return;
@@ -598,15 +843,14 @@ const ChatRoom: React.FC = () => {
         return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
     }, [handleScroll]);
 
-    // 메시지 및 타이핑 상태에 따른 스크롤 조정
+    // 타이핑 상태에 따른 스크롤 조정
     useEffect(() => {
         if (typingUsers.length > 0) {
             scrollToBottom();
         }
-        // typingUsers가 비어질 때는 스크롤 위치를 유지 (원상복귀)
-    }, [messages, typingUsers, scrollToBottom]);
+    }, [typingUsers, scrollToBottom]);
 
-    // 3) Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
+    // Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
     useEffect(() => {
         const handleFocus = () => {
             if (user && roomId && isConnected) {
@@ -646,6 +890,7 @@ const ChatRoom: React.FC = () => {
                 clearTimeout(typingTimeoutRef.current);
                 typingTimeoutRef.current = null;
             }
+            return;
         }
     
         // 입력 중일 때는 타이핑 인디케이터 켜기
@@ -685,11 +930,11 @@ const ChatRoom: React.FC = () => {
             roomId,
             senderId: user.id,
             content: {
-            text: input,
-            type: "TEXT",
-            attachments: [],
-            isEdited: false,
-            isDeleted: false,
+                text: input,
+                type: "TEXT",
+                attachments: [],
+                isEdited: false,
+                isDeleted: false,
             },
             status: "sending", // 초기 상태는 sending
             readBy: { [user.id]: true }
@@ -702,7 +947,11 @@ const ChatRoom: React.FC = () => {
         }));
 
         // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
-        setMessages((prev) => [...prev, chatMessage]);
+        setMessages((prev) => {
+            const updatedMessages = [...prev, chatMessage];
+            setTimeout(() => scrollToBottom(), 0); // 메시지 렌더링 후 스크롤
+            return updatedMessages;
+        });
 
         // 실제 전송
         stompClient.publish({
@@ -712,7 +961,6 @@ const ChatRoom: React.FC = () => {
 
         setInput("");
         sendTypingIndicator(false);
-        scrollToBottom(); // 메시지 전송 후 즉시 스크롤
     };
 
     // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
@@ -774,86 +1022,87 @@ const ChatRoom: React.FC = () => {
         <ChatWrapper>
             <ChatContainer>
                 <Header>
-                    <BackButton onClick={handleBack}>←</BackButton> {/* ✅ 뒤로가기 이벤트 연결 */}
+                <BackButton onClick={handleBack}>
+                    <BackIcon />
+                </BackButton>
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
-                {connectionError && <ErrorMessage>{connectionError}</ErrorMessage>}
+                {connectionError && 
+                    <ErrorMessage>
+                        <ErrorIcon />{connectionError}
+                    </ErrorMessage>
+                }
                 <ChatArea ref={chatAreaRef}>
                     {messages.map((msg, idx) => {
                         // 내 메시지인가?
                         const isOwn = msg.senderId === user?.id;
-
+    
                         // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                         const currentStatus = msg.tempId
                             ? messageStatuses[msg.tempId]?.status || msg.status
                             : msg.status;
-
-                        // 저장된 상태로 간주할 값: "saved" 또는 "SENT" (대소문자 구분 없이)
-                        // 웹소켓 업데이트가 오면 messageStatuses에 "saved"로 업데이트되어, persistedStatus도 "saved"가 됩니다.
-                        // 저장된 상태는 백엔드에서 "SENT" 또는 "SAVED"로 반환
-                        const isPersisted =
-                            currentStatus &&
-                            currentStatus.toUpperCase() === "SAVED";
-
-                        // 내 메시지의 경우, 내 ID를 제외한 참여자(readBy에서 내 ID 제외)가 읽은(true) 항목이 있는지 확인
-                        // 둘 다 저장된 상태로 판단되므로, 내 메시지의 readBy를 확인해 상대방이 읽지 않았다면 indicator "1"이 표시됩니다.
+    
+                        // 저장된 상태로 간주
+                        const isPersisted = currentStatus && currentStatus.toUpperCase() === "SAVED";
+    
+                        // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
                         const otherHasRead = Object.entries(msg.readBy)
                             .filter(([id]) => id !== user?.id)
                             .some(([, read]) => read === true);
-
-                        // indicatorText: 내 메시지이고, 저장된 상태이며, 상대방이 아직 읽지 않았다면 "1"
-                        const indicatorText =
-                            isOwn && isPersisted && !otherHasRead ? "1" : "";
-
-                        // 상태표시는 내 메시지이며, 아직 저장 전 상태("SENDING", "PROCESSING", "SENT_TO_KAFKA", "FAILED")일 때만
-                        const statusIndicator =
-                            isOwn && currentStatus && !isPersisted ? (
-                                <div className="status-indicator">
-                                    {currentStatus === "SENDING" && "전송 중..."}
-                                    {currentStatus === "SENT_TO_KAFKA" && "서버로 전송됨"}
-                                    {currentStatus === "FAILED" && "전송 실패"}
-                                </div>
-                            ) : null;
-
-                        // 현재 메시지와 다음 메시지의 시간(분 단위) 계산
-                        const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
+    
+                        // indicatorText: 읽지 않았으면 "1" 
+                        const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
+    
+                        // 상태표시
+                        const statusIndicator = isOwn && currentStatus && !isPersisted ? (
+                            <div className="status-indicator">
+                                {currentStatus === "SENDING" && "전송 중..."}
+                                {currentStatus === "SENT_TO_KAFKA" && "서버로 전송됨"}
+                                {currentStatus === "FAILED" && "전송 실패"}
+                            </div>
+                        ) : null;
+    
+                        // 시간 표시 여부
                         const nextMessage = messages[idx + 1];
-                        const nextTime = nextMessage && nextMessage.createdAt ? formatTime(nextMessage.createdAt) : "";
-
-                        // 그룹의 마지막 메시지이면 showTime은 true
-                        const showTime = !nextMessage || currentTime !== nextTime;
+                        const showTime = !nextMessage || (msg.createdAt && nextMessage.createdAt && 
+                                        formatTime(msg.createdAt) !== formatTime(nextMessage.createdAt));
+                        const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
                     
-                    return (
-                        <MessageRow key={idx} $isOwnMessage={isOwn}>
-                            {isOwn ? (
-                                <>
-                                    {/* 내 메시지: Indicator와 시간이 왼쪽, 말풍선 오른쪽 */}
-                                    <TimeContainer $isOwnMessage={true}>
-                                        {statusIndicator}
-                                        {indicatorText && <div>{indicatorText}</div>}
-                                        {showTime && <div>{currentTime}</div>}
-                                    </TimeContainer>
-                                    <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                        <div>{msg.content.text}</div>
-                                    </ChatBubble>
-                                </>
-                            ) : (
-                                <>
-                                    {/* 상대 메시지: 말풍선 왼쪽, 시간 오른쪽 (Indicator 없음) */}
-                                    <ChatBubble isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                        <div>{msg.content.text}</div>
-                                    </ChatBubble>
-                                    <TimeContainer $isOwnMessage={false}>
-                                        {showTime && <div>{currentTime}</div>}
-                                    </TimeContainer>
-                                </>
-                            )}
+                        return (
+                            <MessageRow key={idx} $isOwnMessage={isOwn}>
+                                {isOwn ? (
+                                    <>
+                                        <TimeContainer $isOwnMessage={true}>
+                                            {statusIndicator}
+                                            {indicatorText && <div>{indicatorText}</div>}
+                                            {showTime && <div>{currentTime}</div>}
+                                        </TimeContainer>
+                                        <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                            <div>{msg.content.text}</div>
+                                        </ChatBubble>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                            <div>{msg.content.text}</div>
+                                        </ChatBubble>
+                                        <TimeContainer $isOwnMessage={false}>
+                                            {showTime && <div>{currentTime}</div>}
+                                        </TimeContainer>
+                                    </>
+                                )}
                             </MessageRow>
                         );
                     })}
                     {typingUsers.length > 0 && (
+                        // 타이핑 인디케이터 (약 1312줄 근처)
                         <TypingIndicatorContainer>
-                            {typingUsers.join(", ")}님이 타이핑 중...
+                        {typingUsers.join(", ")}님이 타이핑 중...
+                        <TypingDots>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </TypingDots>
                         </TypingIndicatorContainer>
                     )}
                     <div ref={bottomRef} />
@@ -876,11 +1125,15 @@ const ChatRoom: React.FC = () => {
                         placeholder="메시지를 입력하세요"
                         disabled={!isConnected}
                     />
-                    <SendButton onClick={sendMessage} disabled={!isConnected}>전송</SendButton>
+                    <SendButton onClick={sendMessage} disabled={!isConnected}>
+                        <SendIcon />
+                    </SendButton>
                 </ChatInputContainer>
                 {contextMenu.visible && (
                     <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
-                        <ContextMenuItem onClick={handleForwardClick}>메시지 전달</ContextMenuItem>
+                        <ContextMenuItem onClick={handleForwardClick}>
+                            <ForwardIcon /> 메시지 전달
+                        </ContextMenuItem>
                     </ContextMenu>
                 )}
                 {showForwardModal && (
@@ -899,6 +1152,6 @@ const ChatRoom: React.FC = () => {
             </ChatContainer>
         </ChatWrapper>
     );
-};
+}
 
 export default ChatRoom;
