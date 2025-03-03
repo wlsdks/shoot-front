@@ -18,12 +18,6 @@ const fadeIn = keyframes`
     to { opacity: 1; transform: translateY(0); }
 `;
 
-const pulse = keyframes`
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-`;
-
 // Friend 인터페이스 정의
 interface Friend {
     id: string;
@@ -39,32 +33,52 @@ const Container = styled.div`
     background-color: #f8f9fa;
 `;
 
-// 고정된 헤더
+// 고정된 헤더 - 다른 탭과 일관된 디자인으로 변경
 const Header = styled.div`
     padding: 1rem;
-    background-color: #f8f9fa;
+    background-color: #fff;
     border-bottom: 1px solid #e9ecef;
     position: sticky;
     top: 0;
     z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 `;
 
-const HeaderContent = styled.div`
-    text-align: center;
-    padding-bottom: 0.5rem;
-`;
-
-const Title = styled.h1`
-    font-size: 1.5rem;
+const Title = styled.h2`
+    font-size: 1.25rem;
     font-weight: 700;
     color: #333;
     margin: 0;
 `;
 
-const Subtitle = styled.p`
-    color: #6c757d;
-    font-size: 0.9rem;
-    margin: 0.5rem 0 0;
+const HeaderActions = styled.div`
+    display: flex;
+    gap: 0.5rem;
+`;
+
+const IconButton = styled.button`
+    background: #f0f5ff;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: #007bff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    
+    &:hover {
+        background: #e1ecff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
 `;
 
 // 스크롤 영역
@@ -72,7 +86,6 @@ const ScrollableContent = styled.div`
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
-    padding-top: 0;
 
     /* 스크롤바 스타일링 */
     &::-webkit-scrollbar {
@@ -97,7 +110,7 @@ const ScrollableContent = styled.div`
 const SectionHeader = styled.div`
     display: flex;
     align-items: center;
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid #e0e0e0;
@@ -247,19 +260,6 @@ const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disa
     }
 `;
 
-const IconButton = styled(ActionButton)`
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    svg {
-        margin-right: 0;
-    }
-`;
-
 const EmptyState = styled.div`
     text-align: center;
     padding: 2rem 1rem;
@@ -292,10 +292,21 @@ const LoadingContainer = styled.div`
     justify-content: center;
     padding: 2rem;
     color: #6c757d;
+    height: 100%;
+`;
+
+const Spinner = styled.div`
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007bff;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
     
-    svg {
-        animation: ${pulse} 1.2s infinite;
-        margin-bottom: 1rem;
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 `;
 
@@ -461,24 +472,26 @@ const SocialTab: React.FC = () => {
     };
 
     // 로딩 중 표시
-    if (loading) {
+    if (loading && (friends.length === 0 && incoming.length === 0 && outgoing.length === 0)) {
         return (
             <Container>
                 <Header>
-                    <HeaderContent>
-                        <Title>소셜</Title>
-                        <Subtitle>친구 관리 및 새로운 친구 찾기</Subtitle>
-                    </HeaderContent>
+                    <Title>소셜</Title>
+                    <HeaderActions>
+                        <IconButton>
+                            <Icon>
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </Icon>
+                        </IconButton>
+                    </HeaderActions>
                 </Header>
-                <ScrollableContent>
-                    <LoadingContainer>
-                        <Icon>
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M12 6v6l4 2" />
-                        </Icon>
-                        <span>소셜 데이터를 불러오는 중...</span>
-                    </LoadingContainer>
-                </ScrollableContent>
+                <LoadingContainer>
+                    <Spinner />
+                    <p>소셜 데이터를 불러오는 중...</p>
+                </LoadingContainer>
             </Container>
         );
     }
@@ -486,10 +499,17 @@ const SocialTab: React.FC = () => {
     return (
         <Container>
             <Header>
-                <HeaderContent>
-                    <Title>소셜</Title>
-                    <Subtitle>친구 관리 및 새로운 친구 찾기</Subtitle>
-                </HeaderContent>
+                <Title>소셜</Title>
+                <HeaderActions>
+                    <IconButton>
+                        <Icon>
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </Icon>
+                    </IconButton>
+                </HeaderActions>
             </Header>
             
             <ScrollableContent id="scrollableContent">
