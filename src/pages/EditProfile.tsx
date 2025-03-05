@@ -310,7 +310,12 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
         
         try {
           const response = await uploadProfileImage(formData);
-          imageUrl = response.data.imageUrl;
+          // 응답 구조 변경: response.data.data에서 이미지 URL 추출
+          if (response.data.success && response.data.data) {
+            imageUrl = response.data.data.imageUrl;
+          } else {
+            throw new Error(response.data.message || '이미지 업로드에 실패했습니다.');
+          }
         } catch (error) {
           console.error('이미지 업로드 실패', error);
           setError('이미지 업로드에 실패했습니다.');

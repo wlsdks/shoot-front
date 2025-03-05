@@ -1,5 +1,6 @@
-import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
-import { AxiosResponse } from "axios";
+import api from "./api";
+import { ApiResponse } from '../services/api';
+import { extractData } from '../utils/apiUtils';
 
 // 친구 인터페이스 정의
 interface Friend {
@@ -8,50 +9,58 @@ interface Friend {
 }
 
 // 친구 목록 가져오기
-export const getFriends = (userId: string): Promise<AxiosResponse<Friend[]>> => {
-    return api.get(`/friends?userId=${userId}`);
+export const getFriends = async (userId: string): Promise<Friend[]> => {
+    const response = await api.get<ApiResponse<Friend[]>>(`/friends?userId=${userId}`);
+    return extractData(response);
 }
 
 // 받은 친구 요청 목록 조회
-export const getIncomingRequests = (userId: string): Promise<AxiosResponse<Friend[]>> => {
-    return api.get(`/friends/incoming`, { params: { userId } });
+export const getIncomingRequests = async (userId: string): Promise<Friend[]> => {
+    const response = await api.get<ApiResponse<Friend[]>>(`/friends/incoming`, { params: { userId } });
+    return extractData(response);
 };
 
 // 보낸 친구 요청 목록 조회
-export const getOutgoingRequests = (userId: string): Promise<AxiosResponse<Friend[]>> => {
-    return api.get(`/friends/outgoing`, { params: { userId } });
+export const getOutgoingRequests = async (userId: string): Promise<Friend[]> => {
+    const response = await api.get<ApiResponse<Friend[]>>(`/friends/outgoing`, { params: { userId } });
+    return extractData(response);
 };
 
 // 친구 요청 보내기 (targetUserId 기반)
-export const sendFriendRequest = (userId: string, targetUserId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/friends/request`, null, { params: { userId, targetUserId } });
+export const sendFriendRequest = async (userId: string, targetUserId: string) => {
+    const response = await api.post<ApiResponse<any>>(`/friends/request`, null, { params: { userId, targetUserId } });
+    return extractData(response);
 };
 
 // 친구 요청 수락
-export const acceptFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/friends/accept`, null, {
+export const acceptFriendRequest = async (userId: string, requesterId: string) => {
+    const response = await api.post<ApiResponse<any>>(`/friends/accept`, null, {
         params: { userId, requesterId }
     });
+    return extractData(response);
 };
 
 // 친구 요청 거절
-export const rejectFriendRequest = (userId: string, requesterId: string): Promise<AxiosResponse<any>> => {
-    return api.post(`/friends/reject`, null, {
+export const rejectFriendRequest = async (userId: string, requesterId: string) => {
+    const response = await api.post<ApiResponse<any>>(`/friends/reject`, null, {
         params: { userId, requesterId }
     });
+    return extractData(response);
 };
 
 // 친구 검색 API 함수
-export const searchFriends = (userId: string, query: string): Promise<AxiosResponse<Friend[]>> => {
-    return api.get(`/friends/search`, { params: { userId, query } });
+export const searchFriends = async (userId: string, query: string) => {
+    const response = await api.get<ApiResponse<Friend[]>>(`/friends/search`, { params: { userId, query } });
+    return response; // 전체 응답 반환
 };
 
 // BFS 기반 친구 추천 API 호출 (skip 파라미터 추가)
-export const getRecommendations = (
+export const getRecommendations = async (
     userId: string,
-    limit: number = 10,       // 한 번에 가져올 추천 친구 수
+    limit: number = 10,
     maxDepth: number = 2,
-    skip: number = 0          // 이미 가져온 추천 수 (페이지네이션)
-): Promise<AxiosResponse<Friend[]>> => {
-    return api.get(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth, skip } });
+    skip: number = 0
+): Promise<Friend[]> => {
+    const response = await api.get<ApiResponse<Friend[]>>(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth, skip } });
+    return extractData(response);
 };

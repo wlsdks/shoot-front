@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { login as loginApi, fetchUserInfo } from '../services/auth';
 import styled, { keyframes } from 'styled-components';
-import axios from 'axios'; // axios import 추가
+import axios from 'axios';
 
 // 스타일 컴포넌트는 그대로 유지
 const backgroundAnimation = keyframes`
@@ -109,48 +109,38 @@ const Login: React.FC = () => {
     localStorage.clear();
 
     try {
-      // 로그인 요청
-      const response = await loginApi(username, password);
-      console.log("Login response:", response);
+      // 로그인 요청 - loginApi 함수는 이미 데이터 추출까지 처리
+      const loginResponse = await loginApi(username, password);
+      console.log("Login response:", loginResponse);
       
-      // response 구조 확인 - userId 속성이 있는지 확인
-      if ('userId' in response) {
-        try {
-          // 토큰을 저장
-          const { accessToken, refreshToken } = response;
-          localStorage.setItem("accessToken", accessToken);
-          if (refreshToken) {
-            localStorage.setItem("refreshToken", refreshToken);
-          }
-          
-          // API 헤더 설정
-          axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-          
-          // 사용자 정보 가져오기
-          const userData = await fetchUserInfo();
-          
-          // 로그인 처리
-          login(userData, accessToken, refreshToken);
-          navigate('/');
-        } catch (userError) {
-          console.error("Failed to fetch user data:", userError);
-          setError('사용자 정보를 가져오는데 실패했습니다.');
-        }
-      } 
-      // user 속성이 있는지 확인
-      else if ('user' in response) {
-        // TypeScript에게 이 속성이 존재함을 알려주기 위한 타입 단언
-        const loginResp = response as unknown as { user: any, accessToken: string, refreshToken: string };
-        login(loginResp.user, loginResp.accessToken, loginResp.refreshToken);
-        navigate('/');
+      // 토큰을 저장
+      const { accessToken, refreshToken } = loginResponse;
+      localStorage.setItem("accessToken", accessToken);
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
       }
-      else {
-        console.error("Unexpected login response format:", response);
-        setError('로그인 응답 형식이 올바르지 않습니다.');
+      
+      // API 헤더 설정
+      axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      
+      try {
+        // 사용자 정보 가져오기 - fetchUserInfo 함수는 이미 데이터 추출까지 처리
+        const userData = await fetchUserInfo();
+        
+        // 로그인 처리
+        login(userData, accessToken, refreshToken);
+        navigate('/');
+      } catch (userError) {
+        console.error("Failed to fetch user data:", userError);
+        setError('사용자 정보를 가져오는데 실패했습니다.');
       }
     } catch (err) {
       console.error("Login failed:", err);
-      setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+      if (err instanceof Error) {
+        setError(err.message || '아이디 또는 비밀번호가 올바르지 않습니다.');
+      } else {
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+      }
     } finally {
       setIsLoading(false);
     }

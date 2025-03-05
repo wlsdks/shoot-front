@@ -1,5 +1,6 @@
 import api from "./api";
-import { AxiosResponse } from "axios";
+import { ApiResponse } from '../services/api';
+import { extractData } from '../utils/apiUtils';
 
 // 사용자 프로필 인터페이스
 export interface ProfileUpdateRequest {
@@ -14,11 +15,12 @@ export interface ProfileUpdateRequest {
  * @param profileData 업데이트할 프로필 데이터
  * @returns 업데이트된 사용자 정보
  */
-export const updateProfile = (
+export const updateProfile = async (
     userId: string, 
     profileData: ProfileUpdateRequest
-): Promise<AxiosResponse<any>> => {
-    return api.put(`/users/me`, profileData);
+) => {
+    const response = await api.put<ApiResponse<any>>(`/users/me`, profileData);
+    return extractData(response);
 };
 
 /**
@@ -26,14 +28,15 @@ export const updateProfile = (
  * @param formData 이미지 파일이 포함된 FormData 객체
  * @returns 업로드된 이미지 URL을 포함한 응답
  */
-export const uploadProfileImage = (
+export const uploadProfileImage = async (
     formData: FormData
-): Promise<AxiosResponse<{ imageUrl: string }>> => {
-    return api.post('/users/me/upload-image', formData, {
+) => {
+    const response = await api.post<ApiResponse<{ imageUrl: string }>>('/users/me/upload-image', formData, {
         headers: {
             'Content-Type': 'multipart/form-data'
         }
     });
+    return response;
 };
 
 /**
@@ -42,11 +45,12 @@ export const uploadProfileImage = (
  * @param status 변경할 상태 (ONLINE, BUSY, AWAY 등)
  * @returns 업데이트된 사용자 정보
  */
-export const updateUserStatus = (
-    userId: String,
+export const updateUserStatus = async (
+    userId: string,
     status: string
-): Promise<AxiosResponse<any>> => {
-    return api.put(`/users/me/status`, { userId, status });
+) => {
+    const response = await api.put<ApiResponse<any>>(`/users/me/status`, { userId, status });
+    return response;
 };
 
 /**
@@ -55,12 +59,13 @@ export const updateUserStatus = (
  * @param newPassword 새 비밀번호
  * @returns 성공 여부
  */
-export const changePassword = (
+export const changePassword = async (
     currentPassword: string,
     newPassword: string
-): Promise<AxiosResponse<any>> => {
-    return api.put(`/users/me/password`, {
+) => {
+    const response = await api.put<ApiResponse<any>>(`/users/me/password`, {
         currentPassword,
         newPassword
     });
+    return extractData(response);
 };
