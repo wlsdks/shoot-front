@@ -386,17 +386,17 @@ const ChatRoomList: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-        console.log("ChatRoomList: Fetching rooms for user:", user.id);
-        const response = await getChatRooms(user.id);
-        const roomsData: ChatRoom[] = response.data;
-        console.log("ChatRoomList: Received rooms:", roomsData);
-        setRooms(roomsData);
-        updatesReceivedRef.current = false;
+            console.log("ChatRoomList: Fetching rooms for user:", user.id);
+            const response = await getChatRooms(user.id);
+            const roomsData = response.data; // getChatRooms에서 이미 데이터 추출 처리
+            console.log("ChatRoomList: Received rooms:", roomsData);
+            setRooms(roomsData);
+            updatesReceivedRef.current = false;
         } catch (err) {
-        console.error("ChatRoomList: Failed to fetch rooms:", err);
-        setError("채팅방 목록 로드 실패");
+            console.error("ChatRoomList: Failed to fetch rooms:", err);
+            setError("채팅방 목록 로드 실패");
         } finally {
-        setLoading(false);
+            setLoading(false);
         }
     }, [user]);
 

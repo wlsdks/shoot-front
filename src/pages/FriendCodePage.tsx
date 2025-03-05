@@ -113,19 +113,19 @@ const FriendCodePage: React.FC = () => {
     // "검색" 버튼 클릭 시: 입력된 코드로 대상 사용자를 조회
     const handleSearch = async () => {
         try {
-        setSearchedUser(null);
-        setMessage(null);
-        const response = await findUserByCode(code);
-        // 대상 사용자가 없으면 response.data가 null로 반환됨
-        if (!response.data) {
-            setMessage("검색된 유저가 없습니다.");
-        } else {
-            setSearchedUser(response.data);
-            setMessage("유저를 찾았습니다.");
-        }
+            setSearchedUser(null);
+            setMessage(null);
+            const response = await findUserByCode(code);
+            // 대상 사용자가 없으면 response.data가 null로 반환됨
+            if (!response.data) {
+                setMessage("검색된 유저가 없습니다.");
+            } else {
+                setSearchedUser(response.data);
+                setMessage("유저를 찾았습니다.");
+            }
         } catch (error: any) {
-        console.error(error);
-        setMessage("검색 중 오류가 발생했습니다.");
+            console.error(error);
+            setMessage("검색 중 오류가 발생했습니다.");
         }
     };
 

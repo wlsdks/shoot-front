@@ -368,43 +368,43 @@ const SocialTab: React.FC = () => {
     // API 중복 호출 방지를 위한 초기화 플래그
     const initialized = useRef(false);
 
-    // 기존 소셜 데이터 (친구 목록, 친구 요청) 로드
+   // 기존 소셜 데이터 (친구 목록, 친구 요청) 로드
     const fetchSocialData = useCallback(async () => {
         if (!user?.id) return;
         try {
             setLoading(true);
             setError("");
             // 친구 목록, 받은 요청, 보낸 요청 모두 함께 조회
-            const [friendsRes, incRes, outRes] = await Promise.all([
+            const [friendsData, incData, outData] = await Promise.all([
                 getFriends(user.id),
                 getIncomingRequests(user.id),
                 getOutgoingRequests(user.id),
             ]);
-            setFriends(friendsRes.data);
-            setIncoming(incRes.data);
-            setOutgoing(outRes.data);
+            setFriends(friendsData);
+            setIncoming(incData);
+            setOutgoing(outData);
         } catch (e) {
             console.error(e);
             setError("소셜 데이터 로드 실패");
         } finally {
             setLoading(false);
         }
-    }, [user?.id]); // user 대신 user?.id만 의존성으로 사용
+    }, [user?.id]);
 
     // 추천 친구 데이터 로드 (무한 스크롤)
     const fetchRecommendations = useCallback(async (currentSkip: number) => {
         if (!user?.id) return;
         try {
-            const recRes = await getRecommendations(user.id, limit, 2, currentSkip);
-            if (recRes.data.length < limit) {
+            const recData = await getRecommendations(user.id, limit, 2, currentSkip);
+            if (recData.length < limit) {
                 setHasMore(false);  // 더 이상 데이터가 없으면 hasMore false 처리
             }
-            setRecommended(prev => [...prev, ...recRes.data]);
+            setRecommended(prev => [...prev, ...recData]);
             setSkip(currentSkip + limit);
         } catch (e) {
             console.error(e);
         }
-    }, [user?.id, limit]); // user 대신 user?.id와 limit만 의존성으로 사용
+    }, [user?.id, limit]);
 
     // 최초 데이터 로드 (중복 호출 방지)
     useEffect(() => {
@@ -434,7 +434,6 @@ const SocialTab: React.FC = () => {
                 setOutgoing(prev => [...prev, requestedUser]);
                 setRecommended(prev => prev.filter(r => r.id !== targetUserId));
             }
-            
             // 성공 메시지 없이 UI만 업데이트 (더 나은 UX)
         } catch (err) {
             console.error(err);
@@ -447,7 +446,7 @@ const SocialTab: React.FC = () => {
         if (!user) return;
         try {
             await acceptFriendRequest(user.id, requesterId);
-            
+        
             // 받은 요청에서 해당 사용자를 찾아 친구 목록으로 이동
             const acceptedUser = incoming.find(r => r.id === requesterId);
             if (acceptedUser) {
@@ -465,7 +464,7 @@ const SocialTab: React.FC = () => {
         if (!user) return;
         try {
             await rejectFriendRequest(user.id, requesterId);
-            
+        
             // 받은 요청에서 해당 사용자 제거
             setIncoming(prev => prev.filter(r => r.id !== requesterId));
         } catch (err) {

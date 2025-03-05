@@ -4,6 +4,7 @@ import api from "../services/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
 import { refreshTokenApi, fetchUserInfo } from "../services/auth";
 import { updateUserStatus } from '../services/profile';
+import { extractData } from '../utils/apiUtils';
 
 interface User {
     id: string;
@@ -65,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         try {
-            // 기존 api.get 직접 호출 대신 서비스 함수 사용
+            // fetchUserInfo에서 이미 데이터 추출 처리
             const userData = await fetchUserInfo();
             console.log("AuthProvider: User data fetched successfully:", userData);
             
@@ -255,11 +256,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
         try {
             const response = await updateUserStatus(user.id, status);
+            const data = extractData(response);
             
             // 사용자 정보 업데이트
             setUser((prev) => (prev ? { ...prev, status } : null));
             
-            return response.data;
+            return data;
         } catch (error) {
             console.error('AuthProvider: Failed to update status', error);
             throw error;
@@ -341,19 +343,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         try {
                             console.log("AuthProvider: Attempting to refresh token...");
                             const response = await refreshTokenApi(storedRefreshToken);
-                            const { accessToken, refreshToken: newRefreshToken } = response.data;
-
-                            localStorage.setItem("accessToken", accessToken);
-                            localStorage.setItem("refreshToken", newRefreshToken);
-
-                            api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-                            originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;
-
-                            if (user) {
-                                establishSseConnection(user, accessToken);
+                            
+                            // TokenResponse 형식 체크
+                            if (response.data.success && response.data.data) {
+                                const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+                        
+                                localStorage.setItem("accessToken", accessToken);
+                                localStorage.setItem("refreshToken", newRefreshToken);
+                        
+                                api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+                                originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;
+                        
+                                if (user) {
+                                    establishSseConnection(user, accessToken);
+                                }
+                        
+                                return api(originalRequest);
+                            } else {
+                                throw new Error("토큰 갱신 실패");
                             }
-
-                            return api(originalRequest);
                         } catch (refreshError) {
                             console.error("AuthProvider: Token refresh failed", refreshError);
                             logout();

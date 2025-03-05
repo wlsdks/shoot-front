@@ -1,25 +1,28 @@
 import api from "./api";
-import { AxiosResponse } from "axios";
 import axios from "axios";
+import { ApiResponse } from '../services/api';
+import { extractData } from '../utils/apiUtils';
 
 /**
  * 채팅방 목록 조회 API
  */
-export const getChatRooms = (
-    userId: string
-): Promise<AxiosResponse<any>> => {
-    return api.get(`/chatrooms`, { params: { userId } });
+export const getChatRooms = async (userId: string) => {
+    const response = await api.get<ApiResponse<any>>(`/chatrooms`, { params: { userId } });
+    return {
+        data: extractData(response)
+    };
 };
 
 /**
  * 채팅방 즐겨찾기(핀) 상태 업데이트 API
  */
-export const updateChatRoomFavorite = (
+export const updateChatRoomFavorite = async (
     roomId: string,
     userId: string,
     isFavorite: boolean
-): Promise<AxiosResponse<any>> => {
-    return api.post(`/chatrooms/favorite`, null, { params: { roomId, userId, isFavorite } });
+) => {
+    const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, { params: { roomId, userId, isFavorite } });
+    return extractData(response);
 };
 
 /**
@@ -28,14 +31,13 @@ export const updateChatRoomFavorite = (
  * @param userId 사용자 ID
  * @returns
  */
-// API 호출 함수 수정
-export const markAllMessagesAsRead = (roomId: string, userId: string, requestId?: string) => {
+export const markAllMessagesAsRead = async (roomId: string, userId: string, requestId?: string) => {
     const token = localStorage.getItem("accessToken");
     
     // requestId 매개변수 추가 (세션 대신 단일 요청 식별자 사용)
     const requestIdParam = requestId ? `&requestId=${requestId}` : '';
     
-    return axios.post(
+    const response = await axios.post<ApiResponse<any>>(
         `http://localhost:8100/api/v1/messages/mark-read?roomId=${roomId}&userId=${userId}${requestIdParam}`,
         null,
         {
@@ -44,6 +46,8 @@ export const markAllMessagesAsRead = (roomId: string, userId: string, requestId?
             },
         }
     );
+    
+    return response.data;
 };
 
 /**
@@ -52,9 +56,12 @@ export const markAllMessagesAsRead = (roomId: string, userId: string, requestId?
  * @param friendId 친구 ID
  * @returns 생성된 채팅방 정보
  */
-export const createDirectChat = (
+export const createDirectChat = async (
     userId: string,
     friendId: string
-): Promise<AxiosResponse<any>> => {
-    return api.post(`/chatrooms/create/direct`, null, { params: { userId, friendId } });
+) => {
+    const response = await api.post<ApiResponse<any>>(`/chatrooms/create/direct`, null, { params: { userId, friendId } });
+    return {
+        data: extractData(response)
+    };
 };

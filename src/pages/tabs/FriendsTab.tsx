@@ -392,17 +392,17 @@ const FriendTab: React.FC = () => {
     const fetchFriends = useCallback(async () => {
         if (!user) return;
         try {
-            const response = await getFriends(user.id);
+            const friendsData = await getFriends(user.id);
             setFriends((prevFriends) => {
-                if (!isEqual(prevFriends, response.data)) {
-                    console.log("FriendTab: Friends fetched:", response.data);
-                    return response.data;
+                if (!isEqual(prevFriends, friendsData)) {
+                    console.log("FriendTab: Friends fetched:", friendsData);
+                    return friendsData;
                 }
                 
                 return prevFriends;
             });
         } catch (err) {
-            console.error("FriendTab: Fetch friends failed:", err);
+        console.error("FriendTab: Fetch friends failed:", err);
         }
     }, [user]);
 

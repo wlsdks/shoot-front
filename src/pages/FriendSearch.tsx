@@ -80,19 +80,24 @@ const FriendSearch: React.FC = () => {
             console.error("로그인 정보가 없습니다.");
             return;
         }
-
+    
         setLoading(true);
-
+    
         try {
             const response = await searchFriends(user.id, query);
-            setResults(response.data);
+            // 응답 구조 변경: response.data.data에서 데이터 추출
+            if (response.data.success && response.data.data) {
+                setResults(response.data.data);
+            } else {
+                setResults([]);
+            }
         } catch (error) {
             console.error("검색 실패:", error);
             setResults([]);
         } finally {
             setLoading(false);
         }
-    }, [user, query]); // 의존성 명시
+    }, [user, query]);
 
     // 디바운스 효과: query가 변경되면 200ms 후에 API 호출
     useEffect(() => {
