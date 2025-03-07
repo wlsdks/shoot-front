@@ -22,7 +22,7 @@ export interface ChatMessageItem {
         isDeleted: boolean;
     };
     createdAt?: string;
-    status: string; // "SAVED", "PROCESSED" 등
+    status: string; // "SAVED", "PROCESSED", "sending", "FAILED" 등
     readBy: { [userId: string]: boolean }; // 읽음 상태 추가
 }
 
@@ -202,11 +202,11 @@ const TypingDots = styled.div`
         animation: ${bounce} 1s infinite;
         
         &:nth-child(2) {
-        animation-delay: 0.2s;
+            animation-delay: 0.2s;
         }
         
         &:nth-child(3) {
-        animation-delay: 0.4s;
+            animation-delay: 0.4s;
         }
     }
 `;
@@ -265,7 +265,6 @@ const SendButton = styled.button`
     }
 `;
 
-// 에러 메시지
 const ErrorMessage = styled.div`
     padding: 10px;
     background: #ffebee;
@@ -281,9 +280,8 @@ const ErrorMessage = styled.div`
     svg {
         margin-right: 6px;
     }
-    `;
+`;
 
-// 컨텍스트 메뉴 및 모달
 const ContextMenu = styled.div`
     position: absolute;
     background: white;
@@ -345,8 +343,8 @@ const ModalContent = styled.div`
         font-size: 0.95rem;
         
         &:focus {
-        outline: none;
-        border-color: #007bff;
+            outline: none;
+            border-color: #007bff;
         }
     }
 `;
@@ -365,30 +363,28 @@ const ModalButtons = styled.div`
         transition: all 0.2s;
         
         &:first-child {
-        background: #f0f0f0;
-        border: none;
-        color: #333;
-        
-        &:hover {
-            background: #e0e0e0;
-        }
+            background: #f0f0f0;
+            border: none;
+            color: #333;
+            
+            &:hover {
+                background: #e0e0e0;
+            }
         }
         
         &:last-child {
-        background: #007bff;
-        border: none;
-        color: white;
-        
-        &:hover {
-            background: #0056b3;
-        }
+            background: #007bff;
+            border: none;
+            color: white;
+            
+            &:hover {
+                background: #0056b3;
+            }
         }
     }
 `;
 
 // ============= 아이콘 컴포넌트 =============
-
-// 뒤로가기 아이콘
 const BackIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -396,7 +392,6 @@ const BackIcon = () => (
     </svg>
 );
 
-// 전송 아이콘
 const SendIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -404,7 +399,6 @@ const SendIcon = () => (
     </svg>
 );
 
-// 전달 아이콘
 const ForwardIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="17 8 22 12 17 16"></polyline>
@@ -412,7 +406,6 @@ const ForwardIcon = () => (
     </svg>
 );
 
-// 에러 아이콘
 const ErrorIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
@@ -421,16 +414,13 @@ const ErrorIcon = () => (
     </svg>
 );
 
-// ============= 유틸리티 함수 =============
-
-
-// ============= 컴포넌트 =============
+// ============= ChatRoom 컴포넌트 =============
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
     const [input, setInput] = useState("");
-    const [typingUsers, setTypingUsers] = useState<string[]>([]); 
+    const [typingUsers, setTypingUsers] = useState<string[]>([]);
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [showForwardModal, setShowForwardModal] = useState(false);
@@ -455,7 +445,7 @@ const ChatRoom: React.FC = () => {
         messagesRef.current = messages;
     }, [messages]);
 
-    // 메시지 목록 업데이트 후 스크롤 처리
+    // 스크롤 하단 이동
     const scrollToBottom = useCallback(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
@@ -468,7 +458,7 @@ const ChatRoom: React.FC = () => {
     // 조합 종료 시
     const handleCompositionEnd = () => {
         setIsComposing(false);
-    };  
+    };
 
     // Enter 키 처리
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -479,23 +469,17 @@ const ChatRoom: React.FC = () => {
     };
 
     // 읽음 처리를 위한 세션 ID
-    const [sessionId] = useState<string>(
-        () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-    );
+    const [sessionId] = useState<string>(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
     const lastReadTimeRef = useRef<number>(0);
 
     // 모든 메시지 읽음 처리
     const markAllRead = useCallback(() => {
         if (!roomId || !user) return;
-        
-        // 마지막 읽음 처리 요청 후 2초 이내에는 다시 요청하지 않음
         const now = Date.now();
         if (now - lastReadTimeRef.current < 2000) {
             return;
         }
-        
         lastReadTimeRef.current = now;
-        
         markAllMessagesAsRead(roomId, user.id, sessionId)
             .then(() => {
                 // 읽음 처리 후, 최신 메시지 다시 불러오기
@@ -504,9 +488,7 @@ const ChatRoom: React.FC = () => {
                     setMessages(sortedMessages);
                 });
             })
-            .catch((err) =>
-                console.error("모든 메시지 읽음처리 실패 ㅠㅠ REST API!!", err)
-            );
+            .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
     }, [roomId, user, sessionId]);
 
     // 여러 메시지 읽음 업데이트 처리 함수
@@ -532,11 +514,10 @@ const ChatRoom: React.FC = () => {
         // 초기 메시지 로드 및 읽음 처리
         const fetchInitialMessages = async () => {
             try {
-                const res = await getChatMessages(roomId!);
+                const res = await getChatMessages(roomId);
                 const sortedMessages = res.data.reverse();
                 setMessages(sortedMessages);
                 markAllRead();
-                
                 // 메시지 설정 직후 즉시 스크롤 다운
                 requestAnimationFrame(() => {
                     if (chatAreaRef.current) {
@@ -547,7 +528,7 @@ const ChatRoom: React.FC = () => {
                 console.error("메시지 로드 실패", err);
             }
         };
-        
+
         fetchInitialMessages();
 
         // STOMP 연결
@@ -560,7 +541,7 @@ const ChatRoom: React.FC = () => {
                 console.log("WebSocket 연결됨");
                 setConnectionError(null);
                 setIsConnected(true);
-                
+
                 // 활성 상태 전송
                 client.publish({
                     destination: "/app/active",
@@ -575,12 +556,11 @@ const ChatRoom: React.FC = () => {
                             body: JSON.stringify({ userId: user.id, roomId, active: true })
                         });
                     }
-                }, 30000); // 30초마다
+                }, 30000);
 
                 // 메시지 수신 구독
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
-                    
                     setMessages((prev) => {
                         if (prev.some(m => m.id === msg.id)) {
                             return prev.map(m => m.id === msg.id ? msg : m);
@@ -588,20 +568,19 @@ const ChatRoom: React.FC = () => {
                         const updatedMessages = [...prev, msg].slice(-50);
                         // 내가 보낸 메시지가 아니고 새 메시지일 때만 스크롤
                         if (msg.senderId !== user!.id) {
-                            setTimeout(() => scrollToBottom(), 0); // 새 메시지일 때만 스크롤
+                            setTimeout(() => scrollToBottom(), 0);
                         }
                         return updatedMessages;
                     });
-                    
+
                     // 새 메시지 도착 시 내가 읽으면 실시간 처리
                     const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
-                    
                     if (
                         document.visibilityState === "visible" &&
-                            !msg.readBy[user!.id] && 
-                            msg.senderId !== user!.id &&
-                            persistedId 
-                        ) {
+                        !msg.readBy[user!.id] &&
+                        msg.senderId !== user!.id &&
+                        persistedId 
+                    ) {
                         client.publish({
                             destination: "/app/read",
                             body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
@@ -613,14 +592,12 @@ const ChatRoom: React.FC = () => {
                 client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
                     const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
                     if (typingMsg.userId === user?.id) return;
-
                     setTypingUsers((prev) => {
                         const newUsers = typingMsg.isTyping
-                            ? prev.includes(typingMsg.username || typingMsg.userId) 
+                            ? prev.includes(typingMsg.username || typingMsg.userId)
                                 ? prev 
                                 : [...prev, typingMsg.username || typingMsg.userId]
                             : prev.filter(u => u !== (typingMsg.username || typingMsg.userId));
-
                         if (newUsers.length > 0) scrollToBottom();
                         return newUsers;
                     });
@@ -629,8 +606,6 @@ const ChatRoom: React.FC = () => {
                 // 메시지 상태 채널 구독
                 client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
                     const statusUpdate = JSON.parse(message.body);
-                    
-                    // 메시지 상태 업데이트
                     setMessageStatuses((prev) => ({
                         ...prev,
                         [statusUpdate.tempId]: {
@@ -638,8 +613,6 @@ const ChatRoom: React.FC = () => {
                             persistedId: statusUpdate.persistedId
                         }
                     }));
-
-                    // 메시지 배열 업데이트
                     setMessages((prev) =>
                         prev.map((msg) =>
                             msg.tempId === statusUpdate.tempId
@@ -650,12 +623,9 @@ const ChatRoom: React.FC = () => {
                                     createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
                                 }
                                 : msg
-                            )
+                        )
                     );
-
-                    // 상태가 SAVED이고 persistedId가 존재할 때만 읽음 API 호출
                     if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
-                        // 최신 메시지 상태 참조
                         const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
                         if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
                             client.publish({
@@ -664,8 +634,6 @@ const ChatRoom: React.FC = () => {
                             });
                         }
                     }
-                    
-                    // 실패 상태일 경우 UI에 알림
                     if (statusUpdate.status === 'failed') {
                         setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
                         setTimeout(() => setConnectionError(null), 3000);
@@ -677,6 +645,28 @@ const ChatRoom: React.FC = () => {
                     const { messageIds, userId } = JSON.parse(message.body);
                     updateBulkMessageReadStatus(messageIds, userId);
                 });
+
+                // << 동기화 구독 추가 >>
+                client.subscribe(`/user/queue/sync`, (message: IMessage) => {
+                    const syncResponse = JSON.parse(message.body);
+                    // 동기화된 메시지를 기존 메시지와 병합 (중복 제거 후 타임스탬프 순 정렬)
+                    setMessages((prevMessages) => {
+                        const syncMessages: ChatMessageItem[] = syncResponse.messages;
+                        const messageMap = new Map<string, ChatMessageItem>();
+                        prevMessages.forEach((msg) => {
+                            messageMap.set(msg.id, msg);
+                        });
+                        syncMessages.forEach((msg) => {
+                            messageMap.set(msg.id, msg);
+                        });
+                        const merged = Array.from(messageMap.values());
+                        merged.sort((a, b) =>
+                            new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                        );
+                        return merged;
+                    });
+                });
+
             },
             onDisconnect: () => {
                 setConnectionError("연결 끊김, 재접속 시도 중...");
@@ -715,7 +705,6 @@ const ChatRoom: React.FC = () => {
         };
         // eslint-disable-next-line
     }, [roomId, user, scrollToBottom, markAllRead]);
-    
 
     // 이전 메시지 조회
     const fetchPreviousMessages = useCallback(async (lastId: string) => {
@@ -742,25 +731,19 @@ const ChatRoom: React.FC = () => {
     }, [roomId]);
 
     // 스크롤 이벤트 핸들러 (페이징)
-    const handleScroll = useCallback(() => {
-        if (!chatAreaRef.current) return;
-
-        // ObjectId 기준 페이징 조회
-        if (chatAreaRef.current.scrollTop < 50 && messages.length > 0) {
-            const oldestMessage = messages[0];
-            fetchPreviousMessages(oldestMessage.id);
-        }
-    }, [messages, fetchPreviousMessages]);
-
-    // ChatArea에 스크롤 이벤트 리스너 추가
     useEffect(() => {
         const chatArea = chatAreaRef.current;
         if (!chatArea) return;
         
-        const throttledHandleScroll = throttle(handleScroll, 500); // 500ms 간격으로 실행
+        const throttledHandleScroll = throttle(() => {
+            if (chatArea.scrollTop < 50 && messages.length > 0) {
+                const oldestMessage = messages[0];
+                fetchPreviousMessages(oldestMessage.id);
+            }
+        }, 500);
         chatArea.addEventListener("scroll", throttledHandleScroll);
         return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
-    }, [handleScroll]);
+    }, [messages, fetchPreviousMessages]);
 
     // 타이핑 상태에 따른 스크롤 조정
     useEffect(() => {
@@ -838,10 +821,8 @@ const ChatRoom: React.FC = () => {
             console.error("전송 불가: 연결 끊김 또는 유효하지 않은 입력");
             return;
         }
-
         // tempId 생성      
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-
         // 메시지 세팅
         const chatMessage: ChatMessageItem = {
             id: tempId, // 임시 ID 사용
@@ -858,26 +839,22 @@ const ChatRoom: React.FC = () => {
             status: "sending", // 초기 상태는 sending
             readBy: { [user.id]: true }
         };
-
         // 상태 추적을 위해 messageStatuses에 추가
         setMessageStatuses((prev) => ({
             ...prev,
             [tempId]: { status: "sending", persistedId: null }
         }));
-
         // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
         setMessages((prev) => {
             const updatedMessages = [...prev, chatMessage];
-            setTimeout(() => scrollToBottom(), 0); // 메시지 렌더링 후 스크롤
+            setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
-
         // 실제 전송
         stompClient.publish({
             destination: "/app/chat",
             body: JSON.stringify(chatMessage),
         });
-
         setInput("");
         sendTypingIndicator(false);
     };
@@ -941,9 +918,9 @@ const ChatRoom: React.FC = () => {
         <ChatWrapper>
             <ChatContainer>
                 <Header>
-                <BackButton onClick={handleBack}>
-                    <BackIcon />
-                </BackButton>
+                    <BackButton onClick={handleBack}>
+                        <BackIcon />
+                    </BackButton>
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
                 {connectionError && 
@@ -955,32 +932,26 @@ const ChatRoom: React.FC = () => {
                     {messages.map((msg, idx) => {
                         // 내 메시지인가?
                         const isOwn = msg.senderId === user?.id;
-    
                         // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                         const currentStatus = msg.tempId
                             ? messageStatuses[msg.tempId]?.status || msg.status
                             : msg.status;
-    
                         // 저장된 상태로 간주
                         const isPersisted = currentStatus && currentStatus.toUpperCase() === "SAVED";
-    
                         // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
                         const otherHasRead = Object.entries(msg.readBy)
                             .filter(([id]) => id !== user?.id)
                             .some(([, read]) => read === true);
-    
                         // indicatorText: 읽지 않았으면 "1" 
                         const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
-    
                         // 상태표시
                         const statusIndicator = isOwn && currentStatus && !isPersisted ? (
                             <div className="status-indicator">
-                                {currentStatus === "SENDING" && "전송 중..."}
+                                {currentStatus === "sending" && "전송 중..."}
                                 {currentStatus === "SENT_TO_KAFKA" && "서버로 전송됨"}
                                 {currentStatus === "FAILED" && "전송 실패"}
                             </div>
                         ) : null;
-    
                         // 시간 표시 여부
                         const nextMessage = messages[idx + 1];
                         const showTime = !nextMessage || (msg.createdAt && nextMessage.createdAt && 
@@ -1014,14 +985,13 @@ const ChatRoom: React.FC = () => {
                         );
                     })}
                     {typingUsers.length > 0 && (
-                        // 타이핑 인디케이터 (약 1312줄 근처)
                         <TypingIndicatorContainer>
-                        {typingUsers.join(", ")}님이 타이핑 중...
-                        <TypingDots>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </TypingDots>
+                            {typingUsers.join(", ")}님이 타이핑 중...
+                            <TypingDots>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </TypingDots>
                         </TypingIndicatorContainer>
                     )}
                     <div ref={bottomRef} />
@@ -1071,6 +1041,6 @@ const ChatRoom: React.FC = () => {
             </ChatContainer>
         </ChatWrapper>
     );
-}
+};
 
 export default ChatRoom;
