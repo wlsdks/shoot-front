@@ -472,7 +472,7 @@ const ChatRoom: React.FC = () => {
     const [sessionId] = useState<string>(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
     const lastReadTimeRef = useRef<number>(0);
 
-    // 모든 메시지 읽음 처리
+    // 모든 메시지 읽음 처리 (API refresh 호출 제거)
     const markAllRead = useCallback(() => {
         if (!roomId || !user) return;
         const now = Date.now();
@@ -481,14 +481,8 @@ const ChatRoom: React.FC = () => {
         }
         lastReadTimeRef.current = now;
         markAllMessagesAsRead(roomId, user.id, sessionId)
-            .then(() => {
-                // 읽음 처리 후, 최신 메시지 다시 불러오기
-                getChatMessages(roomId).then((res) => {
-                    const sortedMessages = res.data.reverse();
-                    setMessages(sortedMessages);
-                });
-            })
             .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
+        // 이제 백엔드의 동기화(sync) 응답을 통해 누락 메시지가 자동 반영됨
     }, [roomId, user, sessionId]);
 
     // 여러 메시지 읽음 업데이트 처리 함수
@@ -511,12 +505,13 @@ const ChatRoom: React.FC = () => {
     useEffect(() => {
         if (!roomId || !user) return;
 
-        // 초기 메시지 로드 및 읽음 처리
+        // 초기 메시지 로드 (최초 접속 시 API 호출)
         const fetchInitialMessages = async () => {
             try {
                 const res = await getChatMessages(roomId);
                 const sortedMessages = res.data.reverse();
                 setMessages(sortedMessages);
+                // 최초 로드 후, 읽음 처리만 수행 (이후 동기화로 업데이트)
                 markAllRead();
                 // 메시지 설정 직후 즉시 스크롤 다운
                 requestAnimationFrame(() => {
@@ -558,7 +553,7 @@ const ChatRoom: React.FC = () => {
                     }
                 }, 30000);
 
-                // 메시지 수신 구독
+                // 메시지 수신 구독 (실시간 신규 메시지 처리)
                 client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
                     setMessages((prev) => {
@@ -647,9 +642,9 @@ const ChatRoom: React.FC = () => {
                 });
 
                 // << 동기화 구독 추가 >>
+                // 재연결 시 백엔드에서 누락 메시지를 sync 응답으로 보내면, 기존 메시지와 병합하여 업데이트함
                 client.subscribe(`/user/queue/sync`, (message: IMessage) => {
                     const syncResponse = JSON.parse(message.body);
-                    // 동기화된 메시지를 기존 메시지와 병합 (중복 제거 후 타임스탬프 순 정렬)
                     setMessages((prevMessages) => {
                         const syncMessages: ChatMessageItem[] = syncResponse.messages;
                         const messageMap = new Map<string, ChatMessageItem>();
@@ -706,7 +701,7 @@ const ChatRoom: React.FC = () => {
         // eslint-disable-next-line
     }, [roomId, user, scrollToBottom, markAllRead]);
 
-    // 이전 메시지 조회
+    // 이전 메시지 조회 (페이징)
     const fetchPreviousMessages = useCallback(async (lastId: string) => {
         try {
             // before 파라미터를 넘겨 API 호출 (내림차순으로 20개)
@@ -752,7 +747,7 @@ const ChatRoom: React.FC = () => {
         }
     }, [typingUsers, scrollToBottom]);
 
-    // Window focus 이벤트: 창이 포커스 될 때 자동 "모두 읽음 처리" 호출
+    // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
     useEffect(() => {
         const handleFocus = () => {
             if (user && roomId && isConnected) {
