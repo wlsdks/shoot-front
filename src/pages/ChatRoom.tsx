@@ -532,10 +532,24 @@ const ChatRoom: React.FC = () => {
         const client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
+            heartbeatIncoming: 10000,
+            heartbeatOutgoing: 10000,
             onConnect: () => {
                 console.log("WebSocket 연결됨");
                 setConnectionError(null);
                 setIsConnected(true);
+
+                // 동기화 요청 (마지막 메시지 ID가 있으면 해당 ID 이후의 메시지만 받아옴)
+                const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+                client.publish({
+                    destination: "/app/sync",
+                    body: JSON.stringify({
+                        roomId: roomId,
+                        userId: user.id,
+                        lastMessageId: lastMessageId,
+                        timestamp: new Date().toISOString()
+                    })
+                });
 
                 // 활성 상태 전송
                 client.publish({
@@ -558,13 +572,23 @@ const ChatRoom: React.FC = () => {
                     const msg: ChatMessageItem = JSON.parse(message.body);
                     setMessages((prev) => {
                         if (prev.some(m => m.id === msg.id)) {
-                            return prev.map(m => m.id === msg.id ? msg : m);
+                            return prev.map(m => m.id === msg.id ? {
+                                ...msg,
+                                readBy: msg.readBy || {} // readBy가 없으면 빈 객체로 설정
+                            } : m);
                         }
-                        const updatedMessages = [...prev, msg].slice(-50);
+                        const updatedMessage = {
+                            ...msg,
+                            readBy: msg.readBy || {} // readBy가 없으면 빈 객체로 설정
+                        };
+                        
+                        const updatedMessages = [...prev, updatedMessage].slice(-50);
+
                         // 내가 보낸 메시지가 아니고 새 메시지일 때만 스크롤
                         if (msg.senderId !== user!.id) {
                             setTimeout(() => scrollToBottom(), 0);
                         }
+
                         return updatedMessages;
                     });
 
@@ -572,7 +596,7 @@ const ChatRoom: React.FC = () => {
                     const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
                     if (
                         document.visibilityState === "visible" &&
-                        !msg.readBy[user!.id] &&
+                        msg.readBy && !msg.readBy[user!.id] &&  // readBy가 존재하는지 확인
                         msg.senderId !== user!.id &&
                         persistedId 
                     ) {
@@ -645,23 +669,42 @@ const ChatRoom: React.FC = () => {
                 // 재연결 시 백엔드에서 누락 메시지를 sync 응답으로 보내면, 기존 메시지와 병합하여 업데이트함
                 client.subscribe(`/user/queue/sync`, (message: IMessage) => {
                     const syncResponse = JSON.parse(message.body);
+                    console.log("동기화 응답 수신:", syncResponse);
+                    
                     setMessages((prevMessages) => {
                         const syncMessages: ChatMessageItem[] = syncResponse.messages;
+                        
+                        // 메시지 ID로 맵 생성 (중복 제거용)
                         const messageMap = new Map<string, ChatMessageItem>();
+                        
+                        // 기존 메시지 맵에 추가
                         prevMessages.forEach((msg) => {
                             messageMap.set(msg.id, msg);
                         });
+                        
+                        // 동기화된 메시지 추가 (기존 메시지는 덮어씀)
                         syncMessages.forEach((msg) => {
                             messageMap.set(msg.id, msg);
                         });
-                        const merged = Array.from(messageMap.values());
-                        merged.sort((a, b) =>
-                            new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                        );
-                        return merged;
+                        
+                        // Map에서 배열로 변환
+                        const mergedMessages = Array.from(messageMap.values());
+                        
+                        // 타임스탬프로 정렬
+                        mergedMessages.sort((a, b) => {
+                            const aTime = new Date(a.createdAt || "").getTime();
+                            const bTime = new Date(b.createdAt || "").getTime();
+                            return aTime - bTime;
+                        });
+                        
+                        // 최신 메시지가 추가된 경우 스크롤 이동
+                        if (mergedMessages.length > prevMessages.length) {
+                            setTimeout(() => scrollToBottom(), 100);
+                        }
+                        
+                        return mergedMessages;
                     });
                 });
-
             },
             onDisconnect: () => {
                 setConnectionError("연결 끊김, 재접속 시도 중...");
@@ -750,13 +793,32 @@ const ChatRoom: React.FC = () => {
     // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
     useEffect(() => {
         const handleFocus = () => {
-            if (user && roomId && isConnected) {
-                markAllRead();
+            if (user && roomId) {
+                // 연결 상태 확인
+                if (!isConnected || !stompClient?.connected) {
+                    console.log("ChatRoom: Connection lost, attempting to reconnect...");
+                    setConnectionError("연결이 끊어졌습니다. 재연결 시도 중...");
+                    
+                    // 기존 연결 종료
+                    if (stompClient) {
+                        stompClient.deactivate();
+                    }
+                    
+                    // 페이지 재로드
+                    setTimeout(() => {
+                        if (window.location.pathname.includes(`/chatroom/${roomId}`)) {
+                            window.location.reload();
+                        }
+                    }, 1000);
+                } else {
+                    // 정상 연결 상태에서는 읽음 처리
+                    markAllRead();
+                }
             }
         };
         window.addEventListener("focus", handleFocus);
         return () => window.removeEventListener("focus", handleFocus);
-    }, [roomId, user, isConnected, markAllRead]);
+    }, [roomId, user, isConnected, stompClient, markAllRead]);
 
     // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
@@ -877,6 +939,32 @@ const ChatRoom: React.FC = () => {
         setShowForwardModal(true);
     };
 
+    useEffect(() => {
+        const handleOnline = () => {
+            console.log("네트워크 연결됨, 재연결 시도...");
+            if (!stompClient?.connected) {
+                setConnectionError("재연결 시도 중...");
+                
+                // 페이지 새로고침으로 완전 재연결
+                window.location.reload();
+            }
+        };
+    
+        const handleOffline = () => {
+            console.log("네트워크 연결 끊김");
+            setConnectionError("네트워크 연결이 끊어졌습니다. 자동 재연결 대기 중...");
+            setIsConnected(false);
+        };
+    
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+    
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
+    }, [stompClient]);
+
     // 모달 제출: 대상 채팅방 ID 입력 후 메시지 전달 API 호출
     const handleModalSubmit = async () => {
         if (contextMenu.message) {
@@ -934,9 +1022,11 @@ const ChatRoom: React.FC = () => {
                         // 저장된 상태로 간주
                         const isPersisted = currentStatus && currentStatus.toUpperCase() === "SAVED";
                         // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
-                        const otherHasRead = Object.entries(msg.readBy)
+                        const otherHasRead = msg.readBy 
+                        ? Object.entries(msg.readBy)
                             .filter(([id]) => id !== user?.id)
-                            .some(([, read]) => read === true);
+                            .some(([, read]) => read === true)
+                        : false;
                         // indicatorText: 읽지 않았으면 "1" 
                         const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
                         // 상태표시
@@ -963,13 +1053,13 @@ const ChatRoom: React.FC = () => {
                                             {showTime && <div>{currentTime}</div>}
                                         </TimeContainer>
                                         <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                            <div>{msg.content.text}</div>
+                                            <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
                                         </ChatBubble>
                                     </>
                                 ) : (
                                     <>
                                         <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                            <div>{msg.content.text}</div>
+                                            <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
                                         </ChatBubble>
                                         <TimeContainer $isOwnMessage={false}>
                                             {showTime && <div>{currentTime}</div>}
