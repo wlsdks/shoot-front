@@ -690,7 +690,7 @@ const ChatRoom: React.FC = () => {
                         const retryInterval = setInterval(() => {
                             if (domReadyRef.current) {
                                 clearInterval(retryInterval);
-                                
+
                                 setTimeout(() => {
                                     // 마지막 메시지 id 추출
                                     const lastMessageId = messages.length > 0 
@@ -716,10 +716,15 @@ const ChatRoom: React.FC = () => {
                     }
 
                     // 활성 상태 전송
-                    client.publish({
-                        destination: "/app/active",
-                        body: JSON.stringify({ userId: user.id, roomId, active: true })
-                    });
+                    if (stompClient && stompClient.connected) {
+                        stompClient.publish({
+                            destination: "/app/active",
+                            body: JSON.stringify({ userId: user.id, roomId, active: true })
+                        });
+                    } else {
+                        console.warn("연결이 되지 않았으므로 publish 호출을 스킵합니다.");
+                        // 필요 시 재연결 로직 추가
+                    }
 
                     // Heartbeat 설정
                     heartbeatRef.current = setInterval(() => {
