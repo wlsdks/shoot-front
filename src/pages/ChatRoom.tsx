@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { forwardMessage } from "../services/message";
@@ -450,6 +450,15 @@ const ChatRoom: React.FC = () => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
 
+    // 초기 메시지 로드 후 바로 맨 아래로 스크롤 처리 (useLayoutEffect 사용)
+    useLayoutEffect(() => {
+        if (chatAreaRef.current) {
+            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+        }
+        // useLayoutEffect 안에서 바로 scrollToBottom 호출할 수도 있음
+        scrollToBottom();
+    }, [messages, scrollToBottom]);
+
     // 조합 시작 시
     const handleCompositionStart = () => {
         setIsComposing(true);
@@ -501,30 +510,21 @@ const ChatRoom: React.FC = () => {
         navigate("/", { state: { refresh: true } });
     };
 
+    // Helper function: 자동 스크롤 여부 결정
+    const autoScrollIfNeeded = () => {
+        const chatArea = chatAreaRef.current;
+        if (!chatArea) return;
+        const threshold = 100; // 스크롤이 아래쪽에 가까운지 판별하는 임계값 (픽셀)
+        const distanceFromBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight;
+        if (distanceFromBottom < threshold) {
+            chatArea.scrollTop = chatArea.scrollHeight;
+            scrollToBottom();
+        }
+    };
+
     // 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
         if (!roomId || !user) return;
-
-        // // 초기 메시지 로드 (최초 접속 시 API 호출)
-        // const fetchInitialMessages = async () => {
-        //     try {
-        //         const res = await getChatMessages(roomId);
-        //         const sortedMessages = res.data.reverse();
-        //         setMessages(sortedMessages);
-        //         // 최초 로드 후, 읽음 처리만 수행 (이후 동기화로 업데이트)
-        //         markAllRead();
-        //         // 메시지 설정 직후 즉시 스크롤 다운
-        //         requestAnimationFrame(() => {
-        //             if (chatAreaRef.current) {
-        //                 chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-        //             }
-        //         });
-        //     } catch (err) {
-        //         console.error("메시지 로드 실패", err);
-        //     }
-        // };
-
-        // fetchInitialMessages();
 
         // STOMP 연결
         const token = localStorage.getItem("accessToken");
@@ -555,14 +555,6 @@ const ChatRoom: React.FC = () => {
                     })
                 });
 
-                // 연결 직후 스크롤 아래로 이동
-                setTimeout(() => {
-                    if (chatAreaRef.current) {
-                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                    }
-                    scrollToBottom();
-                }, 500);
-
                 // 활성 상태 전송
                 client.publish({
                     destination: "/app/active",
@@ -586,21 +578,23 @@ const ChatRoom: React.FC = () => {
                         if (prev.some(m => m.id === msg.id)) {
                             return prev.map(m => m.id === msg.id ? {
                                 ...msg,
-                                readBy: msg.readBy || {} // readBy가 없으면 빈 객체로 설정
+                                readBy: msg.readBy || {}
                             } : m);
                         }
-                        const updatedMessage = {
+                        const updatedMsg = {
                             ...msg,
-                            readBy: msg.readBy || {} // readBy가 없으면 빈 객체로 설정
+                            readBy: msg.readBy || {}
                         };
-                        
-                        const updatedMessages = [...prev, updatedMessage].slice(-50);
-
-                        // 내가 보낸 메시지가 아니고 새 메시지일 때만 스크롤
-                        if (msg.senderId !== user!.id) {
-                            setTimeout(() => scrollToBottom(), 0);
+                        const updatedMessages = [...prev, updatedMsg].slice(-50);
+                        // 사용자가 거의 맨 아래에 있다면 자동 스크롤
+                        const chatArea = chatAreaRef.current;
+                        if (chatArea) {
+                            const threshold = 100;
+                            const distanceFromBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight;
+                            if (distanceFromBottom < threshold && msg.senderId !== user!.id) {
+                                setTimeout(() => scrollToBottom(), 0);
+                            }
                         }
-
                         return updatedMessages;
                     });
 
@@ -682,7 +676,7 @@ const ChatRoom: React.FC = () => {
                     const syncResponse = JSON.parse(message.body);
                     console.log("동기화 응답 수신:", syncResponse);
                     
-                    // 동기화 응답 처리 전에 500ms 지연을 줍니다.
+                    // 동기화 응답 처리 전에 100ms 지연을 줍니다.
                     setTimeout(() => {
                         // 방향 확인 (예: INITIAL, BEFORE, AFTER)
                         const isInitialLoad = !syncResponse.direction || syncResponse.direction === "INITIAL";
@@ -707,35 +701,27 @@ const ChatRoom: React.FC = () => {
                                 readBy: msg.readBy || {}
                             }));
                             
-                            // 기존 메시지와 동기화된 메시지를 병합 (중복 제거)
+                              // 기존 메시지와 동기화된 메시지를 병합 (중복 제거)
                             const messageMap = new Map<string, ChatMessageItem>();
-                            prevMessages.forEach((msg) => {
-                                messageMap.set(msg.id, msg);
-                            });
-                            syncMessages.forEach((msg) => {
-                                messageMap.set(msg.id, msg);
-                            });
-                            
+                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                                
                             const mergedMessages = Array.from(messageMap.values());
                             // 생성 시간 기준으로 정렬
                             mergedMessages.sort((a, b) =>
                                 new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
                             );
                             
-                            // 초기 로드나 새 메시지가 추가된 경우 스크롤을 맨 아래로 이동
-                            if ((isInitialLoad || !isBeforeMessages) &&
-                                (prevMessages.length === 0 || syncMessages.length > 0)) {
-                                setTimeout(() => {
-                                    if (chatAreaRef.current) {
-                                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                                    }
-                                    scrollToBottom();
-                                }, 100);
+                            // 초기 로드이면 무조건 맨 아래로, 그 외는 사용자가 아래쪽에 있을 경우에만 스크롤
+                            if (isInitialLoad) {
+                                // 초기 로드이면 useLayoutEffect에서 처리되므로 여기선 별도 스크롤 처리 없이 상태 업데이트만
+                            } else {
+                                autoScrollIfNeeded();
                             }
                             
                             return mergedMessages;
                         });
-                    }, 100); // 500ms 지연
+                    },100); // 100ms 지연
                 });
 
             },
