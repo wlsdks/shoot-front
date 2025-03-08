@@ -434,6 +434,8 @@ const ChatRoom: React.FC = () => {
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<ChatMessageItem[]>([]);
+    const [isDomReady, setIsDomReady] = useState(false);
+    const domReadyRef = useRef(false);
 
     // 1. 더 단순하게 이전 위치 유지를 위한 참조 추가
     const lastScrollPosRef = useRef(0);
@@ -451,6 +453,11 @@ const ChatRoom: React.FC = () => {
     }>({});
     
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+    // 스크롤 하단 이동
+    const scrollToBottom = useCallback(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, []);
 
     // 4. 메시지가 처음 로드되었을 때만 강제 스크롤 실행 (필요한 경우)
     useEffect(() => {
@@ -470,9 +477,10 @@ const ChatRoom: React.FC = () => {
         messagesRef.current = messages;
     }, [messages]);
 
-    // 스크롤 하단 이동
-    const scrollToBottom = useCallback(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // onConnect 콜백에서 항상 최신의 DOM 준비 상태를 확인할 수 있습니다.
+    useEffect(() => {
+        domReadyRef.current = true;
+        setIsDomReady(true); // 컴포넌트가 마운트되면 DOM이 준비되었다고 가정
     }, []);
 
     // messages 상태 업데이트 후 스크롤 보정을 위한 useEffect
@@ -652,24 +660,60 @@ const ChatRoom: React.FC = () => {
                     setConnectionError(null);
                     setIsConnected(true);
 
-                    // 동기화 요청 (마지막 메시지 ID가 있으면 해당 ID 이후의 메시지만 받아옴) 
-                    const lastMessageId = messages.length > 0 
-                        ? messages[messages.length - 1].id 
-                        : null;
+                    // 최신 DOM 준비 상태(ref)를 확인합니다.
+                    if (domReadyRef.current) {
+                        // DOM이 준비되었으면 약간의 딜레이 후 동기화 요청을 보냅니다.
+                        setTimeout(() => {
+                            // 동기화 요청 (마지막 메시지 ID가 있으면 해당 ID 이후의 메시지만 받아옴) 
+                            const lastMessageId = messages.length > 0 
+                                ? messages[messages.length - 1].id 
+                                : null;
 
-                    console.log("동기화 요청 보내기:", roomId, lastMessageId);
+                            console.log("동기화 요청 보내기:", roomId, lastMessageId);
 
-                    // 동기화 요청: 마지막 메시지가 있으면 "AFTER", 없으면 "INITIAL"
-                    client.publish({
-                        destination: "/app/sync",
-                        body: JSON.stringify({
-                            roomId: roomId,
-                            userId: user.id,
-                            lastMessageId: lastMessageId,
-                            timestamp: new Date().toISOString(),
-                            direction: lastMessageId ? "AFTER" : "INITIAL"
-                        })
-                    });
+                            // 동기화 요청: 마지막 메시지가 있으면 "AFTER", 없으면 "INITIAL"
+                            client.publish({
+                                destination: "/app/sync",
+                                body: JSON.stringify({
+                                    roomId,
+                                    userId: user.id,
+                                    lastMessageId,
+                                    timestamp: new Date().toISOString(),
+                                    direction: lastMessageId ? "AFTER" : "INITIAL"
+                                })
+                            });
+                        }, 100); // 100ms 정도의 딜레이 (상황에 따라 조정)
+                    } else {
+                        console.log("DOM이 아직 준비되지 않음. 동기화 요청 대기");
+                        // 필요하다면 DOM 준비 상태를 주기적으로 확인해 동기화 요청을 재시도할 수 있습니다.
+                        // 예를 들어, 아래와 같이 재시도할 수 있습니다.
+                        const retryInterval = setInterval(() => {
+                            if (domReadyRef.current) {
+                                clearInterval(retryInterval);
+                                
+                                setTimeout(() => {
+                                    // 마지막 메시지 id 추출
+                                    const lastMessageId = messages.length > 0 
+                                        ? messages[messages.length - 1].id 
+                                        : null;
+
+                                    console.log("동기화 요청 보내기 (재시도):", roomId, lastMessageId);
+
+                                    // 요청 보내기
+                                    client.publish({
+                                        destination: "/app/sync",
+                                        body: JSON.stringify({
+                                            roomId,
+                                            userId: user.id,
+                                            lastMessageId,
+                                            timestamp: new Date().toISOString(),
+                                            direction: lastMessageId ? "AFTER" : "INITIAL"
+                                        })
+                                    });
+                                }, 100);
+                            }
+                        }, 200);
+                    }
 
                     // 활성 상태 전송
                     client.publish({
@@ -907,6 +951,7 @@ const ChatRoom: React.FC = () => {
                     setIsConnected(false);
                 }
             });
+
             client.activate();
             setStompClient(client);
 
@@ -935,7 +980,7 @@ const ChatRoom: React.FC = () => {
             };
         }
         // 약간의 지연을 주어 DOM이 완전히 렌더링된 후 연결
-        const timer = setTimeout(connectWebSocket, 100);
+        const timer = setTimeout(connectWebSocket, 300);
         return () => clearTimeout(timer);
         // eslint-disable-next-line
     }, [roomId, user]);
@@ -1283,11 +1328,7 @@ const ChatRoom: React.FC = () => {
                         const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
                         
                             return (
-                            <MessageRow 
-                                key={idx} 
-                                id={msg.id} // ID 속성 추가
-                                $isOwnMessage={isOwn}
-                            >
+                            <MessageRow key={idx} id={`msg-${msg.id}`} $isOwnMessage={isOwn}>
                                 {isOwn ? (
                                     <>
                                         <TimeContainer $isOwnMessage={true}>
