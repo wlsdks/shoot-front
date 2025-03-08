@@ -439,6 +439,7 @@ const ChatRoom: React.FC = () => {
     const lastScrollPosRef = useRef(0);
     const scrollHeightBeforeUpdateRef = useRef(0);
     const isPreviousMessagesLoadingRef = useRef(false);
+    const lastItemRef = useRef<string | null>(null); // 마지막으로 로드된 메시지 추적 (추가)
 
     // 1. 메시지 방향을 추적하는 상태 추가 (스크롤 방향 제어용)
     const [messageDirection, setMessageDirection] = useState<"INITIAL" | "BEFORE" | "AFTER" | "new">("INITIAL");
@@ -506,30 +507,55 @@ const ChatRoom: React.FC = () => {
     // 모든 useLayoutEffect 스크롤 위치 조정 코드를 하나로 통합
     useLayoutEffect(() => {
         if (!chatAreaRef.current || messages.length === 0) return;
+        
         const chatArea = chatAreaRef.current;
         
-        // 이전 메시지 로딩 중인 경우
-        if (isPreviousMessagesLoadingRef.current && messageDirection === "BEFORE") {
-            // 로드 전 높이와 현재 높이의 차이 계산
+        // 이전 메시지 로딩 시 (BEFORE)
+        if (messageDirection === "BEFORE" && isPreviousMessagesLoadingRef.current) {
             const newScrollHeight = chatArea.scrollHeight;
             const heightDifference = newScrollHeight - scrollHeightBeforeUpdateRef.current;
             
-            // 스크롤 위치 조정 (이전 위치 + 높이 차이)
+            console.log("레이아웃 이펙트 스크롤 보정:", {
+                direction: messageDirection,
+                이전높이: scrollHeightBeforeUpdateRef.current,
+                새높이: newScrollHeight,
+                차이: heightDifference,
+                이전위치: lastScrollPosRef.current,
+                계산위치: lastScrollPosRef.current + heightDifference
+            });
+            
+            // 스크롤 위치 즉시 조정
             chatArea.scrollTop = lastScrollPosRef.current + heightDifference;
+            
+            // 마지막 로딩된 메시지 찾아서 화면에 표시되도록 조정 (옵션)
+            if (lastItemRef.current) {
+                const messageElement = document.getElementById(lastItemRef.current);
+                if (messageElement) {
+                    messageElement.scrollIntoView({ block: 'start' });
+                }
+            }
             
             // 로딩 완료 플래그 설정 (즉시 설정하여 더 이상의 스크롤 조정 방지)
             isPreviousMessagesLoadingRef.current = false;
         }
-        // 초기 로드 또는 새 메시지
-        else if ((messageDirection === "INITIAL" && !initialLoadComplete) || messageDirection === "new") {
+        // 초기 로드 시 (INITIAL)
+        else if (messageDirection === "INITIAL" && !initialLoadComplete) {
             // 최하단으로 스크롤
             chatArea.scrollTop = chatArea.scrollHeight;
-            
-            if (!initialLoadComplete && messageDirection === "INITIAL") {
-                setInitialLoadComplete(true);
+            setInitialLoadComplete(true);
+        }
+        // 새 메시지 추가 시 (new)
+        else if (messageDirection === "new") {
+            // 현재 스크롤이 거의 하단에 있는 경우만 스크롤 다운
+            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
+            if (isNearBottom) {
+                chatArea.scrollTop = chatArea.scrollHeight;
             }
         }
-    // 다른 경우는 스크롤 위치 변경 없음
+        // AFTER 방향인 경우 (주로 동기화 동작에서 처리했지만 백업)
+        else if (messageDirection === "AFTER") {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
     }, [messages, messageDirection, initialLoadComplete]);
 
     // 조합 시작 시
@@ -750,47 +776,114 @@ const ChatRoom: React.FC = () => {
                     
                     console.log("동기화 응답 수신:", syncResponse.direction, syncResponse.messages.length);
                     
-                    // 즉시 메시지 업데이트 (지연 없이)
-                    setMessages((prevMessages) => {
-                        // 메시지 변환
-                        const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
-                            id: msg.id,
-                            tempId: msg.tempId,
-                            roomId: syncResponse.roomId,
-                            senderId: msg.senderId,
-                            content: msg.content || { 
-                                text: '메시지를 불러올 수 없습니다', 
-                                type: 'TEXT', 
-                                attachments: [], 
-                                isEdited: false, 
-                                isDeleted: false 
-                            },
-                            createdAt: msg.timestamp,
-                            status: msg.status || "SAVED",
-                            readBy: msg.readBy || {}
-                        }));
+                    if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
+                        // 이전 메시지 로드 시 스크롤 위치 유지를 위한 정보 저장
+                        const oldScrollHeight = chatAreaRef.current?.scrollHeight || 0;
+                        const oldScrollTop = chatAreaRef.current?.scrollTop || 0;
                         
-                        // 메시지 병합 및 정렬
-                        const messageMap = new Map<string, ChatMessageItem>();
-                        prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                        syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                        // 메시지 업데이트
+                        setMessages((prevMessages) => {
+                            // 메시지 변환 및 중복 제거
+                            const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
+                                id: msg.id,
+                                tempId: msg.tempId,
+                                roomId: syncResponse.roomId,
+                                senderId: msg.senderId,
+                                content: msg.content || { 
+                                    text: '메시지를 불러올 수 없습니다', 
+                                    type: 'TEXT', 
+                                    attachments: [], 
+                                    isEdited: false, 
+                                    isDeleted: false 
+                                },
+                                createdAt: msg.timestamp,
+                                status: msg.status || "SAVED",
+                                readBy: msg.readBy || {}
+                            }));
+                            
+                            // 중복 제거를 위한 Map 사용
+                            const messageMap = new Map<string, ChatMessageItem>();
+                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            
+                            const mergedMessages = Array.from(messageMap.values());
+                            mergedMessages.sort((a, b) =>
+                                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                            );
+                            
+                            return mergedMessages;
+                        });
                         
-                        const mergedMessages = Array.from(messageMap.values());
-                        mergedMessages.sort((a, b) =>
-                            new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                        );
+                        // 즉시 스크롤 위치 조정을 위한 정보 저장
+                        requestAnimationFrame(() => {
+                            const chatArea = chatAreaRef.current;
+                            if (chatArea && isPreviousMessagesLoadingRef.current) {
+                                // 새로운 높이와 이전 높이의 차이 계산
+                                const newScrollHeight = chatArea.scrollHeight;
+                                const heightDifference = newScrollHeight - oldScrollHeight;
+                                
+                                // 새 스크롤 위치 계산 (이전 스크롤 위치 + 높이 차이)
+                                const newScrollPosition = oldScrollTop + heightDifference;
+                                
+                                console.log("스크롤 보정 (동기화):", {
+                                    이전높이: oldScrollHeight,
+                                    새높이: newScrollHeight,
+                                    차이: heightDifference,
+                                    이전위치: oldScrollTop,
+                                    새위치: newScrollPosition
+                                });
+                                
+                                // 스크롤 위치 즉시 설정
+                                chatArea.scrollTop = newScrollPosition;
+                            }
+                        });
+                    } else {
+                        // 초기 로드나 다른 방향의 메시지 처리
+                        setMessages((prevMessages) => {
+                            // 메시지 변환 및 중복 제거 로직은 동일
+                            const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
+                                id: msg.id,
+                                tempId: msg.tempId,
+                                roomId: syncResponse.roomId,
+                                senderId: msg.senderId,
+                                content: msg.content || { 
+                                    text: '메시지를 불러올 수 없습니다', 
+                                    type: 'TEXT', 
+                                    attachments: [], 
+                                    isEdited: false, 
+                                    isDeleted: false 
+                                },
+                                createdAt: msg.timestamp,
+                                status: msg.status || "SAVED",
+                                readBy: msg.readBy || {}
+                            }));
+                            
+                            const messageMap = new Map<string, ChatMessageItem>();
+                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            
+                            const mergedMessages = Array.from(messageMap.values());
+                            mergedMessages.sort((a, b) =>
+                                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                            );
+                            
+                            return mergedMessages;
+                        });
                         
-                        return mergedMessages;
-                    });
-                    
-                    // INITIAL 방향일 때만 플래그 설정
-                    if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
-                        setMessageDirection("INITIAL");
+                        // 다른 방향 처리
+                        if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
+                            setMessageDirection("INITIAL");
+                        }
+                        else if (syncResponse.direction === "AFTER") {
+                            setMessageDirection("AFTER");
+                            // AFTER일 경우 메시지가 도착한 후 하단으로 스크롤
+                            setTimeout(() => {
+                                if (chatAreaRef.current) {
+                                    chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                                }
+                            }, 100);
+                        }
                     }
-                    else if (syncResponse.direction === "AFTER") {
-                        setMessageDirection("AFTER");
-                    }
-                // BEFORE는 fetchPreviousMessages에서 이미 설정됨
                 });
             },
             onDisconnect: () => {
@@ -839,28 +932,39 @@ const ChatRoom: React.FC = () => {
         }
         
         const chatArea = chatAreaRef.current;
-        if (!chatArea) return;
-    
-        // 플래그만 설정하고 DOM 조작은 하지 않습니다
+        if (!chatArea || isPreviousMessagesLoadingRef.current) return; // 중복 요청 방지
+        
+        // 플래그 설정
         isPreviousMessagesLoadingRef.current = true;
         
-        // 현재 스크롤 높이와 위치 저장
-        scrollHeightBeforeUpdateRef.current = chatArea.scrollHeight;
-        lastScrollPosRef.current = chatArea.scrollTop;
-        
-        // 방향 설정
-        setMessageDirection("BEFORE");
-        
-        // 이전 메시지 요청
-        stompClient.publish({
-            destination: "/app/sync",
-            body: JSON.stringify({
-                roomId: roomId,
-                userId: user.id,
-                lastMessageId: oldestMessageId,
-                timestamp: new Date().toISOString(),
-                direction: "BEFORE"
-            })
+        // 현재 스크롤 높이와 위치 저장 (RAF 사용해 정확한 측정)
+        requestAnimationFrame(() => {
+            if (chatArea) {
+                scrollHeightBeforeUpdateRef.current = chatArea.scrollHeight;
+                lastScrollPosRef.current = chatArea.scrollTop;
+                lastItemRef.current = oldestMessageId; // 로드하려는 항목 ID 저장
+                
+                console.log("이전 메시지 로드 준비:", {
+                    scrollHeight: scrollHeightBeforeUpdateRef.current,
+                    scrollTop: lastScrollPosRef.current,
+                    oldestMsgId: oldestMessageId
+                });
+                
+                // 방향 설정 - 상태 업데이트 직후 메시지 요청
+                setMessageDirection("BEFORE");
+                
+                // 이전 메시지 요청
+                stompClient.publish({
+                    destination: "/app/sync",
+                    body: JSON.stringify({
+                        roomId: roomId,
+                        userId: user.id,
+                        lastMessageId: oldestMessageId,
+                        timestamp: new Date().toISOString(),
+                        direction: "BEFORE"
+                    })
+                });
+            }
         });
     }, [roomId, user, stompClient]);
 
@@ -870,6 +974,10 @@ const ChatRoom: React.FC = () => {
         if (!chatArea) return;
         
         const throttledHandleScroll = throttle(() => {
+            // 이미 로딩 중이면 추가 요청 방지
+            if (isPreviousMessagesLoadingRef.current) return;
+            
+            // 상단 근처에 도달했을 때 이전 메시지 요청
             if (chatArea.scrollTop < 50 && messages.length > 0) {
                 const oldestMessage = messages[0];
                 fetchPreviousMessages(oldestMessage.id);
@@ -1137,9 +1245,13 @@ const ChatRoom: React.FC = () => {
                         const showTime = !nextMessage || (msg.createdAt && nextMessage.createdAt && 
                                         formatTime(msg.createdAt) !== formatTime(nextMessage.createdAt));
                         const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
-                    
-                        return (
-                            <MessageRow key={idx} $isOwnMessage={isOwn}>
+                        
+                            return (
+                            <MessageRow 
+                                key={idx} 
+                                id={msg.id} // ID 속성 추가
+                                $isOwnMessage={isOwn}
+                            >
                                 {isOwn ? (
                                     <>
                                         <TimeContainer $isOwnMessage={true}>
