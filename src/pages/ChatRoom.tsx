@@ -542,7 +542,36 @@ const ChatRoom: React.FC = () => {
         else if (messageDirection === "AFTER") {
             chatArea.scrollTop = chatArea.scrollHeight;
         }
+
+        // 추가: 메시지가 변경될 때마다 DOM에 제대로 반영되는지 확인
+        console.log("메시지 상태 업데이트:", messages.length, "개 메시지");
+        if (messages.length > 0) {
+            console.log("DOM 요소 개수:", chatAreaRef.current.querySelectorAll('[id^="msg-"]').length);
+        }
     }, [messages, messageDirection, initialLoadComplete]);
+
+    // 메시지 업데이트 최적화
+    const updateMessages = useCallback((newMsg: ChatMessageItem) => {
+        setMessages(prev => {
+        // 불변성을 유지하면서 명확한 업데이트 로직 구현
+        const msgExists = prev.some(m => m.id === newMsg.id);
+        if (msgExists) {
+            return prev.map(m => m.id === newMsg.id ? {...newMsg, readBy: newMsg.readBy || {}} : m);
+        } else {
+            const updatedMessages = [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
+            // 상태 업데이트 후 DOM 업데이트 시점에 스크롤 조정
+            requestAnimationFrame(() => {
+            if (chatAreaRef.current) {
+                const isNearBottom = chatAreaRef.current.scrollHeight - chatAreaRef.current.scrollTop - chatAreaRef.current.clientHeight < 150;
+                if (isNearBottom) {
+                chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                }
+            }
+            });
+            return updatedMessages;
+        }
+        });
+    }, []);
 
     // 조합 시작 시
     const handleCompositionStart = () => {
@@ -597,327 +626,319 @@ const ChatRoom: React.FC = () => {
 
     // 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
-        if (!roomId || !user) return;
+        // DOM이 준비되었는지 확인
+        if (!chatAreaRef.current) return;
 
-        // STOMP 연결
-        const token = localStorage.getItem("accessToken");
-        const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
-        const client = new Client({
-            webSocketFactory: () => socket,
-            reconnectDelay: 5000,
-            heartbeatIncoming: 10000,
-            heartbeatOutgoing: 10000,
-            onConnect: () => {
-                console.log("WebSocket 연결됨");
-                setConnectionError(null);
-                setIsConnected(true);
+        // DOM이 준비된 후 웹소켓 연결 로직 시작
+        const connectWebSocket = () => {
+            if (!roomId || !user) return;
 
-                // 동기화 요청 (마지막 메시지 ID가 있으면 해당 ID 이후의 메시지만 받아옴) 
-                const lastMessageId = messages.length > 0 
-                    ? messages[messages.length - 1].id 
-                    : null;
+            // 이미 연결이 있으면 먼저 정리
+            if (stompClient && stompClient.connected) {
+                stompClient.deactivate();
+            }
 
-                // 동기화 요청: 마지막 메시지가 있으면 "AFTER", 없으면 "INITIAL"
-                client.publish({
-                    destination: "/app/sync",
-                    body: JSON.stringify({
-                        roomId: roomId,
-                        userId: user.id,
-                        lastMessageId: lastMessageId,
-                        timestamp: new Date().toISOString(),
-                        direction: lastMessageId ? "AFTER" : "INITIAL"
-                    })
-                });
+            // STOMP 연결
+            const token = localStorage.getItem("accessToken");
+            const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
+            const client = new Client({
+                webSocketFactory: () => socket,
+                reconnectDelay: 5000,
+                debug: function(message) {
+                    console.log("STOMP 디버그:", message);
+                },
+                onConnect: () => {
+                    console.log("WebSocket 연결됨");
+                    setConnectionError(null);
+                    setIsConnected(true);
 
-                // 활성 상태 전송
-                client.publish({
-                    destination: "/app/active",
-                    body: JSON.stringify({ userId: user.id, roomId, active: true })
-                });
+                    // 동기화 요청 (마지막 메시지 ID가 있으면 해당 ID 이후의 메시지만 받아옴) 
+                    const lastMessageId = messages.length > 0 
+                        ? messages[messages.length - 1].id 
+                        : null;
 
-                // Heartbeat 설정
-                heartbeatRef.current = setInterval(() => {
-                    if (client.connected) {
-                        client.publish({
-                            destination: "/app/active",
-                            body: JSON.stringify({ userId: user.id, roomId, active: true })
-                        });
-                    }
-                }, 30000);
+                    console.log("동기화 요청 보내기:", roomId, lastMessageId);
 
-                // 메시지 수신 구독 (실시간 신규 메시지 처리)
-                client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
-                    const msg: ChatMessageItem = JSON.parse(message.body);
-
-                    setMessages((prev) => {
-                        if (prev.some(m => m.id === msg.id)) {
-                            return prev.map(m => m.id === msg.id ? {
-                                ...msg,
-                                readBy: msg.readBy || {}
-                            } : m);
-                        }
-                        const newMsg = { ...msg, readBy: msg.readBy || {} };
-                        const updatedMessages = [...prev, newMsg].slice(-50);
-
-                        // 메시지가 내 것이 아니고 사용자가 하단 근처에 있는 경우에만 스크롤
-                        if (msg.senderId !== user!.id && chatAreaRef.current) {
-                        const threshold = 100;
-                        const distanceFromBottom = 
-                            chatAreaRef.current.scrollHeight - 
-                            chatAreaRef.current.scrollTop - 
-                            chatAreaRef.current.clientHeight;
-                        
-                        if (distanceFromBottom < threshold) {
-                            setTimeout(() => {
-                            if (chatAreaRef.current) {
-                                chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                            }
-                            }, 100);
-                        }
-                        }
-                        
-                        return updatedMessages;
+                    // 동기화 요청: 마지막 메시지가 있으면 "AFTER", 없으면 "INITIAL"
+                    client.publish({
+                        destination: "/app/sync",
+                        body: JSON.stringify({
+                            roomId: roomId,
+                            userId: user.id,
+                            lastMessageId: lastMessageId,
+                            timestamp: new Date().toISOString(),
+                            direction: lastMessageId ? "AFTER" : "INITIAL"
+                        })
                     });
 
-                    // 새 메시지 도착 시 내가 읽으면 실시간 처리
-                    const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
-                    if (
-                        document.visibilityState === "visible" &&
-                        msg.readBy && !msg.readBy[user!.id] &&  // readBy가 존재하는지 확인
-                        msg.senderId !== user!.id &&
-                        persistedId 
-                    ) {
-                        client.publish({
-                            destination: "/app/read",
-                            body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
-                        });
-                    }
-                });
-
-                // 타이핑 인디케이터 구독
-                client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
-                    const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
-                    if (typingMsg.userId === user?.id) return;
-                    setTypingUsers((prev) => {
-                        const newUsers = typingMsg.isTyping
-                            ? prev.includes(typingMsg.username || typingMsg.userId)
-                                ? prev 
-                                : [...prev, typingMsg.username || typingMsg.userId]
-                            : prev.filter(u => u !== (typingMsg.username || typingMsg.userId));
-                        if (newUsers.length > 0) scrollToBottom();
-                        return newUsers;
+                    // 활성 상태 전송
+                    client.publish({
+                        destination: "/app/active",
+                        body: JSON.stringify({ userId: user.id, roomId, active: true })
                     });
-                });
 
-                // 메시지 상태 채널 구독
-                client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
-                    const statusUpdate = JSON.parse(message.body);
-                    setMessageStatuses((prev) => ({
-                        ...prev,
-                        [statusUpdate.tempId]: {
-                            status: statusUpdate.status,
-                            persistedId: statusUpdate.persistedId
+                    // Heartbeat 설정
+                    heartbeatRef.current = setInterval(() => {
+                        if (client.connected) {
+                            client.publish({
+                                destination: "/app/active",
+                                body: JSON.stringify({ userId: user.id, roomId, active: true })
+                            });
                         }
-                    }));
-                    setMessages((prev) =>
-                        prev.map((msg) =>
-                            msg.tempId === statusUpdate.tempId
-                                ? {
-                                    ...msg,
-                                    status: statusUpdate.status,
-                                    id: statusUpdate.persistedId || msg.id,
-                                    createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
-                                }
-                                : msg
-                        )
-                    );
-                    if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
-                        const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
-                        if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
+                    }, 30000);
+
+                    // 메시지 수신 구독 (실시간 신규 메시지 처리)
+                    client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
+                        console.log("수신된 웹소켓 메시지:", message.body);
+                        const msg: ChatMessageItem = JSON.parse(message.body);
+                        console.log("파싱된 메시지:", msg);
+                        
+                        // 새로 만든 updateMessages 함수 사용
+                        updateMessages(msg);
+
+                        // 새 메시지 도착 시 내가 읽으면 실시간 처리
+                        const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
+                        if (
+                            document.visibilityState === "visible" &&
+                            msg.readBy && !msg.readBy[user!.id] &&
+                            msg.senderId !== user!.id &&
+                            persistedId 
+                        ) {
                             client.publish({
                                 destination: "/app/read",
-                                body: JSON.stringify({ messageId: statusUpdate.persistedId, userId: user!.id }),
+                                body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
                             });
                         }
-                    }
-                    if (statusUpdate.status === 'failed') {
-                        setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
-                        setTimeout(() => setConnectionError(null), 3000);
-                    }
-                });
+                    });
 
-                // 읽음 처리 상태 구독
-                client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
-                    const { messageIds, userId } = JSON.parse(message.body);
-                    updateBulkMessageReadStatus(messageIds, userId);
-                });
-
-                // 동기화 구독
-                client.subscribe(`/user/queue/sync`, (message: IMessage) => {
-                    const syncResponse = JSON.parse(message.body) as {
-                        roomId: string;
-                        direction?: string;
-                        messages: Array<any>;
-                    };
-                    
-                    console.log("동기화 응답 수신:", syncResponse.direction, syncResponse.messages.length);
-                    
-                    if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
-                        // 처리 전 중요한 정보 저장
-                        const targetMessageId = firstVisibleMessageRef.current;
-                        const originalScrollTop = lastScrollPosRef.current;
-                        const originalScrollHeight = scrollHeightBeforeUpdateRef.current;
-                        
-                        // 메시지 업데이트
-                        setMessages((prevMessages) => {
-                            // 메시지 변환 및 중복 제거
-                            const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
-                                id: msg.id,
-                                tempId: msg.tempId,
-                                roomId: syncResponse.roomId,
-                                senderId: msg.senderId,
-                                content: msg.content || { 
-                                    text: '메시지를 불러올 수 없습니다', 
-                                    type: 'TEXT', 
-                                    attachments: [], 
-                                    isEdited: false, 
-                                    isDeleted: false 
-                                },
-                                createdAt: msg.timestamp,
-                                status: msg.status || "SAVED",
-                                readBy: msg.readBy || {}
-                            }));
-                            
-                            // 중복 제거를 위한 Map 사용
-                            const messageMap = new Map<string, ChatMessageItem>();
-                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                            
-                            const mergedMessages = Array.from(messageMap.values());
-                            mergedMessages.sort((a, b) =>
-                                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                            );
-                            
-                            return mergedMessages;
+                    // 타이핑 인디케이터 구독
+                    client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
+                        const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
+                        if (typingMsg.userId === user?.id) return;
+                        setTypingUsers((prev) => {
+                            const newUsers = typingMsg.isTyping
+                                ? prev.includes(typingMsg.username || typingMsg.userId)
+                                    ? prev 
+                                    : [...prev, typingMsg.username || typingMsg.userId]
+                                : prev.filter(u => u !== (typingMsg.username || typingMsg.userId));
+                            if (newUsers.length > 0) scrollToBottom();
+                            return newUsers;
                         });
-                        
-                        // 메시지 업데이트 후 DOM 업데이트 타이밍에 맞춰 스크롤 위치 조정
-                        // requestAnimationFrame은 DOM 업데이트 후 실행됨
-                        requestAnimationFrame(() => {
-                            // 두 번째 requestAnimationFrame으로 이중 보호하여 더 안정적으로 만듦
-                            requestAnimationFrame(() => {
-                                const chatArea = chatAreaRef.current;
-                                if (!chatArea) return;
-                                
-                                // 첫 번째 접근 방식: 이전에 보이던 메시지로 스크롤
-                                if (targetMessageId) {
-                                    const targetElement = document.getElementById(`msg-${targetMessageId}`);
-                                    if (targetElement) {
-                                        // 'smooth' 대신 'auto'를 사용하여 즉시 이동
-                                        targetElement.scrollIntoView({ block: 'start', behavior: 'auto' });
-                                        console.log("타겟 메시지로 스크롤:", targetMessageId);
-                                        isPreviousMessagesLoadingRef.current = false;
-                                    return;
+                    });
+
+                    // 메시지 상태 채널 구독
+                    client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
+                        const statusUpdate = JSON.parse(message.body);
+                        setMessageStatuses((prev) => ({
+                            ...prev,
+                            [statusUpdate.tempId]: {
+                                status: statusUpdate.status,
+                                persistedId: statusUpdate.persistedId
+                            }
+                        }));
+                        setMessages((prev) =>
+                            prev.map((msg) =>
+                                msg.tempId === statusUpdate.tempId
+                                    ? {
+                                        ...msg,
+                                        status: statusUpdate.status,
+                                        id: statusUpdate.persistedId || msg.id,
+                                        createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
                                     }
-                                }
-                                
-                                // 두 번째 접근 방식: 높이 차이를 계산하여 스크롤 위치 보정
-                                const newScrollHeight = chatArea.scrollHeight;
-                                const heightDifference = newScrollHeight - originalScrollHeight;
-                                const newScrollPosition = originalScrollTop + heightDifference;
-                                
-                                // 스크롤 위치 즉시 설정 (부드러운 전환 없이)
-                                chatArea.scrollTop = newScrollPosition;
-                                
-                                // 플래그 해제
-                                isPreviousMessagesLoadingRef.current = false;
-                            });
-                        });
-                        } else {
-                        // 다른 방향의 메시지 처리 (초기 로드 또는 새 메시지)
-                        // 이 부분은 기존 코드와 동일하게 유지...
-                        setMessages((prevMessages) => {
-                            // 메시지 변환 코드...
-                            const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
-                                id: msg.id,
-                                tempId: msg.tempId,
-                                roomId: syncResponse.roomId,
-                                senderId: msg.senderId,
-                                content: msg.content || { 
-                                    text: '메시지를 불러올 수 없습니다', 
-                                    type: 'TEXT', 
-                                    attachments: [], 
-                                    isEdited: false, 
-                                    isDeleted: false 
-                                },
-                                createdAt: msg.timestamp,
-                                status: msg.status || "SAVED",
-                                readBy: msg.readBy || {}
-                            }));
-                            
-                            const messageMap = new Map<string, ChatMessageItem>();
-                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                            
-                            const mergedMessages = Array.from(messageMap.values());
-                            mergedMessages.sort((a, b) =>
-                                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                            );
-                            
-                            return mergedMessages;
-                        });
+                                    : msg
+                            )
+                        );
+                        if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
+                            const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
+                            if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
+                                client.publish({
+                                    destination: "/app/read",
+                                    body: JSON.stringify({ messageId: statusUpdate.persistedId, userId: user!.id }),
+                                });
+                            }
+                        }
+                        if (statusUpdate.status === 'failed') {
+                            setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
+                            setTimeout(() => setConnectionError(null), 3000);
+                        }
+                    });
+
+                    // 읽음 처리 상태 구독
+                    client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
+                        const { messageIds, userId } = JSON.parse(message.body);
+                        updateBulkMessageReadStatus(messageIds, userId);
+                    });
+
+                    // 동기화 구독
+                    client.subscribe(`/user/queue/sync`, (message: IMessage) => {
+                        const syncResponse = JSON.parse(message.body) as {
+                            roomId: string;
+                            direction?: string;
+                            messages: Array<any>;
+                        };
                         
-                        if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
-                            setMessageDirection("INITIAL");
+                        console.log("동기화 응답 수신:", syncResponse.direction, syncResponse.messages.length);
+                        
+                        if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
+                            // 처리 전 중요한 정보 저장
+                            const targetMessageId = firstVisibleMessageRef.current;
+                            const originalScrollTop = lastScrollPosRef.current;
+                            const originalScrollHeight = scrollHeightBeforeUpdateRef.current;
+                            
+                            // 메시지 업데이트
+                            setMessages((prevMessages) => {
+                                // 메시지 변환 및 중복 제거
+                                const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
+                                    id: msg.id,
+                                    tempId: msg.tempId,
+                                    roomId: syncResponse.roomId,
+                                    senderId: msg.senderId,
+                                    content: msg.content || { 
+                                        text: '메시지를 불러올 수 없습니다', 
+                                        type: 'TEXT', 
+                                        attachments: [], 
+                                        isEdited: false, 
+                                        isDeleted: false 
+                                    },
+                                    createdAt: msg.timestamp,
+                                    status: msg.status || "SAVED",
+                                    readBy: msg.readBy || {}
+                                }));
+                                
+                                // 중복 제거를 위한 Map 사용
+                                const messageMap = new Map<string, ChatMessageItem>();
+                                prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                                syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                                
+                                const mergedMessages = Array.from(messageMap.values());
+                                mergedMessages.sort((a, b) =>
+                                    new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                                );
+                                
+                                return mergedMessages;
+                            });
+                            
+                            // 메시지 업데이트 후 DOM 업데이트 타이밍에 맞춰 스크롤 위치 조정
+                            // requestAnimationFrame은 DOM 업데이트 후 실행됨
+                            requestAnimationFrame(() => {
+                                // 두 번째 requestAnimationFrame으로 이중 보호하여 더 안정적으로 만듦
+                                requestAnimationFrame(() => {
+                                    const chatArea = chatAreaRef.current;
+                                    if (!chatArea) return;
+                                    
+                                    // 첫 번째 접근 방식: 이전에 보이던 메시지로 스크롤
+                                    if (targetMessageId) {
+                                        const targetElement = document.getElementById(`msg-${targetMessageId}`);
+                                        if (targetElement) {
+                                            // 'smooth' 대신 'auto'를 사용하여 즉시 이동
+                                            targetElement.scrollIntoView({ block: 'start', behavior: 'auto' });
+                                            console.log("타겟 메시지로 스크롤:", targetMessageId);
+                                            isPreviousMessagesLoadingRef.current = false;
+                                        return;
+                                        }
+                                    }
+                                    
+                                    // 두 번째 접근 방식: 높이 차이를 계산하여 스크롤 위치 보정
+                                    const newScrollHeight = chatArea.scrollHeight;
+                                    const heightDifference = newScrollHeight - originalScrollHeight;
+                                    const newScrollPosition = originalScrollTop + heightDifference;
+                                    
+                                    // 스크롤 위치 즉시 설정 (부드러운 전환 없이)
+                                    chatArea.scrollTop = newScrollPosition;
+                                    
+                                    // 플래그 해제
+                                    isPreviousMessagesLoadingRef.current = false;
+                                });
+                            });
+                            } else {
+                            // 다른 방향의 메시지 처리 (초기 로드 또는 새 메시지)
+                            // 이 부분은 기존 코드와 동일하게 유지...
+                            setMessages((prevMessages) => {
+                                // 메시지 변환 코드...
+                                const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
+                                    id: msg.id,
+                                    tempId: msg.tempId,
+                                    roomId: syncResponse.roomId,
+                                    senderId: msg.senderId,
+                                    content: msg.content || { 
+                                        text: '메시지를 불러올 수 없습니다', 
+                                        type: 'TEXT', 
+                                        attachments: [], 
+                                        isEdited: false, 
+                                        isDeleted: false 
+                                    },
+                                    createdAt: msg.timestamp,
+                                    status: msg.status || "SAVED",
+                                    readBy: msg.readBy || {}
+                                }));
+                                
+                                const messageMap = new Map<string, ChatMessageItem>();
+                                prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                                syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                                
+                                const mergedMessages = Array.from(messageMap.values());
+                                mergedMessages.sort((a, b) =>
+                                    new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                                );
+                                
+                                return mergedMessages;
+                            });
+                            
+                            if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
+                                setMessageDirection("INITIAL");
+                            }
+                            else if (syncResponse.direction === "AFTER") {
+                                setMessageDirection("AFTER");
+                                setTimeout(() => {
+                                    if (chatAreaRef.current) {
+                                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                                    }
+                                }, 100);
+                            }
                         }
-                        else if (syncResponse.direction === "AFTER") {
-                            setMessageDirection("AFTER");
-                            setTimeout(() => {
-                                if (chatAreaRef.current) {
-                                    chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                                }
-                            }, 100);
-                        }
-                    }
-                });
-            },
-            onDisconnect: () => {
-                setConnectionError("연결 끊김, 재접속 시도 중...");
-                setIsConnected(false);
-            },
-            onStompError: () => {
-                setConnectionError("연결 오류, 재접속 시도 중...");
-                setIsConnected(false);
-            }
-        });
-        client.activate();
-        setStompClient(client);
+                    });
+                },
+                onDisconnect: () => {
+                    setConnectionError("연결 끊김, 재접속 시도 중...");
+                    setIsConnected(false);
+                },
+                onStompError: () => {
+                    setConnectionError("연결 오류, 재접속 시도 중...");
+                    setIsConnected(false);
+                }
+            });
+            client.activate();
+            setStompClient(client);
 
-        // 창 종료 이벤트
-        const handleBeforeUnload = () => {
-            if (client && client.connected) {
-                client.publish({
-                    destination: "/app/active",
-                    body: JSON.stringify({ userId: user.id, roomId, active: false })
-                });
-                client.deactivate();
-            }
-        };
-        window.addEventListener("beforeunload", handleBeforeUnload);
+            // 창 종료 이벤트
+            const handleBeforeUnload = () => {
+                if (client && client.connected) {
+                    client.publish({
+                        destination: "/app/active",
+                        body: JSON.stringify({ userId: user.id, roomId, active: false })
+                    });
+                    client.deactivate();
+                }
+            };
+            window.addEventListener("beforeunload", handleBeforeUnload);
 
-        return () => {
-            if (client && client.connected) {
-                client.publish({
-                    destination: "/app/active",
-                    body: JSON.stringify({ userId: user.id, roomId, active: false })
-                });
-                client.deactivate();
-            }
-            if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-            window.removeEventListener("beforeunload", handleBeforeUnload);
-        };
+            return () => {
+                if (client && client.connected) {
+                    client.publish({
+                        destination: "/app/active",
+                        body: JSON.stringify({ userId: user.id, roomId, active: false })
+                    });
+                    client.deactivate();
+                }
+                if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+                window.removeEventListener("beforeunload", handleBeforeUnload);
+            };
+        }
+        // 약간의 지연을 주어 DOM이 완전히 렌더링된 후 연결
+        const timer = setTimeout(connectWebSocket, 100);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line
-    }, [roomId, user, scrollToBottom, markAllRead]);
+    }, [roomId, user]);
 
     // 이전 메시지를 로드할 때 사용자 화면에 보이는 첫 번째 메시지를 찾는 함수
     const findFirstVisibleMessage = () => {
