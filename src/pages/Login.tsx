@@ -13,20 +13,21 @@ const fadeIn = keyframes`
 
 // Main container with fixed height and no scrolling
 const PageContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  width: 100vw;
   position: fixed;
   top: 0;
   left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: #f5f7fa;
+  z-index: 1000;
   overflow: hidden;
 `;
 
 // Mobile screen container - matches BottomNavLayout dimensions
-const MobileScreen = styled.div`
+const MobileContainer = styled.div`
   width: 375px;
   height: 667px;
   background-color: #fff;
@@ -127,16 +128,7 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   cursor: pointer;
 `;
 
-const ForgotPassword = styled.a`
-  color: #007bff;
-  text-decoration: none;
-  font-weight: 500;
-  
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
+// 버튼 스타일
 const Button = styled.button`
   padding: 1rem;
   background: linear-gradient(90deg, #007bff, #0062cc);
@@ -169,6 +161,49 @@ const Button = styled.button`
   
   &:focus {
     outline: none;
+  }
+`;
+
+// 회원가입 및 계정 관련 링크 영역
+const AccountLinks = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  width: 100%;
+`;
+
+const AccountLink = styled(Link)`
+  font-size: 0.85rem;
+  color: #555;
+  text-decoration: none;
+  position: relative;
+  
+  &:hover {
+    color: #007bff;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background-color: #007bff;
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  
+  &:hover::after {
+    transform: scaleX(1);
+  }
+  
+  &:not(:last-child)::before {
+    content: '|';
+    position: absolute;
+    right: -0.6rem;
+    color: #ddd;
   }
 `;
 
@@ -265,7 +300,7 @@ const Login: React.FC = () => {
 
   return (
     <PageContainer>
-      <MobileScreen>
+      <MobileContainer>
         <LoginContent>
           <LogoArea>
             <Logo>SHOOT</Logo>
@@ -308,7 +343,6 @@ const Login: React.FC = () => {
                 />
                 자동 로그인
               </RememberMeLabel>
-              <ForgotPassword href="#">비밀번호 찾기</ForgotPassword>
             </RememberContainer>
             
             <Button type="submit" disabled={isLoading || !username || !password}>
@@ -329,12 +363,13 @@ const Login: React.FC = () => {
             </ErrorMessage>
           )}
           
-          <RegisterPrompt>
-            계정이 없으신가요?
-            <RegisterLink to="/signup">회원가입</RegisterLink>
-          </RegisterPrompt>
+          <AccountLinks>
+            <AccountLink to="/find-id">아이디 찾기</AccountLink>
+            <AccountLink to="/find-password">비밀번호 찾기</AccountLink>
+            <AccountLink to="/signup">회원가입</AccountLink>
+          </AccountLinks>
         </LoginContent>
-      </MobileScreen>
+      </MobileContainer>
     </PageContainer>
   );
 };
