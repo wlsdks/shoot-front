@@ -18,7 +18,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Navigation />
+        {/* <Navigation /> */}
         <Routes>
           {/* 인증이 필요 없는 페이지 */}
           <Route path="/login" element={<Login />} />
