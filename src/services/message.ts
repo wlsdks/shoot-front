@@ -43,3 +43,21 @@ export const forwardMessage = async (
     });
     return extractData(response);
 };
+
+// 메시지 고정하기
+export const pinMessage = async (messageId: string) => {
+    const response = await api.post<ApiResponse<any>>(`/messages/${messageId}/pin`);
+    return extractData(response);
+};
+
+// 메시지 고정 해제하기
+export const unpinMessage = async (messageId: string) => {
+    const response = await api.delete<ApiResponse<any>>(`/messages/${messageId}/pin`);
+    return extractData(response);
+};
+
+// 채팅방의 고정된 메시지 목록 가져오기
+export const getPinnedMessages = async (roomId: string) => {
+    const response = await api.get<ApiResponse<any>>(`/messages/pins?roomId=${roomId}`);
+    return extractData(response);
+};
