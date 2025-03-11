@@ -165,6 +165,8 @@ const ChatBubble = styled.div<{ $isOwnMessage: boolean }>`
     cursor: pointer;
     transition: all 0.2s;
     word-break: break-word;
+    position: relative;
+    className: "chat-bubble"; /* 클래스명 추가 - 선택자로 사용하기 위함 */
     
     &:hover {
         transform: translateY(-2px);
@@ -290,13 +292,14 @@ const ErrorMessage = styled.div`
 `;
 
 const ContextMenu = styled.div`
-    position: absolute;
+    position: fixed; /* absolute 대신 fixed 사용 */
     background: white;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
+    z-index: 1000; /* 충분히 높은 z-index */
     overflow: hidden;
     border: 1px solid #eee;
+    min-width: 150px; /* 최소 너비 지정 */
 `;
 
 const ContextMenuItem = styled.div`
@@ -1337,12 +1340,21 @@ const ChatRoom: React.FC = () => {
 
     // 외부 클릭 시 컨텍스트 메뉴 닫기
     useEffect(() => {
-        const handleClick = () => {
+        const handleClick = (e: MouseEvent) => {
+            // contextMenu가 열려있고, 메뉴 외부를 클릭한 경우에만 닫기
             if (contextMenu.visible) {
-                setContextMenu({ ...contextMenu, visible: false, message: null });
+                const menuElement = document.getElementById('context-menu');
+                if (menuElement && !menuElement.contains(e.target as Node)) {
+                    setContextMenu({ ...contextMenu, visible: false, message: null });
+                }
             }
         };
-        window.addEventListener("click", handleClick);
+        
+        // 다음 tick에서 이벤트 리스너 등록 (즉시 실행 방지)
+        setTimeout(() => {
+            window.addEventListener("click", handleClick);
+        }, 0);
+        
         return () => window.removeEventListener("click", handleClick);
     }, [contextMenu]);
 
@@ -1350,6 +1362,23 @@ const ChatRoom: React.FC = () => {
     const handleForwardClick = () => {
         setContextMenu({ ...contextMenu, visible: false });
         setShowForwardModal(true);
+    };
+
+    // 말풍선 클릭 핸들러 함수 추가
+    const handleChatBubbleClick = (e: React.MouseEvent, message: ChatMessageItem) => {
+        e.stopPropagation(); // 이벤트 전파 방지
+        
+        // 클릭한 위치에 메뉴 표시
+        const x = e.clientX;
+        const y = e.clientY;
+        
+        // 이미 메뉴가 표시되어 있으면 닫기
+        if (contextMenu.visible && contextMenu.message?.id === message.id) {
+            setContextMenu({ visible: false, x: 0, y: 0, message: null });
+        } else {
+            // 메뉴 표시
+            setContextMenu({ visible: true, x, y, message });
+        }
     };
 
     useEffect(() => {
@@ -1466,13 +1495,21 @@ const ChatRoom: React.FC = () => {
                                                 {indicatorText && <div>{indicatorText}</div>}
                                                 {showTime && <div>{currentTime}</div>}
                                             </TimeContainer>
-                                            <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                            <ChatBubble 
+                                                $isOwnMessage={isOwn} 
+                                                onContextMenu={(e) => handleContextMenu(e, msg)}
+                                                onClick={(e) => handleChatBubbleClick(e, msg)}
+                                            >
                                                 <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
                                             </ChatBubble>
                                         </>
                                     ) : (
                                         <>
-                                            <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                            <ChatBubble 
+                                                $isOwnMessage={isOwn} 
+                                                onContextMenu={(e) => handleContextMenu(e, msg)}
+                                                onClick={(e) => handleChatBubbleClick(e, msg)}
+                                            >
                                                 <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
                                             </ChatBubble>
                                             <TimeContainer $isOwnMessage={false}>
@@ -1524,7 +1561,7 @@ const ChatRoom: React.FC = () => {
                     </SendButton>
                 </ChatInputContainer>
                 {contextMenu.visible && (
-                    <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
+                    <ContextMenu id="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
                         <ContextMenuItem onClick={handleForwardClick}>
                             <ForwardIcon /> 메시지 전달
                         </ContextMenuItem>
