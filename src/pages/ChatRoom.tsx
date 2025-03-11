@@ -393,18 +393,20 @@ const ModalButtons = styled.div`
 
 // URL 미리보기 스타일
 const UrlPreviewContainer = styled.div`
-    margin-top: 8px;
+    margin-top: 15px;
+    margin-bottom: 5px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     overflow: hidden;
     background: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.2s;
-    max-width: 250px;
+    max-width: 300px;
+    width: 100%;
     
     &:hover {
         transform: translateY(-2px);
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
 `;
 
@@ -434,11 +436,12 @@ const PreviewSite = styled.div`
 const PreviewTitle = styled.div`
     font-size: 0.9rem;
     font-weight: 600;
-    color: #333;
+    color: #007bff;
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-decoration: underline;
 `;
 
 const PreviewDescription = styled.div`
@@ -627,25 +630,38 @@ const ChatRoom: React.FC = () => {
     // 메시지 업데이트 최적화
     const updateMessages = useCallback((newMsg: ChatMessageItem) => {
         setMessages(prev => {
-        // 불변성을 유지하면서 명확한 업데이트 로직 구현
-        const msgExists = prev.some(m => m.id === newMsg.id);
-        if (msgExists) {
-            return prev.map(m => m.id === newMsg.id ? {...newMsg, readBy: newMsg.readBy || {}} : m);
-        } else {
-            const updatedMessages = [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
-            // 상태 업데이트 후 DOM 업데이트 시점에 스크롤 조정
-            requestAnimationFrame(() => {
-            if (chatAreaRef.current) {
-                const isNearBottom = chatAreaRef.current.scrollHeight - chatAreaRef.current.scrollTop - chatAreaRef.current.clientHeight < 150;
-                if (isNearBottom) {
-                chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                }
+            // 불변성을 유지하면서 명확한 업데이트 로직 구현
+            const msgExists = prev.some(m => m.id === newMsg.id);
+            if (msgExists) {
+                return prev.map(m => m.id === newMsg.id ? {...newMsg, readBy: newMsg.readBy || {}} : m);
+            } else {
+                const updatedMessages = [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
+                // 상태 업데이트 후 DOM 업데이트 시점에 스크롤 조정
+                setTimeout(() => {
+                    if (chatAreaRef.current) {
+                        const isNearBottom = chatAreaRef.current.scrollHeight - chatAreaRef.current.scrollTop - chatAreaRef.current.clientHeight < 150;
+                        if (isNearBottom) {
+                            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                        }
+                    }
+                }, 100); // URL 미리보기가 로드될 시간을 고려하여 약간의 지연 추가
+                return updatedMessages;
             }
-            });
-            return updatedMessages;
-        }
         });
     }, []);
+
+    // 미리보기 로드 후 스크롤 처리를 위한 useEffect 추가
+    useEffect(() => {
+        // URL 미리보기가 포함된 메시지가 있는지 확인
+        const hasUrlPreviews = messages.some(msg => msg.content?.urlPreview);
+        
+        if (hasUrlPreviews) {
+            // 약간의 지연 후 스크롤 이동 (미리보기 렌더링 완료 대기)
+            setTimeout(() => {
+                scrollToBottom();
+            }, 300);
+        }
+    }, [messages, scrollToBottom]);
 
     // 조합 시작 시
     const handleCompositionStart = () => {
@@ -1440,31 +1456,37 @@ const ChatRoom: React.FC = () => {
                                         formatTime(msg.createdAt) !== formatTime(nextMessage.createdAt));
                         const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
                         
-                            return (
-                            <MessageRow key={idx} id={`msg-${msg.id}`} $isOwnMessage={isOwn}>
-                                {isOwn ? (
-                                    <>
-                                        <TimeContainer $isOwnMessage={true}>
-                                            {statusIndicator}
-                                            {indicatorText && <div>{indicatorText}</div>}
-                                            {showTime && <div>{currentTime}</div>}
-                                        </TimeContainer>
-                                        <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                            <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
-                                            {renderUrlPreview(msg)}
-                                        </ChatBubble>
-                                    </>
-                                ) : (
-                                    <>
-                                        <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
-                                            <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
-                                        </ChatBubble>
-                                        <TimeContainer $isOwnMessage={false}>
-                                            {showTime && <div>{currentTime}</div>}
-                                        </TimeContainer>
-                                    </>
+                        return (
+                            <React.Fragment key={idx}>
+                                <MessageRow id={`msg-${msg.id}`} $isOwnMessage={isOwn}>
+                                    {isOwn ? (
+                                        <>
+                                            <TimeContainer $isOwnMessage={true}>
+                                                {statusIndicator}
+                                                {indicatorText && <div>{indicatorText}</div>}
+                                                {showTime && <div>{currentTime}</div>}
+                                            </TimeContainer>
+                                            <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                                <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                                            </ChatBubble>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
+                                                <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                                            </ChatBubble>
+                                            <TimeContainer $isOwnMessage={false}>
+                                                {showTime && <div>{currentTime}</div>}
+                                            </TimeContainer>
+                                        </>
+                                    )}
+                                </MessageRow>
+                                {msg.content?.urlPreview && (
+                                    <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>
+                                        {renderUrlPreview(msg)}
+                                    </div>
                                 )}
-                            </MessageRow>
+                            </React.Fragment>
                         );
                     })}
                     {typingUsers.length > 0 && (
