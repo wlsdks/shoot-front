@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { forwardMessage } from "../services/message";
+import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../services/message";
 import { markAllMessagesAsRead } from "../services/chatRoom";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
@@ -456,6 +456,136 @@ const PreviewDescription = styled.div`
     overflow: hidden;
 `;
 
+// 고정된 메시지 섹션 스타일 (다른 스타일 컴포넌트 근처에 추가)
+const PinnedMessagesContainer = styled.div<{ $isExpanded: boolean }>`
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 0;
+    max-height: ${props => props.$isExpanded ? '200px' : '56px'};
+    overflow: ${props => props.$isExpanded ? 'auto' : 'hidden'};
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+`;
+
+const PinnedMessagesHeader = styled.div<{ $isExpanded: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background-color: #f0f5ff;
+    border-bottom: ${props => props.$isExpanded ? '1px solid rgba(0, 123, 255, 0.1)' : 'none'};
+    cursor: pointer;
+`;
+
+const ExpandButton = styled.button<{ $isExpanded: boolean }>`
+    background: none;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #007bff;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+    }
+    
+    svg {
+        transition: transform 0.3s ease;
+        transform: ${props => props.$isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};
+    }
+`;
+
+// 공지사항 요약 컨테이너 추가
+const PinnedMessagesSummary = styled.div`
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    flex: 1;
+    margin-left: 10px;
+    
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        color: #666;
+    }
+`;
+
+const PinnedMessagesTitle = styled.div`
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #007bff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+`;
+
+const PinnedMessagesContent = styled.div`
+    padding: 8px 0;
+    max-height: 200px;
+    overflow-y: auto;
+`;
+
+const PinnedMessageItem = styled.div`
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background-color: #fff;
+    margin: 4px 8px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    position: relative;
+    transition: all 0.2s;
+    border-left: 3px solid #007bff;
+    
+    &:hover {
+        background-color: #f9f9f9;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+`;
+
+const PinnedMessageContent = styled.div`
+    flex: 1;
+    font-size: 0.9rem;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const PinnedMessageSender = styled.span`
+    font-weight: 600;
+    margin-right: 6px;
+    color: #007bff;
+`;
+
+const UnpinButton = styled.button`
+    background: none;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: all 0.2s;
+    
+    &:hover {
+        color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+`;
+
 // ============= 아이콘 컴포넌트 =============
 const BackIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -486,6 +616,23 @@ const ErrorIcon = () => (
     </svg>
 );
 
+// 핀 아이콘 컴포넌트
+const PinIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L12 6"></path>
+        <path d="M12 12L12 19"></path>
+        <line x1="4.5" y1="12" x2="19.5" y2="12"></line>
+        <path d="M8 12c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2v3c0 1.1-.9 2-2 2H8z"></path>
+    </svg>
+);
+
+// 화살표 아이콘 컴포넌트
+const ChevronDownIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+);
+
 // ============= ChatRoom 컴포넌트 =============
 const ChatRoom: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
@@ -506,8 +653,10 @@ const ChatRoom: React.FC = () => {
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<ChatMessageItem[]>([]);
-    const [isDomReady, setIsDomReady] = useState(false);
     const domReadyRef = useRef(false);
+    const [isDomReady, setIsDomReady] = useState(false);
+    const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
+    const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
 
     // 1. 더 단순하게 이전 위치 유지를 위한 참조 추가
     const lastScrollPosRef = useRef(0);
@@ -530,6 +679,79 @@ const ChatRoom: React.FC = () => {
     const scrollToBottom = useCallback(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
+
+    // 고정된 메시지 가져오는 함수
+    const fetchPinnedMessages = useCallback(async () => {
+        if (!roomId) return;
+        try {
+            const response = await getPinnedMessages(roomId);
+            // 응답 구조 확인 및 변환
+            console.log("핀 메시지 응답:", response); // 디버깅용 로그 추가
+            
+            if (response && response.data && Array.isArray(response.data.pinnedMessages)) {
+                // 백엔드 응답 구조에 맞게 변환
+                const formattedPinnedMsgs = response.data.pinnedMessages.map((pinMsg: {
+                    messageId: string;
+                    content: string;
+                    senderId: string;
+                    pinnedBy: string;
+                    pinnedAt: string;
+                    createdAt: string;
+                }) => ({
+                    id: pinMsg.messageId,
+                    roomId: response.data.roomId,
+                    senderId: pinMsg.senderId,
+                    content: {
+                        text: pinMsg.content,
+                        type: "TEXT",
+                        attachments: [],
+                        isEdited: false,
+                        isDeleted: false
+                    },
+                    createdAt: pinMsg.createdAt,
+                    status: "SAVED",
+                    readBy: {}
+                }));
+                
+                setPinnedMessages(formattedPinnedMsgs);
+            } else if (response && Array.isArray(response.data)) {
+                // 기존 예상 구조도 지원
+                setPinnedMessages(response.data);
+            } else {
+                console.error("Unexpected pinned messages format:", response);
+                setPinnedMessages([]);
+            }
+        } catch (error) {
+            console.error("Failed to fetch pinned messages:", error);
+            setPinnedMessages([]);
+        }
+    }, [roomId]);
+    
+    // 메시지 고정 함수
+    const handlePinMessage = async () => {
+        if (!contextMenu.message || !contextMenu.message.id) return;
+        
+        try {
+            await pinMessage(contextMenu.message.id);
+            // 성공 시 고정된 메시지 목록 다시 불러오기
+            fetchPinnedMessages();
+            // 컨텍스트 메뉴 닫기
+            setContextMenu({ visible: false, x: 0, y: 0, message: null });
+        } catch (error) {
+            console.error("Failed to pin message:", error);
+        }
+    };
+    
+    // 메시지 고정 해제 함수
+    const handleUnpinMessage = async (messageId: string) => {
+        try {
+            await unpinMessage(messageId);
+            // 성공 시 고정된 메시지 목록에서 제거
+            setPinnedMessages(prev => prev.filter(msg => msg.id !== messageId));
+        } catch (error) {
+            console.error("Failed to unpin message:", error);
+        }
+    };
 
     // 4. 메시지가 처음 로드되었을 때만 강제 스크롤 실행 (필요한 경우)
     useEffect(() => {
@@ -716,6 +938,13 @@ const ChatRoom: React.FC = () => {
     const handleBack = () => {
         navigate("/", { state: { refresh: true } });
     };
+
+    // 고정글
+    useEffect(() => {
+        if (roomId && isConnected) {
+            fetchPinnedMessages();
+        }
+    }, [roomId, isConnected, fetchPinnedMessages]);
 
     // 초기 메시지 로드 및 STOMP 연결
     useEffect(() => {
@@ -914,6 +1143,19 @@ const ChatRoom: React.FC = () => {
                     client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
                         const { messageIds, userId } = JSON.parse(message.body);
                         updateBulkMessageReadStatus(messageIds, userId);
+                    });
+                    
+                    // 웹소켓 구독 추가 (onConnect 함수 내 다른 구독 부분에 추가)
+                    // 메시지 핀 상태 변경 구독
+                    client.subscribe(`/topic/pin/${roomId}`, (message: IMessage) => {
+                        console.log("메시지 핀 상태 변경:", message.body);
+                        try {
+                            const pinUpdate = JSON.parse(message.body);
+                            // 고정된 메시지 목록 새로고침
+                            fetchPinnedMessages();
+                        } catch (error) {
+                            console.error("핀 메시지 업데이트 처리 실패:", error);
+                        }
                     });
 
                     // 동기화 구독
@@ -1448,6 +1690,55 @@ const ChatRoom: React.FC = () => {
                     </BackButton>
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
+                {pinnedMessages.length > 0 && (
+                    <PinnedMessagesContainer $isExpanded={isPinnedMessagesExpanded}>
+                        <PinnedMessagesHeader 
+                        $isExpanded={isPinnedMessagesExpanded} 
+                        onClick={() => setIsPinnedMessagesExpanded(!isPinnedMessagesExpanded)}
+                        >
+                            <PinnedMessagesTitle>
+                                <PinIcon /> 
+                                <span>공지사항 ({pinnedMessages.length})</span>
+                            </PinnedMessagesTitle>
+                            
+                            {!isPinnedMessagesExpanded && pinnedMessages.length > 0 && (
+                                <PinnedMessagesSummary>
+                                    <span>
+                                        {pinnedMessages[0].senderId === user?.id ? '나' : '상대방'}: {pinnedMessages[0].content?.text}
+                                    </span>
+                                </PinnedMessagesSummary>
+                            )}
+                            
+                            <ExpandButton $isExpanded={isPinnedMessagesExpanded}>
+                                <ChevronDownIcon />
+                            </ExpandButton>
+                        </PinnedMessagesHeader>
+                        
+                        {isPinnedMessagesExpanded && (
+                            <PinnedMessagesContent>
+                                {pinnedMessages.map((pinnedMsg) => (
+                                    <PinnedMessageItem key={`pinned-${pinnedMsg.id}`}>
+                                        <PinnedMessageContent>
+                                            <PinnedMessageSender>
+                                                {pinnedMsg.senderId === user?.id ? '나' : '상대방'}:
+                                            </PinnedMessageSender>
+                                            {pinnedMsg.content?.text}
+                                        </PinnedMessageContent>
+                                        <UnpinButton onClick={(e) => {
+                                            e.stopPropagation(); // 이벤트 버블링 방지
+                                            handleUnpinMessage(pinnedMsg.id);
+                                        }}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </UnpinButton>
+                                    </PinnedMessageItem>
+                                ))}
+                            </PinnedMessagesContent>
+                        )}
+                    </PinnedMessagesContainer>
+                )}
                 {connectionError && 
                     <ErrorMessage>
                         <ErrorIcon />{connectionError}
@@ -1565,6 +1856,18 @@ const ChatRoom: React.FC = () => {
                         <ContextMenuItem onClick={handleForwardClick}>
                             <ForwardIcon /> 메시지 전달
                         </ContextMenuItem>
+                        {contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id) ? (
+                            <ContextMenuItem onClick={() => {
+                                if (contextMenu.message) handleUnpinMessage(contextMenu.message.id);
+                                setContextMenu({ ...contextMenu, visible: false });
+                            }}>
+                                <PinIcon /> 공지사항 해제
+                            </ContextMenuItem>
+                        ) : (
+                            <ContextMenuItem onClick={handlePinMessage}>
+                                <PinIcon /> 공지사항 등록
+                            </ContextMenuItem>
+                        )}
                     </ContextMenu>
                 )}
                 {showForwardModal && (
