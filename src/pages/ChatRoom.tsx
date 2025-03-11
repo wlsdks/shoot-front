@@ -10,8 +10,8 @@ import { throttle } from "lodash";
 
 // 채팅 메시지 인터페이스
 export interface ChatMessageItem {
-    id: string;      // 메시지 식별자 (서버에서 생성)
-    tempId?: string; // 추가: 임시 ID (상태 추적용)
+    id: string;
+    tempId?: string;
     roomId: string;
     senderId: string;
     content: {
@@ -20,10 +20,17 @@ export interface ChatMessageItem {
         attachments: any[];
         isEdited: boolean;
         isDeleted: boolean;
+        urlPreview?: {  // 백엔드 구조와 일치시킴
+            url: string;
+            title?: string;
+            description?: string;
+            imageUrl?: string;
+            siteName?: string;
+        }
     };
     createdAt?: string;
-    status: string; // "SAVED", "PROCESSED", "sending", "FAILED" 등
-    readBy: { [userId: string]: boolean }; // 읽음 상태 추가
+    status: string;
+    readBy: { [userId: string]: boolean };
 }
 
 // 타이핑 인디케이터 메시지 인터페이스
@@ -382,6 +389,65 @@ const ModalButtons = styled.div`
             }
         }
     }
+`;
+
+// URL 미리보기 스타일
+const UrlPreviewContainer = styled.div`
+    margin-top: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s;
+    max-width: 250px;
+    
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+    }
+`;
+
+const PreviewImage = styled.div<{ $hasImage: boolean }>`
+    width: 100%;
+    height: ${({ $hasImage }) => ($hasImage ? '140px' : '0')};
+    background-color: #f1f3f5;
+    display: ${({ $hasImage }) => ($hasImage ? 'block' : 'none')};
+    
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+`;
+
+const PreviewContent = styled.div`
+    padding: 10px 12px;
+`;
+
+const PreviewSite = styled.div`
+    font-size: 0.7rem;
+    color: #777;
+    margin-bottom: 4px;
+`;
+
+const PreviewTitle = styled.div`
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+`;
+
+const PreviewDescription = styled.div`
+    font-size: 0.8rem;
+    color: #666;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 `;
 
 // ============= 아이콘 컴포넌트 =============
@@ -812,6 +878,19 @@ const ChatRoom: React.FC = () => {
                         }
                     });
 
+                    // 메시지 업데이트 구독 (URL 미리보기 등)
+                    client.subscribe(`/topic/message/update/${roomId}`, (message: IMessage) => {
+                        const updatedMessage = JSON.parse(message.body);
+                        console.log("메시지 업데이트 수신:", updatedMessage);
+                        
+                        // 기존 메시지 목록에서 업데이트된 메시지 찾아 교체
+                        setMessages((prevMessages) => 
+                            prevMessages.map((msg) => 
+                                msg.id === updatedMessage.id ? updatedMessage : msg
+                            )
+                        );
+                    });
+
                     // 읽음 처리 상태 구독
                     client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
                         const { messageIds, userId } = JSON.parse(message.body);
@@ -1205,6 +1284,35 @@ const ChatRoom: React.FC = () => {
         sendTypingIndicator(false);
     };
 
+    // URL 미리보기 렌더링 함수
+    const renderUrlPreview = (message: ChatMessageItem) => {
+        // content.urlPreview가 있는지 확인
+        const preview = message.content?.urlPreview;
+        
+        // URL 미리보기가 없으면 렌더링하지 않음
+        if (!preview) {
+            return null;
+        }
+        
+        // 미리보기 정보가 충분하지 않으면 렌더링하지 않음
+        if (!preview.title && !preview.description) {
+            return null;
+        }
+        
+        return (
+            <UrlPreviewContainer onClick={() => preview.url && window.open(preview.url, '_blank')}>
+                <PreviewImage $hasImage={!!preview.imageUrl}>
+                    {preview.imageUrl && <img src={preview.imageUrl} alt={preview.title || "Preview"} />}
+                </PreviewImage>
+                <PreviewContent>
+                    {preview.siteName && <PreviewSite>{preview.siteName}</PreviewSite>}
+                    {preview.title && <PreviewTitle>{preview.title}</PreviewTitle>}
+                    {preview.description && <PreviewDescription>{preview.description}</PreviewDescription>}
+                </PreviewContent>
+            </UrlPreviewContainer>
+        );
+    };
+
     // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
         e.preventDefault();
@@ -1343,6 +1451,7 @@ const ChatRoom: React.FC = () => {
                                         </TimeContainer>
                                         <ChatBubble $isOwnMessage={isOwn} onContextMenu={(e) => handleContextMenu(e, msg)}>
                                             <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                                            {renderUrlPreview(msg)}
                                         </ChatBubble>
                                     </>
                                 ) : (
