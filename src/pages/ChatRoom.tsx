@@ -668,9 +668,16 @@ const ChatRoom: React.FC = () => {
     // 1. 메시지 방향을 추적하는 상태 추가 (스크롤 방향 제어용)
     const [messageDirection, setMessageDirection] = useState<"INITIAL" | "BEFORE" | "AFTER" | "new">("INITIAL");
 
+    // 메시지 상태를 저장하기 위한 타입 정의
+    type MessageStatus = {
+        status: string;
+        persistedId: string | null;
+        createdAt?: string | null; // createdAt 속성 추가
+    };
+
     // 메시지 상태 추적
     const [messageStatuses, setMessageStatuses] = useState<{
-        [tempId: string]: { status: string; persistedId: string | null }
+        [tempId: string]: MessageStatus
     }>({});
     
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -846,9 +853,9 @@ const ChatRoom: React.FC = () => {
         }
 
         // 추가: 메시지가 변경될 때마다 DOM에 제대로 반영되는지 확인
-        console.log("메시지 상태 업데이트:", messages.length, "개 메시지");
+        // console.log("메시지 상태 업데이트:", messages.length, "개 메시지");
         if (messages.length > 0) {
-            console.log("DOM 요소 개수:", chatAreaRef.current.querySelectorAll('[id^="msg-"]').length);
+            // console.log("DOM 요소 개수:", chatAreaRef.current.querySelectorAll('[id^="msg-"]').length);
         }
     }, [messages, messageDirection, initialLoadComplete]);
 
@@ -939,6 +946,22 @@ const ChatRoom: React.FC = () => {
         navigate("/", { state: { refresh: true } });
     };
 
+    // 시간 문자열 가져오기 함수 추가 (renderTime 섹션 근처에 추가)
+    const getMessageCreatedAt = (msg: ChatMessageItem): string => {
+        // 1. 메시지 자체의 createdAt
+        if (msg.createdAt) {
+            return msg.createdAt;
+        }
+        
+        // 2. messageStatuses에서 저장된 createdAt
+        if (msg.tempId && messageStatuses[msg.tempId]?.createdAt) {
+            return messageStatuses[msg.tempId].createdAt!;
+        }
+        
+        // 3. 기본값 (현재 시간)
+        return new Date().toISOString();
+    };
+
     // 고정글
     useEffect(() => {
         if (roomId && isConnected) {
@@ -967,7 +990,7 @@ const ChatRoom: React.FC = () => {
                 webSocketFactory: () => socket,
                 reconnectDelay: 5000,
                 debug: function(message) {
-                    console.log("STOMP 디버그:", message);
+                    // console.log("STOMP 디버그:", message);
                 },
                 onConnect: () => {
                     console.log("WebSocket 연결됨");
@@ -1052,9 +1075,9 @@ const ChatRoom: React.FC = () => {
 
                     // 메시지 수신 구독 (실시간 신규 메시지 처리)
                     client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
-                        console.log("수신된 웹소켓 메시지:", message.body);
+                        // console.log("수신된 웹소켓 메시지:", message.body);
                         const msg: ChatMessageItem = JSON.parse(message.body);
-                        console.log("파싱된 메시지:", msg);
+                        // console.log("파싱된 메시지:", msg);
                         
                         // 새로 만든 updateMessages 함수 사용
                         updateMessages(msg);
@@ -1091,25 +1114,37 @@ const ChatRoom: React.FC = () => {
 
                     // 메시지 상태 채널 구독
                     client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
+                        console.log("상태 업데이트 수신:", JSON.parse(message.body));
                         const statusUpdate = JSON.parse(message.body);
-                        setMessageStatuses((prev) => ({
-                            ...prev,
-                            [statusUpdate.tempId]: {
-                                status: statusUpdate.status,
-                                persistedId: statusUpdate.persistedId
-                            }
-                        }));
+
+                        // 1. messageStatuses 업데이트
+                        setMessageStatuses((prev) => {
+                            // 기존에 저장된 메시지 상태 찾기
+                            const existingStatus = prev[statusUpdate.tempId] || {};
+                            
+                            return {
+                                ...prev,
+                                [statusUpdate.tempId]: {
+                                    status: statusUpdate.status,
+                                    persistedId: statusUpdate.persistedId,
+                                    // 기존 createdAt를 우선 사용, 없으면 상태 업데이트의 createdAt 사용
+                                    createdAt: existingStatus.createdAt || statusUpdate.createdAt
+                                }
+                            };
+                        });
+                        // 2. 메시지 목록 업데이트
                         setMessages((prev) =>
-                            prev.map((msg) =>
-                                msg.tempId === statusUpdate.tempId
-                                    ? {
+                            prev.map((msg) => {
+                                if (msg.tempId === statusUpdate.tempId) {
+                                    return {
                                         ...msg,
                                         status: statusUpdate.status,
                                         id: statusUpdate.persistedId || msg.id,
-                                        createdAt: statusUpdate.createdAt || (statusUpdate.status === "SAVED" ? new Date().toISOString() : msg.createdAt)
-                                    }
-                                    : msg
-                            )
+                                        // createdAt 변경하지 않음
+                                    };
+                                }
+                                return msg;
+                            })
                         );
                         if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
                             const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
@@ -1129,7 +1164,7 @@ const ChatRoom: React.FC = () => {
                     // 메시지 업데이트 구독 (URL 미리보기 등)
                     client.subscribe(`/topic/message/update/${roomId}`, (message: IMessage) => {
                         const updatedMessage = JSON.parse(message.body);
-                        console.log("메시지 업데이트 수신:", updatedMessage);
+                        // console.log("메시지 업데이트 수신:", updatedMessage);
                         
                         // 기존 메시지 목록에서 업데이트된 메시지 찾아 교체
                         setMessages((prevMessages) => 
@@ -1166,7 +1201,7 @@ const ChatRoom: React.FC = () => {
                             messages: Array<any>;
                         };
                         
-                        console.log("동기화 응답 수신:", syncResponse.direction, syncResponse.messages.length);
+                        // console.log("동기화 응답 수신:", syncResponse.direction, syncResponse.messages.length);
                         
                         if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
                             // 처리 전 중요한 정보 저장
@@ -1522,6 +1557,7 @@ const ChatRoom: React.FC = () => {
                 isEdited: false,
                 isDeleted: false,
             },
+            createdAt: new Date().toISOString(),
             status: "sending", // 초기 상태는 sending
             readBy: { [user.id]: true }
         };
@@ -1672,13 +1708,19 @@ const ChatRoom: React.FC = () => {
 
     // 오전/오후 및 12시간제 시:분 포맷팅 함수
     const formatTime = (dateString: string): string => {
-        const date = new Date(dateString);
-        const hours = date.getHours();
-        const minutes = date.getMinutes();
-        const period = hours < 12 ? "오전" : "오후";
-        const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-        return `${period} ${hour12}:${formattedMinutes}`;
+        if (!dateString) return "";
+        try {
+            const date = new Date(dateString);
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            const period = hours < 12 ? "오전" : "오후";
+            const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+            const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+            return `${period} ${hour12}:${formattedMinutes}`;
+        } catch (e) {
+            console.error("시간 형식 변환 오류:", e);
+            return "";
+        }
     };
 
     return (
@@ -1770,11 +1812,18 @@ const ChatRoom: React.FC = () => {
                                 {currentStatus === "FAILED" && "전송 실패"}
                             </div>
                         ) : null;
-                        // 시간 표시 여부
+                        // 시간 표시 여부 로직 수정
                         const nextMessage = messages[idx + 1];
-                        const showTime = !nextMessage || (msg.createdAt && nextMessage.createdAt && 
-                                        formatTime(msg.createdAt) !== formatTime(nextMessage.createdAt));
-                        const currentTime = msg.createdAt ? formatTime(msg.createdAt) : "";
+                        const msgCreatedAt = getMessageCreatedAt(msg);
+
+                        // 현재 메시지 시간 포맷팅
+                        const currentTime = formatTime(msgCreatedAt);
+
+                        // 다음 메시지 시간 포맷팅 (있는 경우만)
+                        const nextTime = nextMessage ? formatTime(getMessageCreatedAt(nextMessage)) : null;
+
+                        // 현재 메시지와 다음 메시지의 시간을 비교
+                        const showTime = !nextMessage || currentTime !== nextTime;
                         
                         return (
                             <React.Fragment key={idx}>
