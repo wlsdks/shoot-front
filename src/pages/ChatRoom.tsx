@@ -1071,7 +1071,7 @@ const ChatRoom: React.FC = () => {
                                 body: JSON.stringify({ userId: user.id, roomId, active: true })
                             });
                         }
-                    }, 30000);
+                    }, 120000); // 2분
 
                     // 메시지 수신 구독 (실시간 신규 메시지 처리)
                     client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
@@ -1114,7 +1114,7 @@ const ChatRoom: React.FC = () => {
 
                     // 메시지 상태 채널 구독
                     client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
-                        console.log("상태 업데이트 수신:", JSON.parse(message.body));
+                        // console.log("상태 업데이트 수신:", JSON.parse(message.body));
                         const statusUpdate = JSON.parse(message.body);
 
                         // 1. messageStatuses 업데이트
