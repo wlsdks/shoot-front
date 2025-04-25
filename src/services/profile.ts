@@ -16,7 +16,7 @@ export interface ProfileUpdateRequest {
  * @returns 업데이트된 사용자 정보
  */
 export const updateProfile = async (
-    userId: string, 
+    userId: number, // userId 타입 변경
     profileData: ProfileUpdateRequest
 ) => {
     const response = await api.put<ApiResponse<any>>(`/users/me`, profileData);
@@ -46,7 +46,7 @@ export const uploadProfileImage = async (
  * @returns 업데이트된 사용자 정보
  */
 export const updateUserStatus = async (
-    userId: string,
+    userId: number, // userId 타입 변경
     status: string
 ) => {
     const response = await api.put<ApiResponse<any>>(`/users/me/status`, { userId, status });

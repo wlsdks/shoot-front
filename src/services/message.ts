@@ -4,7 +4,7 @@ import { extractData } from '../utils/apiUtils';
 
 // 채팅 메시지 조회 API 호출 (lastId 기준)
 export const getChatMessages = async (
-    roomId: string,
+    roomId: number, // string -> number로 변경
     lastId?: string,
     limit: number = 20
 ) => {
@@ -35,8 +35,8 @@ export const deleteMessage = async (messageId: string) => {
  */
 export const forwardMessage = async (
     originalMessageId: string,
-    targetRoomId: string,
-    forwardingUserId: string
+    targetRoomId: number, // string -> number로 변경
+    forwardingUserId: number // string -> number로 변경
 ) => {
     const response = await api.post<ApiResponse<any>>(`/messages/forward`, null, {
         params: { originalMessageId, targetRoomId, forwardingUserId }
@@ -57,7 +57,7 @@ export const unpinMessage = async (messageId: string) => {
 };
 
 // 채팅방의 고정된 메시지 목록 가져오기
-export const getPinnedMessages = async (roomId: string) => {
+export const getPinnedMessages = async (roomId: number) => { // string -> number로 변경
     const response = await api.get<ApiResponse<any>>(`/messages/pins?roomId=${roomId}`);
     return response.data; // 전체 응답 데이터를 반환하여 컴포넌트에서 처리
 };

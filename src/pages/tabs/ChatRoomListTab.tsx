@@ -11,9 +11,10 @@ const fadeIn = keyframes`
     to { opacity: 1; transform: translateY(0); }
 `;
 
+
 // 채팅방 인터페이스 정의
 interface ChatRoom {
-    roomId: string;
+    roomId: number; // string -> number로 변경
     title: string;
     lastMessage: string | null;
     unreadMessages: number;
@@ -381,7 +382,7 @@ const ChatRoomList: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // 채팅방 목록을 불러오는 함수
+    // 채팅방 목록 조회 함수
     const fetchRooms = useCallback(async () => {
         if (!user) return;
         setLoading(true);
@@ -522,7 +523,7 @@ const ChatRoomList: React.FC = () => {
     }, [user?.id, fetchRooms, subscribeToSse, unsubscribeFromSse]);
 
     // 즐겨찾기 토글 함수
-    const toggleFavorite = async (roomId: string, currentFavorite: boolean, e: React.MouseEvent) => {
+    const toggleFavorite = async (roomId: number, currentFavorite: boolean, e: React.MouseEvent) => {
         e.preventDefault(); // 이벤트 전파 방지
         try {
             await updateChatRoomFavorite(roomId, user!.id, !currentFavorite);

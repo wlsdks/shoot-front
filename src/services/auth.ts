@@ -5,7 +5,7 @@ import { extractData } from '../utils/apiUtils';
 
 // User 인터페이스 정의
 export interface User {
-    id: string;
+    id: number; // string -> number로 변경
     username: string;
     nickname?: string;
     bio?: string;
@@ -15,7 +15,7 @@ export interface User {
 
 // 백엔드에서 실제로 반환하는 응답 형식에 맞춘 LoginResponse
 export interface LoginResponse {
-    userId: string;
+    userId: number; // string -> number로 변경
     accessToken: string;
     refreshToken: string;
 }

@@ -7,7 +7,7 @@ import { updateUserStatus } from '../services/profile';
 import { extractData } from '../utils/apiUtils';
 
 interface User {
-    id: string;
+    id: number; // string -> number로 변경
     username: string;
     nickname?: string;
     bio?: string; // 한줄 소개

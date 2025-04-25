@@ -376,7 +376,7 @@ const Icon = ({ children }: { children: React.ReactNode }) => (
 
 // Friend 인터페이스 정의
 interface Friend {
-    id: string;
+    id: number; // string -> number로 변경
     username: string;
     avatarUrl?: string;
 }
@@ -440,7 +440,7 @@ const FriendTab: React.FC = () => {
     }, [user?.id, subscribeToSse, unsubscribeFromSse, handleFriendAdded, handleHeartbeat]);
 
     // 채팅방 생성: 친구 클릭 시 direct chat 생성 후 이동
-    const handleFriendClick = useCallback(async (friendId: string) => {
+    const handleFriendClick = useCallback(async (friendId: number) => {
         console.log("FriendTab: Friend clicked:", friendId);
         if (!user) return;
         try {

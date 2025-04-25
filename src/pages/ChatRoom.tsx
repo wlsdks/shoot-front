@@ -12,8 +12,8 @@ import { throttle } from "lodash";
 export interface ChatMessageItem {
     id: string;
     tempId?: string;
-    roomId: string;
-    senderId: string;
+    roomId: number; // string -> number로 변경
+    senderId: number; // string -> number로 변경
     content: {
         text: string;
         type: string;
@@ -35,8 +35,8 @@ export interface ChatMessageItem {
 
 // 타이핑 인디케이터 메시지 인터페이스
 interface TypingIndicatorMessage {
-    roomId: string;
-    userId: string;
+    roomId: number; // string -> number로 변경
+    userId: number; // string -> number로 변경
     username: string;
     isTyping: boolean;
 }
@@ -691,7 +691,7 @@ const ChatRoom: React.FC = () => {
     const fetchPinnedMessages = useCallback(async () => {
         if (!roomId) return;
         try {
-            const response = await getPinnedMessages(roomId);
+            const response = await getPinnedMessages(Number(roomId)); // string -> number 변환
             // 응답 구조 확인 및 변환
             console.log("핀 메시지 응답:", response); // 디버깅용 로그 추가
             
@@ -700,8 +700,8 @@ const ChatRoom: React.FC = () => {
                 const formattedPinnedMsgs = response.data.pinnedMessages.map((pinMsg: {
                     messageId: string;
                     content: string;
-                    senderId: string;
-                    pinnedBy: string;
+                    senderId: number; // string -> number 변경
+                    pinnedBy: number; // string -> number 변경
                     pinnedAt: string;
                     createdAt: string;
                 }) => ({
@@ -925,7 +925,7 @@ const ChatRoom: React.FC = () => {
             return;
         }
         lastReadTimeRef.current = now;
-        markAllMessagesAsRead(roomId, user.id, sessionId)
+        markAllMessagesAsRead(Number(roomId), user.id, sessionId) // roomId를 number로 변환
             .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
         // 이제 백엔드의 동기화(sync) 응답을 통해 누락 메시지가 자동 반영됨
     }, [roomId, user, sessionId]);
@@ -1012,7 +1012,7 @@ const ChatRoom: React.FC = () => {
                             client.publish({
                                 destination: "/app/sync",
                                 body: JSON.stringify({
-                                    roomId,
+                                    roomId: Number(roomId), // string -> number로 변환
                                     userId: user.id,
                                     lastMessageId,
                                     timestamp: new Date().toISOString(),
@@ -1040,7 +1040,7 @@ const ChatRoom: React.FC = () => {
                                     client.publish({
                                         destination: "/app/sync",
                                         body: JSON.stringify({
-                                            roomId,
+                                            roomId: Number(roomId), // string -> number로 변환
                                             userId: user.id,
                                             lastMessageId,
                                             timestamp: new Date().toISOString(),
@@ -1056,7 +1056,11 @@ const ChatRoom: React.FC = () => {
                     if (stompClient && stompClient.connected) {
                         stompClient.publish({
                             destination: "/app/active",
-                            body: JSON.stringify({ userId: user.id, roomId, active: true })
+                            body: JSON.stringify({ 
+                                userId: user.id.toString(), 
+                                roomId: Number(roomId), // string -> number로 변환
+                                active: true 
+                            })
                         });
                     } else {
                         console.warn("연결이 되지 않았으므로 publish 호출을 스킵합니다.");
@@ -1068,7 +1072,11 @@ const ChatRoom: React.FC = () => {
                         if (client.connected) {
                             client.publish({
                                 destination: "/app/active",
-                                body: JSON.stringify({ userId: user.id, roomId, active: true })
+                                body: JSON.stringify({ 
+                                    userId: user.id.toString(), 
+                                    roomId: Number(roomId), // string -> number로 변환
+                                    active: true 
+                                })
                             });
                         }
                     }, 120000); // 2분
@@ -1086,13 +1094,13 @@ const ChatRoom: React.FC = () => {
                         const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
                         if (
                             document.visibilityState === "visible" &&
-                            msg.readBy && !msg.readBy[user!.id] &&
-                            msg.senderId !== user!.id &&
+                            msg.readBy && !msg.readBy[user.id.toString()] &&
+                            msg.senderId !== user.id &&
                             persistedId 
                         ) {
                             client.publish({
                                 destination: "/app/read",
-                                body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
+                                body: JSON.stringify({ messageId: persistedId, userId: user.id }),
                             });
                         }
                     });
@@ -1100,13 +1108,13 @@ const ChatRoom: React.FC = () => {
                     // 타이핑 인디케이터 구독
                     client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
                         const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
-                        if (typingMsg.userId === user?.id) return;
+                        if (typingMsg.userId === user.id) return;
                         setTypingUsers((prev) => {
                             const newUsers = typingMsg.isTyping
-                                ? prev.includes(typingMsg.username || typingMsg.userId)
+                                ? prev.includes(typingMsg.username || typingMsg.userId.toString())
                                     ? prev 
-                                    : [...prev, typingMsg.username || typingMsg.userId]
-                                : prev.filter(u => u !== (typingMsg.username || typingMsg.userId));
+                                    : [...prev, typingMsg.username || typingMsg.userId.toString()]
+                                : prev.filter(u => u !== (typingMsg.username || typingMsg.userId.toString()));
                             if (newUsers.length > 0) scrollToBottom();
                             return newUsers;
                         });
@@ -1148,10 +1156,10 @@ const ChatRoom: React.FC = () => {
                         );
                         if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
                             const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
-                            if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
+                            if (currentMsg && !currentMsg.readBy[user.id.toString()] && currentMsg.senderId !== user.id) {
                                 client.publish({
                                     destination: "/app/read",
-                                    body: JSON.stringify({ messageId: statusUpdate.persistedId, userId: user!.id }),
+                                    body: JSON.stringify({ messageId: statusUpdate.persistedId, userId: user.id }),
                                 });
                             }
                         }
@@ -1196,7 +1204,7 @@ const ChatRoom: React.FC = () => {
                     // 동기화 구독
                     client.subscribe(`/user/queue/sync`, (message: IMessage) => {
                         const syncResponse = JSON.parse(message.body) as {
-                            roomId: string;
+                            roomId: number; // string -> number로 변경
                             direction?: string;
                             messages: Array<any>;
                         };
@@ -1340,7 +1348,11 @@ const ChatRoom: React.FC = () => {
                 if (client && client.connected) {
                     client.publish({
                         destination: "/app/active",
-                        body: JSON.stringify({ userId: user.id, roomId, active: false })
+                        body: JSON.stringify({ 
+                            userId: user.id.toString(), 
+                            roomId: Number(roomId), // string -> number로 변환
+                            active: false 
+                        })
                     });
                     client.deactivate();
                 }
@@ -1351,7 +1363,11 @@ const ChatRoom: React.FC = () => {
                 if (client && client.connected) {
                     client.publish({
                         destination: "/app/active",
-                        body: JSON.stringify({ userId: user.id, roomId, active: false })
+                        body: JSON.stringify({ 
+                            userId: user.id.toString(), 
+                            roomId: Number(roomId), // string -> number로 변환
+                            active: false 
+                        })
                     });
                     client.deactivate();
                 }
@@ -1383,6 +1399,7 @@ const ChatRoom: React.FC = () => {
         }
     }
     
+     
     return messageElements.length > 0 
         ? (messageElements[0] as HTMLElement).id.replace('msg-', '')
         : null;
@@ -1483,7 +1500,7 @@ const ChatRoom: React.FC = () => {
     const sendTypingIndicator = (isTyping: boolean) => {
         if (!stompClient || !roomId || !user || !stompClient.connected) return;
         const typingPayload: TypingIndicatorMessage = { 
-            roomId,
+            roomId: Number(roomId),
             userId: user.id,
             username: user.username || "Unknown",
             isTyping 
@@ -1548,7 +1565,7 @@ const ChatRoom: React.FC = () => {
         const chatMessage: ChatMessageItem = {
             id: tempId, // 임시 ID 사용
             tempId: tempId, // tempId 속성 추가
-            roomId,
+            roomId: Number(roomId), // Convert string to number
             senderId: user.id,
             content: {
                 text: input,
@@ -1559,24 +1576,28 @@ const ChatRoom: React.FC = () => {
             },
             createdAt: new Date().toISOString(),
             status: "sending", // 초기 상태는 sending
-            readBy: { [user.id]: true }
+            readBy: { [user.id.toString()]: true } // Ensure user.id is converted to string as a key
         };
+
         // 상태 추적을 위해 messageStatuses에 추가
         setMessageStatuses((prev) => ({
             ...prev,
-            [tempId]: { status: "sending", persistedId: null }
+            [tempId]: { status: "sending", persistedId: null, createdAt: chatMessage.createdAt }
         }));
+
         // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
         setMessages((prev) => {
             const updatedMessages = [...prev, chatMessage];
             setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
+
         // 실제 전송
         stompClient.publish({
             destination: "/app/chat",
             body: JSON.stringify(chatMessage),
         });
+
         setInput("");
         sendTypingIndicator(false);
     };
@@ -1689,7 +1710,12 @@ const ChatRoom: React.FC = () => {
     const handleModalSubmit = async () => {
         if (contextMenu.message) {
             try {
-                await forwardMessage(contextMenu.message.id, targetRoomId, user!.id);
+                // Convert targetRoomId to number if the API expects a number
+                await forwardMessage(
+                    contextMenu.message.id, 
+                    Number(targetRoomId), // Convert string to number
+                    user!.id
+                );
                 alert("메시지가 전달되었습니다.");
             } catch (error) {
                 console.error("Forward error", error);
@@ -1790,20 +1816,25 @@ const ChatRoom: React.FC = () => {
                     {messages.map((msg, idx) => {
                         // 내 메시지인가?
                         const isOwn = msg.senderId === user?.id;
+
                         // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                         const currentStatus = msg.tempId
                             ? messageStatuses[msg.tempId]?.status || msg.status
                             : msg.status;
+
                         // 저장된 상태로 간주
                         const isPersisted = currentStatus && currentStatus.toUpperCase() === "SAVED";
+
                         // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
                         const otherHasRead = msg.readBy 
-                        ? Object.entries(msg.readBy)
-                            .filter(([id]) => id !== user?.id)
-                            .some(([, read]) => read === true)
-                        : false;
+                            ? Object.entries(msg.readBy as Record<string, boolean>)
+                                .filter(([id]) => id !== user?.id.toString()) // Ensure user.id is a string
+                                .some(([, read]) => read === true)
+                            : false;
+
                         // indicatorText: 읽지 않았으면 "1" 
                         const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
+
                         // 상태표시
                         const statusIndicator = isOwn && currentStatus && !isPersisted ? (
                             <div className="status-indicator">
@@ -1812,6 +1843,7 @@ const ChatRoom: React.FC = () => {
                                 {currentStatus === "FAILED" && "전송 실패"}
                             </div>
                         ) : null;
+                        
                         // 시간 표시 여부 로직 수정
                         const nextMessage = messages[idx + 1];
                         const msgCreatedAt = getMessageCreatedAt(msg);

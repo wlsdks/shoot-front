@@ -6,7 +6,7 @@ import { extractData } from '../utils/apiUtils';
 /**
  * 채팅방 목록 조회 API
  */
-export const getChatRooms = async (userId: string) => {
+export const getChatRooms = async (userId: number) => { // userId 타입 변경
     const response = await api.get<ApiResponse<any>>(`/chatrooms`, { params: { userId } });
     return {
         data: extractData(response)
@@ -17,8 +17,8 @@ export const getChatRooms = async (userId: string) => {
  * 채팅방 즐겨찾기(핀) 상태 업데이트 API
  */
 export const updateChatRoomFavorite = async (
-    roomId: string,
-    userId: string,
+    roomId: number, // roomId 타입 변경 
+    userId: number, // userId 타입 변경
     isFavorite: boolean
 ) => {
     const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, { params: { roomId, userId, isFavorite } });
@@ -26,12 +26,12 @@ export const updateChatRoomFavorite = async (
 };
 
 /**
- * 특정 채팅방 내 모든 메시지를 읽음 처리하는 API 호출
+ * 특정 채팅방 내 모든 메시지를 읽음 처리하는 API
  * @param roomId 채팅방 ID
  * @param userId 사용자 ID
  * @returns
  */
-export const markAllMessagesAsRead = async (roomId: string, userId: string, requestId?: string) => {
+export const markAllMessagesAsRead = async (roomId: number, userId: number, requestId?: string) => { // roomId, userId 타입 변경
     const token = localStorage.getItem("accessToken");
     
     // requestId 매개변수 추가 (세션 대신 단일 요청 식별자 사용)
@@ -57,8 +57,8 @@ export const markAllMessagesAsRead = async (roomId: string, userId: string, requ
  * @returns 생성된 채팅방 정보
  */
 export const createDirectChat = async (
-    userId: string,
-    friendId: string
+    userId: number, // userId 타입 변경
+    friendId: number // friendId 타입 변경
 ) => {
     const response = await api.post<ApiResponse<any>>(`/chatrooms/create/direct`, null, { params: { userId, friendId } });
     return {

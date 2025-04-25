@@ -20,7 +20,7 @@ const fadeIn = keyframes`
 
 // Friend 인터페이스 정의
 interface Friend {
-    id: string;
+    id: number; // string -> number로 변경
     username: string;
     profileImageUrl?: string; // 프로필 이미지 URL (옵션)
 }
@@ -423,7 +423,7 @@ const SocialTab: React.FC = () => {
     }, [user?.id, fetchSocialData, fetchRecommendations]);
 
     // 친구 요청 보내기
-    const handleSendFriendRequest = async (targetUserId: string) => {
+    const handleSendFriendRequest = async (targetUserId: number) => {
         if (!user) return;
         try {
             await sendFriendRequest(user.id, targetUserId);
@@ -442,7 +442,7 @@ const SocialTab: React.FC = () => {
     };
 
     // 친구 요청 수락
-    const handleAcceptRequest = async (requesterId: string) => {
+    const handleAcceptRequest = async (requesterId: number) => {
         if (!user) return;
         try {
             await acceptFriendRequest(user.id, requesterId);
@@ -460,7 +460,7 @@ const SocialTab: React.FC = () => {
     };
 
     // 친구 요청 거절
-    const handleRejectRequest = async (requesterId: string) => {
+    const handleRejectRequest = async (requesterId: number) => {
         if (!user) return;
         try {
             await rejectFriendRequest(user.id, requesterId);

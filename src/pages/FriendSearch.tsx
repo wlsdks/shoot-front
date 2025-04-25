@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 
 // Friend 인터페이스 정의
 interface Friend {
-    id: string;
+    id: number;
     username: string;
 }
 
