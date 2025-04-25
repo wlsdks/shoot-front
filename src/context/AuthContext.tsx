@@ -55,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const sseSource = useRef<EventSourcePolyfill | null>(null);
     const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
+    const connectionAttemptCount = useRef<number>(0); // 연결 시도 횟수 추적
 
     // 현재 사용자 정보를 가져오는 함수 - auth 서비스의 fetchUserInfo 활용
     const fetchCurrentUser = useCallback(async (): Promise<User | undefined> => {
@@ -93,6 +94,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // SSE 연결 재설정 함수
     const establishSseConnection = useCallback((u: User, token: string) => {
         console.log("AuthProvider: Establishing SSE connection...");
+
+        // 이미 연결이 있으면 먼저 닫기
+        if (sseSource.current) {
+            console.log("AuthProvider: Closing existing SSE connection before creating a new one");
+            sseSource.current.close();
+            sseSource.current = null;
+        }
+
+        // 연결 시도 횟수 증가
+        connectionAttemptCount.current += 1;
+        const currentAttempt = connectionAttemptCount.current;
+
         try {
             // 새 연결 생성
             sseSource.current = new EventSourcePolyfill(
@@ -105,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             // 디버깅용 이벤트 핸들러
             sseSource.current.onopen = () => {
-                console.log("AuthProvider: SSE connection opened");
+                console.log(`AuthProvider: SSE connection opened (attempt #${currentAttempt})`);
             };
 
             // 기본 message 이벤트: 로그 추가
@@ -147,24 +160,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 listenersForEvent.forEach(callback => callback(msgEvent));
             });
 
-            // onerror: 연결 오류 발생 시 재연결 시도
+            // onerror: 연결 오류 발생 시 재연결 시도 (더 효율적인 방식으로 수정)
             (sseSource.current as EventSource).onerror = function(this: EventSource, err: Event) {
-                console.error("AuthProvider: SSE connection error:", err);
-                if (sseSource.current) {
+                console.error(`AuthProvider: SSE connection error (attempt #${currentAttempt}):`, err);
+                
+                // 현재 시도가 가장 최근 시도인 경우에만 재연결 시도
+                if (currentAttempt === connectionAttemptCount.current && sseSource.current) {
                     sseSource.current.close();
                     sseSource.current = null;
+                    
+                    // 지수 백오프로 재연결 (5초 후)
+                    setTimeout(() => {
+                        if (u.id && token && currentAttempt === connectionAttemptCount.current) {
+                            console.log(`AuthProvider: Attempting to reconnect SSE (attempt #${currentAttempt + 1})...`);
+                            establishSseConnection(u, token);
+                        }
+                    }, 5000);
                 }
-                
-                // 지수 백오프로 재연결 (5초 후)
-                setTimeout(() => {
-                    if (u.id && token) {
-                        console.log("AuthProvider: Attempting to reconnect SSE...");
-                        establishSseConnection(u, token);
-                    }
-                }, 5000);
             };
         } catch (error) {
-            console.error("AuthProvider: Failed to establish SSE connection:", error);
+            console.error(`AuthProvider: Failed to establish SSE connection (attempt #${currentAttempt}):`, error);
         }
     }, []);
 
@@ -174,6 +189,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const token = localStorage.getItem("accessToken");
             if (token) {
                 console.log("AuthProvider: Forcing SSE reconnection...");
+                // 연결 시도 횟수 리셋
+                connectionAttemptCount.current = 0;
+                
                 if (sseSource.current) {
                     sseSource.current.close();
                     sseSource.current = null;
@@ -182,6 +200,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
         }
     }, [user, establishSseConnection]);
+
+    // 컴포넌트 언마운트 시 SSE 연결 정리
+    useEffect(() => {
+        return () => {
+            console.log("AuthProvider: Unmounting, cleaning up SSE connection");
+            if (sseSource.current) {
+                sseSource.current.close();
+                sseSource.current = null;
+            }
+            listeners.current.clear();
+        };
+    }, []);
 
     // login 함수 (token과 refreshToken과 함께 로그인)
     const login = useCallback((u: User, token: string, refreshToken?: string) => {
