@@ -1133,9 +1133,9 @@ const ChatRoom: React.FC = () => {
                             return {
                                 ...prev,
                                 [statusUpdate.tempId]: {
-                                    status: statusUpdate.status,
+                                    // 여기서 상태도 대문자 확인
+                                    status: statusUpdate.status.toUpperCase(), // 대문자로 표준화
                                     persistedId: statusUpdate.persistedId,
-                                    // 기존 createdAt를 우선 사용, 없으면 상태 업데이트의 createdAt 사용
                                     createdAt: existingStatus.createdAt || statusUpdate.createdAt
                                 }
                             };
@@ -1146,9 +1146,9 @@ const ChatRoom: React.FC = () => {
                                 if (msg.tempId === statusUpdate.tempId) {
                                     return {
                                         ...msg,
-                                        status: statusUpdate.status,
+                                        // 여기서도 상태 대문자 확인
+                                        status: statusUpdate.status.toUpperCase(), // 대문자로 표준화
                                         id: statusUpdate.persistedId || msg.id,
-                                        // createdAt 변경하지 않음
                                     };
                                 }
                                 return msg;
@@ -1575,14 +1575,14 @@ const ChatRoom: React.FC = () => {
                 isDeleted: false,
             },
             createdAt: new Date().toISOString(),
-            status: "sending", // 초기 상태는 sending
-            readBy: { [user.id.toString()]: true } // Ensure user.id is converted to string as a key
+            status: "SENDING", // 대문자로 변경
+            readBy: { [user.id.toString()]: true }
         };
 
         // 상태 추적을 위해 messageStatuses에 추가
         setMessageStatuses((prev) => ({
             ...prev,
-            [tempId]: { status: "sending", persistedId: null, createdAt: chatMessage.createdAt }
+            [tempId]: { status: "SENDING", persistedId: null, createdAt: chatMessage.createdAt }
         }));
 
         // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
@@ -1815,7 +1815,7 @@ const ChatRoom: React.FC = () => {
                 <ChatArea ref={chatAreaRef}>
                     {messages.map((msg, idx) => {
                         // 내 메시지인가?
-                        const isOwn = msg.senderId === user?.id;
+                        const isOwn = String(msg.senderId) === String(user?.id);
 
                         // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                         const currentStatus = msg.tempId
@@ -1838,7 +1838,7 @@ const ChatRoom: React.FC = () => {
                         // 상태표시
                         const statusIndicator = isOwn && currentStatus && !isPersisted ? (
                             <div className="status-indicator">
-                                {currentStatus === "sending" && "전송 중..."}
+                                {currentStatus === "SENDING" && "전송 중..."}
                                 {currentStatus === "SENT_TO_KAFKA" && "서버로 전송됨"}
                                 {currentStatus === "FAILED" && "전송 실패"}
                             </div>
