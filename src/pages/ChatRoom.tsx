@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, FC } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../services/message";
@@ -674,25 +674,6 @@ const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[]
     });
 };
 
-// 메시지 상태 관리 유틸리티 함수 추가
-const updateMessageStatus = (
-    prevStatuses: { [key: string]: MessageStatusData },
-    tempId: string,
-    status: MessageStatus,
-    messageId?: string,
-    createdAt?: string
-): { [key: string]: MessageStatusData } => {
-    return {
-        ...prevStatuses,
-        [tempId]: {
-            status,
-            messageId,
-            persistedId: messageId || null,
-            createdAt: createdAt || new Date().toISOString()
-        }
-    };
-};
-
 const ChatRoom = ({ socket }: ChatRoomProps) => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
@@ -713,7 +694,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<ChatMessageItem[]>([]);
     const domReadyRef = useRef(false);
-    const [isDomReady, setIsDomReady] = useState(false);
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const [messageStatuses, setMessageStatuses] = useState<{ [key: string]: MessageStatusData }>({});
@@ -737,9 +717,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     // 메시지 상태 추적
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-
-    // 웹소켓 구독 관리를 위한 상태 추가
-    const [subscriptions, setSubscriptions] = useState<{ [key: string]: any }>({});
 
     // 스크롤 하단 이동
     const scrollToBottom = useCallback(() => {
@@ -840,7 +817,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     // onConnect 콜백에서 항상 최신의 DOM 준비 상태를 확인할 수 있습니다.
     useEffect(() => {
         domReadyRef.current = true;
-        setIsDomReady(true); // 컴포넌트가 마운트되면 DOM이 준비되었다고 가정
     }, []);
 
     // messages 상태 업데이트 후 스크롤 보정을 위한 useEffect
@@ -917,39 +893,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             // console.log("DOM 요소 개수:", chatAreaRef.current.querySelectorAll('[id^="msg-"]').length);
         }
     }, [messages, messageDirection, initialLoadComplete]);
-
-    // 메시지 ID 관리를 위한 유틸리티 함수 추가
-    const isMessageDuplicate = (prevMessages: ChatMessageItem[], newMsg: ChatMessageItem): boolean => {
-        // 디버깅을 위한 로그
-        console.log("중복 체크:", {
-            newMsg: { id: newMsg.id, tempId: newMsg.tempId, text: newMsg.content.text },
-            existingIds: prevMessages.map(m => ({ id: m.id, tempId: m.tempId, text: m.content.text }))
-        });
-
-        // 1. tempId로 중복 체크
-        if (newMsg.tempId && prevMessages.some(m => m.tempId === newMsg.tempId)) {
-            console.log("tempId 중복 발견:", newMsg.tempId);
-            return true;
-        }
-        
-        // 2. id로 중복 체크
-        if (prevMessages.some(m => m.id === newMsg.id)) {
-            console.log("id 중복 발견:", newMsg.id);
-            return true;
-        }
-        
-        // 3. 내용과 시간으로 중복 체크 (1초 이내)
-        const isContentDuplicate = prevMessages.some(m => 
-            m.content.text === newMsg.content.text && 
-            Math.abs(new Date(m.createdAt || "").getTime() - new Date(newMsg.createdAt || "").getTime()) < 1000
-        );
-        
-        if (isContentDuplicate) {
-            console.log("내용 중복 발견:", newMsg.content.text);
-        }
-        
-        return isContentDuplicate;
-    };
 
     // 메시지 업데이트 최적화
     const updateMessages = useCallback((newMsg: ChatMessageItem) => {
@@ -1321,7 +1264,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     client.subscribe(`/topic/pin/${roomId}`, (message: IMessage) => {
                         console.log("메시지 핀 상태 변경:", message.body);
                         try {
-                            const pinUpdate = JSON.parse(message.body);
                             // 고정된 메시지 목록 새로고침
                             fetchPinnedMessages();
                         } catch (error) {
@@ -1931,37 +1873,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             socket.off('messageStatusUpdate', handleMessageStatusUpdate);
         };
     }, [socket]);
-
-    const getMessageStatusString = (status: MessageStatus): string => {
-        switch (status) {
-            case MessageStatus.SENDING:
-                return '전송 중';
-            case MessageStatus.PROCESSING:
-                return '처리 중';
-            case MessageStatus.SENT_TO_KAFKA:
-                return '서버로 전송됨';
-            case MessageStatus.SAVED:
-                return '저장됨';
-            case MessageStatus.FAILED:
-                return '오류';
-            default:
-                return '';
-        }
-    };
-
-    // 메시지 상태 업데이트 함수 수정
-    const updateMessageStatus = (tempId: string, status: MessageStatus, messageId?: string): void => {
-        const newStatus: MessageStatusData = {
-            status,
-            messageId,
-            persistedId: null,
-            createdAt: new Date().toISOString()
-        };
-        setMessageStatuses(prev => ({
-            ...prev,
-            [tempId]: newStatus
-        }));
-    };
 
     // 상태 표시 로직 수정
     const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
