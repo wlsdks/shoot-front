@@ -665,6 +665,34 @@ interface ChatRoomProps {
     socket?: any; // socket prop은 실제로 사용되지 않음
 }
 
+// 메시지 정렬 유틸리티 함수 추가
+const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[] => {
+    return [...messages].sort((a, b) => {
+        const timeA = new Date(a.createdAt || "").getTime();
+        const timeB = new Date(b.createdAt || "").getTime();
+        return timeA - timeB;
+    });
+};
+
+// 메시지 상태 관리 유틸리티 함수 추가
+const updateMessageStatus = (
+    prevStatuses: { [key: string]: MessageStatusData },
+    tempId: string,
+    status: MessageStatus,
+    messageId?: string,
+    createdAt?: string
+): { [key: string]: MessageStatusData } => {
+    return {
+        ...prevStatuses,
+        [tempId]: {
+            status,
+            messageId,
+            persistedId: messageId || null,
+            createdAt: createdAt || new Date().toISOString()
+        }
+    };
+};
+
 const ChatRoom = ({ socket }: ChatRoomProps) => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
@@ -709,6 +737,9 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     // 메시지 상태 추적
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+    // 웹소켓 구독 관리를 위한 상태 추가
+    const [subscriptions, setSubscriptions] = useState<{ [key: string]: any }>({});
 
     // 스크롤 하단 이동
     const scrollToBottom = useCallback(() => {
@@ -887,26 +918,76 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         }
     }, [messages, messageDirection, initialLoadComplete]);
 
+    // 메시지 ID 관리를 위한 유틸리티 함수 추가
+    const isMessageDuplicate = (prevMessages: ChatMessageItem[], newMsg: ChatMessageItem): boolean => {
+        // 디버깅을 위한 로그
+        console.log("중복 체크:", {
+            newMsg: { id: newMsg.id, tempId: newMsg.tempId, text: newMsg.content.text },
+            existingIds: prevMessages.map(m => ({ id: m.id, tempId: m.tempId, text: m.content.text }))
+        });
+
+        // 1. tempId로 중복 체크
+        if (newMsg.tempId && prevMessages.some(m => m.tempId === newMsg.tempId)) {
+            console.log("tempId 중복 발견:", newMsg.tempId);
+            return true;
+        }
+        
+        // 2. id로 중복 체크
+        if (prevMessages.some(m => m.id === newMsg.id)) {
+            console.log("id 중복 발견:", newMsg.id);
+            return true;
+        }
+        
+        // 3. 내용과 시간으로 중복 체크 (1초 이내)
+        const isContentDuplicate = prevMessages.some(m => 
+            m.content.text === newMsg.content.text && 
+            Math.abs(new Date(m.createdAt || "").getTime() - new Date(newMsg.createdAt || "").getTime()) < 1000
+        );
+        
+        if (isContentDuplicate) {
+            console.log("내용 중복 발견:", newMsg.content.text);
+        }
+        
+        return isContentDuplicate;
+    };
+
     // 메시지 업데이트 최적화
     const updateMessages = useCallback((newMsg: ChatMessageItem) => {
         setMessages(prev => {
-            // 불변성을 유지하면서 명확한 업데이트 로직 구현
-            const msgExists = prev.some(m => m.id === newMsg.id);
-            if (msgExists) {
-                return prev.map(m => m.id === newMsg.id ? {...newMsg, readBy: newMsg.readBy || {}} : m);
-            } else {
-                const updatedMessages = [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
-                // 상태 업데이트 후 DOM 업데이트 시점에 스크롤 조정
-                setTimeout(() => {
-                    if (chatAreaRef.current) {
-                        const isNearBottom = chatAreaRef.current.scrollHeight - chatAreaRef.current.scrollTop - chatAreaRef.current.clientHeight < 150;
-                        if (isNearBottom) {
-                            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                        }
-                    }
-                }, 100); // URL 미리보기가 로드될 시간을 고려하여 약간의 지연 추가
-                return updatedMessages;
+            // 메시지 맵 생성 (id와 tempId 모두를 키로 사용)
+            const messageMap = new Map<string, ChatMessageItem>();
+            
+            // 기존 메시지를 맵에 추가
+            prev.forEach(msg => {
+                if (msg.id) messageMap.set(msg.id, msg);
+                if (msg.tempId) messageMap.set(msg.tempId, msg);
+            });
+            
+            // 새 메시지가 이미 존재하는지 확인
+            const existingMsg = newMsg.id ? messageMap.get(newMsg.id) : null;
+            const existingTempMsg = newMsg.tempId ? messageMap.get(newMsg.tempId) : null;
+            
+            // 이미 존재하는 메시지면 업데이트하지 않음
+            if (existingMsg || existingTempMsg) {
+                console.log("중복 메시지 감지:", newMsg);
+                return prev;
             }
+            
+            // 새 메시지 추가
+            console.log("새 메시지 추가:", newMsg);
+            const updatedMessages = [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
+            
+            // 스크롤 조정
+            setTimeout(() => {
+                if (chatAreaRef.current) {
+                    const isNearBottom = chatAreaRef.current.scrollHeight - chatAreaRef.current.scrollTop - chatAreaRef.current.clientHeight < 150;
+                    if (isNearBottom) {
+                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                    }
+                }
+            }, 100);
+            
+            return updatedMessages;
         });
     }, []);
 
@@ -1103,25 +1184,35 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
                     // 메시지 수신 구독 (실시간 신규 메시지 처리)
                     client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
-                        // console.log("수신된 웹소켓 메시지:", message.body);
-                        const msg: ChatMessageItem = JSON.parse(message.body);
-                        // console.log("파싱된 메시지:", msg);
-                        
-                        // 새로 만든 updateMessages 함수 사용
-                        updateMessages(msg);
-
-                        // 새 메시지 도착 시 내가 읽으면 실시간 처리
-                        const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
-                        if (
-                            document.visibilityState === "visible" &&
-                            msg.readBy && !msg.readBy[user!.id] &&
-                            msg.senderId !== user!.id &&
-                            persistedId 
-                        ) {
-                            client.publish({
-                                destination: "/app/read",
-                                body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
+                        try {
+                            const msg: ChatMessageItem = JSON.parse(message.body);
+                            console.log("웹소켓 메시지 수신:", {
+                                id: msg.id,
+                                tempId: msg.tempId,
+                                text: msg.content.text,
+                                source: "websocket"
                             });
+                            
+                            // 중복 체크 후 업데이트
+                            updateMessages(msg);
+                            
+                            // 읽음 처리
+                            if (
+                                document.visibilityState === "visible" &&
+                                msg.readBy && !msg.readBy[user!.id] &&
+                                msg.senderId !== user!.id &&
+                                msg.tempId && messageStatuses[msg.tempId]?.persistedId
+                            ) {
+                                client.publish({
+                                    destination: "/app/read",
+                                    body: JSON.stringify({ 
+                                        messageId: messageStatuses[msg.tempId].persistedId, 
+                                        userId: user!.id 
+                                    }),
+                                });
+                            }
+                        } catch (error) {
+                            console.error("메시지 처리 중 오류:", error);
                         }
                     });
 
@@ -1246,7 +1337,11 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                             messages: Array<any>;
                         };
                         
-                        // console.log("동기화 응답 수신:", syncResponse.direction, syncResponse.messages.length);
+                        console.log("동기화 응답 수신:", {
+                            direction: syncResponse.direction,
+                            messageCount: syncResponse.messages.length,
+                            source: "sync"
+                        });
                         
                         if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
                             // 처리 전 중요한 정보 저장
@@ -1285,11 +1380,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
                                 
                                 const mergedMessages = Array.from(messageMap.values());
-                                mergedMessages.sort((a, b) =>
-                                    new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                                );
-                                
-                                return mergedMessages;
+                                return sortMessagesByTimestamp(mergedMessages);
                             });
                             
                             // 메시지 업데이트 후 DOM 업데이트 타이밍에 맞춰 스크롤 위치 조정
@@ -1356,11 +1447,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
                                 
                                 const mergedMessages = Array.from(messageMap.values());
-                                mergedMessages.sort((a, b) =>
-                                    new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                                );
-                                
-                                return mergedMessages;
+                                return sortMessagesByTimestamp(mergedMessages);
                             });
                             
                             if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
@@ -1792,29 +1879,49 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         if (!socket) return;
 
         const handleMessageStatusUpdate = (updates: MessageStatusUpdate[]): void => {
-            setMessageStatuses(prev => {
-                const newStatuses = { ...prev };
+            setMessageStatuses(prevStatuses => {
+                const newStatuses = { ...prevStatuses };
                 updates.forEach(update => {
                     if (update.tempId) {
                         newStatuses[update.tempId] = {
                             status: update.status,
                             messageId: update.messageId,
-                            persistedId: null,
-                            createdAt: new Date().toISOString()
+                            persistedId: update.messageId || null,
+                            createdAt: update.timestamp ? new Date(update.timestamp).toISOString() : new Date().toISOString()
                         };
-                        
-                        if (update.status === MessageStatus.SAVED) {
-                            setMessages(prevMessages => 
-                                prevMessages.map(msg => 
-                                    msg.tempId === update.tempId
-                                        ? { ...msg, id: update.messageId, status: MessageStatus.SAVED }
-                                        : msg
-                                )
-                            );
-                        }
                     }
                 });
                 return newStatuses;
+            });
+
+            // SAVED 상태인 메시지 업데이트
+            updates.forEach(update => {
+                if (update.status === MessageStatus.SAVED && update.messageId) {
+                    setMessages(prevMessages => {
+                        // 메시지 맵 생성
+                        const messageMap = new Map<string, ChatMessageItem>();
+                        prevMessages.forEach(msg => {
+                            if (msg.id) messageMap.set(msg.id, msg);
+                            if (msg.tempId) messageMap.set(msg.tempId, msg);
+                        });
+                        
+                        // 이미 저장된 메시지인지 확인
+                        if (messageMap.has(update.messageId)) {
+                            return prevMessages;
+                        }
+                        
+                        // tempId로 메시지 찾아서 업데이트
+                        if (update.tempId && messageMap.has(update.tempId)) {
+                            return prevMessages.map(msg => 
+                                msg.tempId === update.tempId
+                                    ? { ...msg, id: update.messageId, status: MessageStatus.SAVED }
+                                    : msg
+                            );
+                        }
+                        
+                        return prevMessages;
+                    });
+                }
             });
         };
 
