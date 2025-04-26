@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../services/message";
@@ -8,12 +8,20 @@ import { Client, IMessage } from "@stomp/stompjs";
 import styled, { keyframes } from "styled-components";
 import { throttle } from "lodash";
 
+enum MessageStatus {
+    SENDING = 'SENDING',
+    PROCESSING = 'PROCESSING',
+    SENT_TO_KAFKA = 'SENT_TO_KAFKA',
+    SAVED = 'SAVED',
+    FAILED = 'FAILED'
+}
+
 // 채팅 메시지 인터페이스
 export interface ChatMessageItem {
     id: string;
     tempId?: string;
-    roomId: number; // string -> number로 변경
-    senderId: number; // string -> number로 변경
+    roomId: number;
+    senderId: number;
     content: {
         text: string;
         type: string;
@@ -29,14 +37,19 @@ export interface ChatMessageItem {
         }
     };
     createdAt?: string;
-    status: string;
+    status: MessageStatus;
     readBy: { [userId: string]: boolean };
+    metadata: {
+        tempId: string,
+        needsUrlPreview: boolean,
+        previewUrl: null
+    }
 }
 
 // 타이핑 인디케이터 메시지 인터페이스
 interface TypingIndicatorMessage {
-    roomId: number; // string -> number로 변경
-    userId: number; // string -> number로 변경
+    roomId: number;
+    userId: number;
     username: string;
     isTyping: boolean;
 }
@@ -634,7 +647,25 @@ const ChevronDownIcon = () => (
 );
 
 // ============= ChatRoom 컴포넌트 =============
-const ChatRoom: React.FC = () => {
+interface MessageStatusData {
+    status: MessageStatus;
+    messageId?: string;
+    persistedId: string | null;
+    createdAt: string;
+}
+
+interface MessageStatusUpdate {
+    tempId: string;
+    messageId: string;
+    status: MessageStatus;
+    timestamp?: number;
+}
+
+interface ChatRoomProps {
+    socket?: any; // socket prop은 실제로 사용되지 않음
+}
+
+const ChatRoom = ({ socket }: ChatRoomProps) => {
     const { roomId } = useParams<{ roomId: string }>();
     const { user } = useAuth();
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
@@ -657,6 +688,7 @@ const ChatRoom: React.FC = () => {
     const [isDomReady, setIsDomReady] = useState(false);
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
+    const [messageStatuses, setMessageStatuses] = useState<{ [key: string]: MessageStatusData }>({});
 
     // 1. 더 단순하게 이전 위치 유지를 위한 참조 추가
     const lastScrollPosRef = useRef(0);
@@ -668,18 +700,14 @@ const ChatRoom: React.FC = () => {
     // 1. 메시지 방향을 추적하는 상태 추가 (스크롤 방향 제어용)
     const [messageDirection, setMessageDirection] = useState<"INITIAL" | "BEFORE" | "AFTER" | "new">("INITIAL");
 
-    // 메시지 상태를 저장하기 위한 타입 정의
-    type MessageStatus = {
-        status: string;
-        persistedId: string | null;
-        createdAt?: string | null; // createdAt 속성 추가
-    };
+    // 메시지 상태를 저장하기 위한 타입 정의 제거 (중복 정의)
+    // type MessageStatus = {
+    //     status: string;
+    //     persistedId: string | null;
+    //     createdAt?: string | null;
+    // };
 
     // 메시지 상태 추적
-    const [messageStatuses, setMessageStatuses] = useState<{
-        [tempId: string]: MessageStatus
-    }>({});
-    
     const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
     // 스크롤 하단 이동
@@ -691,7 +719,7 @@ const ChatRoom: React.FC = () => {
     const fetchPinnedMessages = useCallback(async () => {
         if (!roomId) return;
         try {
-            const response = await getPinnedMessages(Number(roomId)); // string -> number 변환
+            const response = await getPinnedMessages(Number(roomId));
             // 응답 구조 확인 및 변환
             console.log("핀 메시지 응답:", response); // 디버깅용 로그 추가
             
@@ -700,8 +728,8 @@ const ChatRoom: React.FC = () => {
                 const formattedPinnedMsgs = response.data.pinnedMessages.map((pinMsg: {
                     messageId: string;
                     content: string;
-                    senderId: number; // string -> number 변경
-                    pinnedBy: number; // string -> number 변경
+                    senderId: string;
+                    pinnedBy: string;
                     pinnedAt: string;
                     createdAt: string;
                 }) => ({
@@ -925,7 +953,7 @@ const ChatRoom: React.FC = () => {
             return;
         }
         lastReadTimeRef.current = now;
-        markAllMessagesAsRead(Number(roomId), user.id, sessionId) // roomId를 number로 변환
+        markAllMessagesAsRead(Number(roomId), user.id, sessionId)
             .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
         // 이제 백엔드의 동기화(sync) 응답을 통해 누락 메시지가 자동 반영됨
     }, [roomId, user, sessionId]);
@@ -1012,7 +1040,7 @@ const ChatRoom: React.FC = () => {
                             client.publish({
                                 destination: "/app/sync",
                                 body: JSON.stringify({
-                                    roomId: Number(roomId), // string -> number로 변환
+                                    roomId,
                                     userId: user.id,
                                     lastMessageId,
                                     timestamp: new Date().toISOString(),
@@ -1040,7 +1068,7 @@ const ChatRoom: React.FC = () => {
                                     client.publish({
                                         destination: "/app/sync",
                                         body: JSON.stringify({
-                                            roomId: Number(roomId), // string -> number로 변환
+                                            roomId,
                                             userId: user.id,
                                             lastMessageId,
                                             timestamp: new Date().toISOString(),
@@ -1056,11 +1084,7 @@ const ChatRoom: React.FC = () => {
                     if (stompClient && stompClient.connected) {
                         stompClient.publish({
                             destination: "/app/active",
-                            body: JSON.stringify({ 
-                                userId: user.id.toString(), 
-                                roomId: Number(roomId), // string -> number로 변환
-                                active: true 
-                            })
+                            body: JSON.stringify({ userId: user.id, roomId, active: true })
                         });
                     } else {
                         console.warn("연결이 되지 않았으므로 publish 호출을 스킵합니다.");
@@ -1072,11 +1096,7 @@ const ChatRoom: React.FC = () => {
                         if (client.connected) {
                             client.publish({
                                 destination: "/app/active",
-                                body: JSON.stringify({ 
-                                    userId: user.id.toString(), 
-                                    roomId: Number(roomId), // string -> number로 변환
-                                    active: true 
-                                })
+                                body: JSON.stringify({ userId: user.id, roomId, active: true })
                             });
                         }
                     }, 120000); // 2분
@@ -1094,13 +1114,13 @@ const ChatRoom: React.FC = () => {
                         const persistedId = msg.tempId ? messageStatuses[msg.tempId]?.persistedId : null;
                         if (
                             document.visibilityState === "visible" &&
-                            msg.readBy && !msg.readBy[user.id.toString()] &&
-                            msg.senderId !== user.id &&
+                            msg.readBy && !msg.readBy[user!.id] &&
+                            msg.senderId !== user!.id &&
                             persistedId 
                         ) {
                             client.publish({
                                 destination: "/app/read",
-                                body: JSON.stringify({ messageId: persistedId, userId: user.id }),
+                                body: JSON.stringify({ messageId: persistedId, userId: user!.id }),
                             });
                         }
                     });
@@ -1122,49 +1142,66 @@ const ChatRoom: React.FC = () => {
 
                     // 메시지 상태 채널 구독
                     client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
-                        // console.log("상태 업데이트 수신:", JSON.parse(message.body));
                         const statusUpdate = JSON.parse(message.body);
+                        const update = Array.isArray(statusUpdate) 
+                            ? statusUpdate[statusUpdate.length - 1] 
+                            : statusUpdate;
+                        
+                        if (!update || !update.tempId) return;
 
                         // 1. messageStatuses 업데이트
                         setMessageStatuses((prev) => {
-                            // 기존에 저장된 메시지 상태 찾기
-                            const existingStatus = prev[statusUpdate.tempId] || {};
+                            const existingStatus = prev[update.tempId] || {};
+                            const newStatus = {
+                                status: update.status as MessageStatus,
+                                persistedId: update.persistedId || existingStatus.persistedId,
+                                createdAt: update.createdAt || existingStatus.createdAt
+                            };
                             
                             return {
                                 ...prev,
-                                [statusUpdate.tempId]: {
-                                    // 여기서 상태도 대문자 확인
-                                    status: statusUpdate.status.toUpperCase(), // 대문자로 표준화
-                                    persistedId: statusUpdate.persistedId,
-                                    createdAt: existingStatus.createdAt || statusUpdate.createdAt
-                                }
+                                [update.tempId]: newStatus
                             };
                         });
+
                         // 2. 메시지 목록 업데이트
-                        setMessages((prev) =>
-                            prev.map((msg) => {
-                                if (msg.tempId === statusUpdate.tempId) {
-                                    return {
-                                        ...msg,
-                                        // 여기서도 상태 대문자 확인
-                                        status: statusUpdate.status.toUpperCase(), // 대문자로 표준화
-                                        id: statusUpdate.persistedId || msg.id,
-                                    };
-                                }
-                                return msg;
-                            })
-                        );
-                        if (statusUpdate.status === "SAVED" && statusUpdate.persistedId) {
-                            const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
-                            if (currentMsg && !currentMsg.readBy[user.id.toString()] && currentMsg.senderId !== user.id) {
+                        setMessages((prev) => {
+                            const messageMap = new Map<string, ChatMessageItem>();
+                            
+                            prev.forEach(msg => {
+                                if (msg.tempId === update.tempId) return;
+                                messageMap.set(msg.id, msg);
+                            });
+
+                            const updatedMsg = prev.find(msg => msg.tempId === update.tempId);
+                            if (updatedMsg) {
+                                const newMsg = {
+                                    ...updatedMsg,
+                                    status: update.status as MessageStatus,
+                                    id: update.persistedId || updatedMsg.id
+                                };
+                                messageMap.set(newMsg.id, newMsg);
+                            }
+
+                            return Array.from(messageMap.values()).sort((a, b) => 
+                                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                            );
+                        });
+
+                        // 3. SAVED 상태일 때 읽음 처리
+                        if (update.status === MessageStatus.SAVED && update.persistedId) {
+                            const currentMsg = messagesRef.current.find(m => m.tempId === update.tempId);
+                            if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
                                 client.publish({
                                     destination: "/app/read",
-                                    body: JSON.stringify({ messageId: statusUpdate.persistedId, userId: user.id }),
+                                    body: JSON.stringify({ messageId: update.persistedId, userId: user!.id }),
                                 });
                             }
                         }
-                        if (statusUpdate.status === 'failed') {
-                            setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
+
+                        // 4. 실패 상태 처리
+                        if (update.status === MessageStatus.FAILED) {
+                            setConnectionError(`메시지 저장 실패: ${update.errorMessage || '알 수 없는 오류'}`);
                             setTimeout(() => setConnectionError(null), 3000);
                         }
                     });
@@ -1204,7 +1241,7 @@ const ChatRoom: React.FC = () => {
                     // 동기화 구독
                     client.subscribe(`/user/queue/sync`, (message: IMessage) => {
                         const syncResponse = JSON.parse(message.body) as {
-                            roomId: number; // string -> number로 변경
+                            roomId: string;
                             direction?: string;
                             messages: Array<any>;
                         };
@@ -1223,7 +1260,7 @@ const ChatRoom: React.FC = () => {
                                 const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
                                     id: msg.id,
                                     tempId: msg.tempId,
-                                    roomId: syncResponse.roomId,
+                                    roomId: Number(syncResponse.roomId),
                                     senderId: msg.senderId,
                                     content: msg.content || { 
                                         text: '메시지를 불러올 수 없습니다', 
@@ -1234,7 +1271,12 @@ const ChatRoom: React.FC = () => {
                                     },
                                     createdAt: msg.timestamp,
                                     status: msg.status || "SAVED",
-                                    readBy: msg.readBy || {}
+                                    readBy: msg.readBy || {},
+                                    metadata: {
+                                        tempId: msg.tempId,
+                                        needsUrlPreview: true,
+                                        previewUrl: null
+                                    }
                                 }));
                                 
                                 // 중복 제거를 위한 Map 사용
@@ -1290,7 +1332,7 @@ const ChatRoom: React.FC = () => {
                                 const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
                                     id: msg.id,
                                     tempId: msg.tempId,
-                                    roomId: syncResponse.roomId,
+                                    roomId: Number(syncResponse.roomId),
                                     senderId: msg.senderId,
                                     content: msg.content || { 
                                         text: '메시지를 불러올 수 없습니다', 
@@ -1301,7 +1343,12 @@ const ChatRoom: React.FC = () => {
                                     },
                                     createdAt: msg.timestamp,
                                     status: msg.status || "SAVED",
-                                    readBy: msg.readBy || {}
+                                    readBy: msg.readBy || {},
+                                    metadata: {
+                                        tempId: msg.tempId,
+                                        needsUrlPreview: true,
+                                        previewUrl: null
+                                    }
                                 }));
                                 
                                 const messageMap = new Map<string, ChatMessageItem>();
@@ -1348,11 +1395,7 @@ const ChatRoom: React.FC = () => {
                 if (client && client.connected) {
                     client.publish({
                         destination: "/app/active",
-                        body: JSON.stringify({ 
-                            userId: user.id.toString(), 
-                            roomId: Number(roomId), // string -> number로 변환
-                            active: false 
-                        })
+                        body: JSON.stringify({ userId: user.id, roomId, active: false })
                     });
                     client.deactivate();
                 }
@@ -1363,11 +1406,7 @@ const ChatRoom: React.FC = () => {
                 if (client && client.connected) {
                     client.publish({
                         destination: "/app/active",
-                        body: JSON.stringify({ 
-                            userId: user.id.toString(), 
-                            roomId: Number(roomId), // string -> number로 변환
-                            active: false 
-                        })
+                        body: JSON.stringify({ userId: user.id, roomId, active: false })
                     });
                     client.deactivate();
                 }
@@ -1399,7 +1438,6 @@ const ChatRoom: React.FC = () => {
         }
     }
     
-     
     return messageElements.length > 0 
         ? (messageElements[0] as HTMLElement).id.replace('msg-', '')
         : null;
@@ -1563,9 +1601,9 @@ const ChatRoom: React.FC = () => {
 
         // 메시지 세팅
         const chatMessage: ChatMessageItem = {
-            id: tempId, // 임시 ID 사용
-            tempId: tempId, // tempId 속성 추가
-            roomId: Number(roomId), // Convert string to number
+            id: tempId,
+            tempId: tempId,
+            roomId: Number(roomId),
             senderId: user.id,
             content: {
                 text: input,
@@ -1575,29 +1613,34 @@ const ChatRoom: React.FC = () => {
                 isDeleted: false,
             },
             createdAt: new Date().toISOString(),
-            status: "SENDING", // 대문자로 변경
-            readBy: { [user.id.toString()]: true }
+            status: MessageStatus.SENDING,
+            readBy: { [user.id.toString()]: true },
+            metadata: {
+                tempId: tempId,
+                needsUrlPreview: true,
+                previewUrl: null
+            }
         };
-
         // 상태 추적을 위해 messageStatuses에 추가
         setMessageStatuses((prev) => ({
             ...prev,
-            [tempId]: { status: "SENDING", persistedId: null, createdAt: chatMessage.createdAt }
+            [tempId]: { 
+                status: MessageStatus.SENDING, 
+                persistedId: null,
+                createdAt: new Date().toISOString()
+            }
         }));
-
         // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
         setMessages((prev) => {
             const updatedMessages = [...prev, chatMessage];
             setTimeout(() => scrollToBottom(), 0);
             return updatedMessages;
         });
-
         // 실제 전송
         stompClient.publish({
             destination: "/app/chat",
             body: JSON.stringify(chatMessage),
         });
-
         setInput("");
         sendTypingIndicator(false);
     };
@@ -1710,12 +1753,7 @@ const ChatRoom: React.FC = () => {
     const handleModalSubmit = async () => {
         if (contextMenu.message) {
             try {
-                // Convert targetRoomId to number if the API expects a number
-                await forwardMessage(
-                    contextMenu.message.id, 
-                    Number(targetRoomId), // Convert string to number
-                    user!.id
-                );
+                await forwardMessage(contextMenu.message.id, Number(targetRoomId), user!.id);
                 alert("메시지가 전달되었습니다.");
             } catch (error) {
                 console.error("Forward error", error);
@@ -1747,6 +1785,92 @@ const ChatRoom: React.FC = () => {
             console.error("시간 형식 변환 오류:", e);
             return "";
         }
+    };
+
+    // 메시지 상태 업데이트 구독
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleMessageStatusUpdate = (updates: MessageStatusUpdate[]): void => {
+            setMessageStatuses(prev => {
+                const newStatuses = { ...prev };
+                updates.forEach(update => {
+                    if (update.tempId) {
+                        newStatuses[update.tempId] = {
+                            status: update.status,
+                            messageId: update.messageId,
+                            persistedId: null,
+                            createdAt: new Date().toISOString()
+                        };
+                        
+                        if (update.status === MessageStatus.SAVED) {
+                            setMessages(prevMessages => 
+                                prevMessages.map(msg => 
+                                    msg.tempId === update.tempId
+                                        ? { ...msg, id: update.messageId, status: MessageStatus.SAVED }
+                                        : msg
+                                )
+                            );
+                        }
+                    }
+                });
+                return newStatuses;
+            });
+        };
+
+        socket.on('messageStatusUpdate', handleMessageStatusUpdate);
+
+        return () => {
+            socket.off('messageStatusUpdate', handleMessageStatusUpdate);
+        };
+    }, [socket]);
+
+    const getMessageStatusString = (status: MessageStatus): string => {
+        switch (status) {
+            case MessageStatus.SENDING:
+                return '전송 중';
+            case MessageStatus.PROCESSING:
+                return '처리 중';
+            case MessageStatus.SENT_TO_KAFKA:
+                return '서버로 전송됨';
+            case MessageStatus.SAVED:
+                return '저장됨';
+            case MessageStatus.FAILED:
+                return '오류';
+            default:
+                return '';
+        }
+    };
+
+    // 메시지 상태 업데이트 함수 수정
+    const updateMessageStatus = (tempId: string, status: MessageStatus, messageId?: string): void => {
+        const newStatus: MessageStatusData = {
+            status,
+            messageId,
+            persistedId: null,
+            createdAt: new Date().toISOString()
+        };
+        setMessageStatuses(prev => ({
+            ...prev,
+            [tempId]: newStatus
+        }));
+    };
+
+    // 상태 표시 로직 수정
+    const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
+        if (!isOwn || !currentStatus) return null;
+        
+        // SAVED 상태이거나 persistedId가 있으면 상태 표시하지 않음
+        if (currentStatus === MessageStatus.SAVED || isPersisted) return null;
+        
+        return (
+            <div className="status-indicator">
+                {currentStatus === MessageStatus.SENDING && "전송 중..."}
+                {currentStatus === MessageStatus.SENT_TO_KAFKA && "서버로 전송됨"}
+                {currentStatus === MessageStatus.PROCESSING && "처리 중..."}
+                {currentStatus === MessageStatus.FAILED && "전송 실패"}
+            </div>
+        );
     };
 
     return (
@@ -1816,34 +1940,24 @@ const ChatRoom: React.FC = () => {
                     {messages.map((msg, idx) => {
                         // 내 메시지인가?
                         const isOwn = String(msg.senderId) === String(user?.id);
-
+                        
                         // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                         const currentStatus = msg.tempId
                             ? messageStatuses[msg.tempId]?.status || msg.status
                             : msg.status;
-
-                        // 저장된 상태로 간주
-                        const isPersisted = currentStatus && currentStatus.toUpperCase() === "SAVED";
-
+                        // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
+                        const isPersisted = msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
                         // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
                         const otherHasRead = msg.readBy 
                             ? Object.entries(msg.readBy as Record<string, boolean>)
-                                .filter(([id]) => id !== user?.id.toString()) // Ensure user.id is a string
+                                .filter(([id]) => id !== user?.id.toString())
                                 .some(([, read]) => read === true)
                             : false;
-
                         // indicatorText: 읽지 않았으면 "1" 
                         const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
-
                         // 상태표시
-                        const statusIndicator = isOwn && currentStatus && !isPersisted ? (
-                            <div className="status-indicator">
-                                {currentStatus === "SENDING" && "전송 중..."}
-                                {currentStatus === "SENT_TO_KAFKA" && "서버로 전송됨"}
-                                {currentStatus === "FAILED" && "전송 실패"}
-                            </div>
-                        ) : null;
-                        
+                        const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
+                    
                         // 시간 표시 여부 로직 수정
                         const nextMessage = messages[idx + 1];
                         const msgCreatedAt = getMessageCreatedAt(msg);

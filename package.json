@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
+    "@types/socket.io-client": "^1.4.36",
     "axios": "^1.7.9",
     "event-source-polyfill": "^1.0.31",
     "lodash": "^4.17.21",
@@ -12,6 +13,7 @@
     "react-infinite-scroll-component": "^6.1.0",
     "react-router-dom": "^7.1.5",
     "react-scripts": "5.0.1",
+    "socket.io-client": "^4.8.1",
     "sockjs-client": "^1.6.1",
     "styled-components": "^6.1.15",
     "web-vitals": "^2.1.4"
