@@ -8,17 +8,13 @@ const SocialItemContainer = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    background-color: ${commonColors.white};
-    margin-bottom: 0.75rem;
-    border-radius: ${commonBorderRadius.large};
-    box-shadow: ${commonShadows.small};
-    transition: all 0.3s ease;
-    animation: ${fadeIn} 0.3s ease-out;
+    padding: 0.75rem 1rem;
+    background-color: #ffffff;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
     
     &:hover {
-        transform: translateY(-3px);
-        box-shadow: ${commonShadows.medium};
+        background-color: #f8f9fa;
     }
 `;
 
@@ -32,13 +28,12 @@ const UserInfo = styled.div`
 const ProfileImageContainer = styled.div`
     width: 40px;
     height: 40px;
-    border-radius: ${commonBorderRadius.circle};
+    border-radius: 50%;
     overflow: hidden;
-    margin-right: 0.75rem;
+    margin-right: 1rem;
     background-color: #e9ecef;
     flex-shrink: 0;
-    border: 2px solid ${commonColors.white};
-    box-shadow: ${commonShadows.small};
+    border: 1px solid #dee2e6;
 `;
 
 const ProfileImage = styled.img`
@@ -53,8 +48,8 @@ const ProfileInitial = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: ${commonColors.primary};
-    color: ${commonColors.white};
+    background-color: #007bff;
+    color: white;
     font-weight: 600;
     font-size: 1.2rem;
 `;
@@ -67,16 +62,17 @@ const FriendInfo = styled.div`
 
 const FriendName = styled.span`
     font-weight: 600;
-    color: ${commonColors.dark};
-    font-size: 1rem;
+    color: #333;
+    font-size: 0.95rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-bottom: 0.15rem;
 `;
 
 const FriendStatus = styled.span`
     font-size: 0.8rem;
-    color: ${commonColors.secondary};
+    color: #666;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -91,15 +87,15 @@ const Actions = styled.div`
 const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disabled?: boolean }>`
     background: ${(props) => 
         props.disabled ? '#f1f3f5' :
-        props.$primary ? commonColors.primary : 
-        props.$danger ? commonColors.danger : '#f8f9fa'};
+        props.$primary ? '#007bff' : 
+        props.$danger ? '#dc3545' : '#f8f9fa'};
     color: ${(props) => 
         props.disabled ? '#adb5bd' :
-        (props.$primary || props.$danger) ? commonColors.white : commonColors.secondary};
+        (props.$primary || props.$danger) ? '#ffffff' : '#666'};
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     border: none;
-    border-radius: ${commonBorderRadius.medium};
+    border-radius: 4px;
     cursor: ${(props) => props.disabled ? 'default' : 'pointer'};
     font-weight: 500;
     display: flex;
@@ -109,9 +105,8 @@ const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disa
     &:hover {
         background: ${(props) => 
             props.disabled ? '#f1f3f5' :
-            props.$primary ? '#0069d9' : 
+            props.$primary ? '#0056b3' : 
             props.$danger ? '#c82333' : '#e9ecef'};
-        transform: ${(props) => props.disabled ? 'none' : 'translateY(-2px)'};
     }
     
     svg {
