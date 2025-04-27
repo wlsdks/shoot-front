@@ -3,57 +3,43 @@ import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { ChatRoom } from '../../types/chat.types';
 import Icon from '../common/Icon';
-import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
+
+interface ChatRoomItemProps {
+    room: ChatRoom;
+    onToggleFavorite: (roomId: number, currentFavorite: boolean, e: React.MouseEvent) => void;
+}
 
 const RoomItem = styled(Link)`
     display: flex;
     align-items: center;
-    padding: 1rem;
-    background-color: ${commonColors.white};
-    border-radius: ${commonBorderRadius.large};
-    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #eee;
     text-decoration: none;
     color: inherit;
-    box-shadow: ${commonShadows.small};
-    transition: all 0.3s ease;
-    animation: ${fadeIn} 0.3s ease-out;
-    position: relative;
-    
+    background-color: #ffffff;
+    transition: background-color 0.2s;
+
     &:hover {
-        transform: translateY(-3px);
-        box-shadow: ${commonShadows.medium};
-    }
-    
-    &:active {
-        transform: translateY(-1px);
-    }
-    
-    &:last-child {
-        margin-bottom: 0;
+        background-color: #f8f9fa;
     }
 `;
 
 const Avatar = styled.div`
-    width: 50px;
-    height: 50px;
-    border-radius: ${commonBorderRadius.circle};
-    background-color: ${commonColors.primary};
-    margin-right: 1rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #007bff;
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 600;
     font-size: 1.2rem;
-    color: ${commonColors.white};
-    flex-shrink: 0;
-    border: 2px solid #e1ecff;
-    box-shadow: ${commonShadows.small};
+    margin-right: 1rem;
 `;
 
 const RoomDetails = styled.div`
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
     min-width: 0;
 `;
 
@@ -61,48 +47,26 @@ const RoomHeaderRow = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.15rem;
 `;
 
 const TitleWrapper = styled.div`
     display: flex;
     align-items: center;
-    min-width: 0;
+    gap: 0.5rem;
 `;
 
-const RoomTitle = styled.h3`
-    font-size: 1rem;
+const RoomTitle = styled.div`
     font-weight: 600;
-    color: ${commonColors.dark};
-    margin: 0;
+    font-size: 0.95rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 `;
 
-const FavoriteButton = styled.button<{ $active: boolean }>`
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    color: ${(props) => (props.$active ? "#FFD700" : "#ccc")};
-    margin-left: 0.5rem;
-    transition: transform 0.2s, color 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    &:hover {
-        transform: scale(1.2);
-        color: ${(props) => (props.$active ? "#FFD700" : "#FFD700")};
-    }
-`;
-
-const Timestamp = styled.span`
-    font-size: 0.75rem;
-    color: ${commonColors.secondary};
-    white-space: nowrap;
-    margin-left: 0.75rem;
+const Timestamp = styled.div`
+    font-size: 0.8rem;
+    color: #666;
 `;
 
 const RoomFooterRow = styled.div`
@@ -112,33 +76,45 @@ const RoomFooterRow = styled.div`
 `;
 
 const LastMessage = styled.div`
-    font-size: 0.85rem;
-    color: ${commonColors.secondary};
+    font-size: 0.8rem;
+    color: #666;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 80%;
+    flex: 1;
+    margin-right: 0.5rem;
 `;
 
 const UnreadBadge = styled.div`
-    background-color: #FF5722;
-    color: ${commonColors.white};
-    padding: 0.2rem 0.5rem;
-    border-radius: ${commonBorderRadius.large};
+    background-color: #007bff;
+    color: white;
     font-size: 0.75rem;
-    font-weight: bold;
-    min-width: 1.2rem;
-    height: 1.2rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 1rem;
+    min-width: 1.5rem;
+    text-align: center;
+`;
+
+const FavoriteButton = styled.button<{ $active: boolean }>`
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: ${props => props.$active ? '#ffd700' : '#ccc'};
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 4px rgba(255, 87, 34, 0.3);
-`;
+    transition: color 0.2s;
 
-interface ChatRoomItemProps {
-    room: ChatRoom;
-    onToggleFavorite: (roomId: number, currentFavorite: boolean, e: React.MouseEvent) => void;
-}
+    &:hover {
+        color: ${props => props.$active ? '#ffd700' : '#999'};
+    }
+
+    svg {
+        width: 1rem;
+        height: 1rem;
+    }
+`;
 
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({ room, onToggleFavorite }) => {
     return (
