@@ -196,55 +196,49 @@ export const ModalOverlay = styled.div`
 `;
 
 export const ModalContent = styled.div`
-    background-color: white;
+    background: white;
     padding: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-    width: 80%;
-    max-width: 320px;
-    text-align: center;
-    animation: ${fadeIn} 0.3s ease-out;
+    border-radius: 10px;
+    width: 280px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 `;
 
-export const ModalTitle = styled.h3`
-    margin-top: 0;
-    margin-bottom: 1rem;
+export const ModalTitle = styled.h2`
     font-size: 1.2rem;
-    color: #333;
     font-weight: 600;
+    color: #333;
+    margin: 0 0 1rem 0;
+    text-align: center;
 `;
 
 export const ModalText = styled.p`
-    margin-bottom: 1.5rem;
-    color: #6c757d;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0 0 1.5rem 0;
+    text-align: center;
 `;
 
 export const ModalButtonGroup = styled.div`
     display: flex;
+    gap: 0.75rem;
     justify-content: center;
-    gap: 0.8rem;
 `;
 
 export const ModalButton = styled.button<{ $primary?: boolean }>`
-    padding: 0.7rem 1.2rem;
+    padding: 0.6rem 1.2rem;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
+    font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 0.95rem;
+    flex: 1;
+    max-width: 120px;
     
-    background: ${props => props.$primary ? '#dc3545' : '#f0f0f0'};
-    color: ${props => props.$primary ? 'white' : '#333'};
+    background: ${props => props.$primary ? '#007bff' : '#f1f3f5'};
+    color: ${props => props.$primary ? 'white' : '#666'};
     
     &:hover {
-        background: ${props => props.$primary ? '#c82333' : '#e0e0e0'};
-        transform: translateY(-2px);
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    &:active {
-        transform: translateY(0);
+        background: ${props => props.$primary ? '#0056b3' : '#e9ecef'};
     }
 `; 
