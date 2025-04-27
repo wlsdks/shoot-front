@@ -6,7 +6,7 @@ import Icon from '../common/Icon';
 
 interface ChatRoomItemProps {
     room: ChatRoom;
-    onToggleFavorite: (roomId: number, currentFavorite: boolean, e: React.MouseEvent) => void;
+    onContextMenu: (e: React.MouseEvent) => void;
 }
 
 const RoomItem = styled(Link)`
@@ -41,48 +41,35 @@ const Avatar = styled.div`
 const RoomDetails = styled.div`
     flex: 1;
     min-width: 0;
-`;
-
-const RoomHeaderRow = styled.div`
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.15rem;
+    align-items: flex-start;
 `;
 
-const TitleWrapper = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-`;
-
-const RoomTitle = styled.div`
-    font-weight: 600;
-    font-size: 0.95rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const Timestamp = styled.div`
-    font-size: 0.8rem;
-    color: #666;
-`;
-
-const RoomFooterRow = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+const MessageContainer = styled.div`
+    flex: 1;
+    min-width: 0;
+    margin-right: 0.5rem;
 `;
 
 const LastMessage = styled.div`
-    font-size: 0.8rem;
-    color: #666;
+    font-size: 0.9rem;
+    color: #333;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
-    margin-right: 0.5rem;
+`;
+
+const RightContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+`;
+
+const Timestamp = styled.div`
+    font-size: 0.75rem;
+    color: #666;
 `;
 
 const UnreadBadge = styled.div`
@@ -93,60 +80,29 @@ const UnreadBadge = styled.div`
     border-radius: 1rem;
     min-width: 1.5rem;
     text-align: center;
+    font-weight: 600;
 `;
 
-const FavoriteButton = styled.button<{ $active: boolean }>`
-    background: none;
-    border: none;
-    padding: 0.25rem;
-    cursor: pointer;
-    color: ${props => props.$active ? '#ffd700' : '#ccc'};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s;
-
-    &:hover {
-        color: ${props => props.$active ? '#ffd700' : '#999'};
-    }
-
-    svg {
-        width: 1rem;
-        height: 1rem;
-    }
-`;
-
-const ChatRoomItem: React.FC<ChatRoomItemProps> = ({ room, onToggleFavorite }) => {
+const ChatRoomItem: React.FC<ChatRoomItemProps> = ({ room, onContextMenu }) => {
     return (
-        <RoomItem to={`/chatroom/${room.roomId}`}>
+        <RoomItem to={`/chatroom/${room.roomId}`} onContextMenu={onContextMenu}>
             <Avatar>
                 {room.title.charAt(0).toUpperCase()}
             </Avatar>
             <RoomDetails>
-                <RoomHeaderRow>
-                    <TitleWrapper>
-                        <RoomTitle>{room.title}</RoomTitle>
-                        <FavoriteButton
-                            $active={room.isPinned}
-                            onClick={(e) => onToggleFavorite(room.roomId, room.isPinned, e)}
-                        >
-                            <Icon>
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </Icon>
-                        </FavoriteButton>
-                    </TitleWrapper>
-                    <Timestamp>
-                        {room.timestamp || ""}
-                    </Timestamp>
-                </RoomHeaderRow>
-                <RoomFooterRow>
+                <MessageContainer>
                     <LastMessage>
                         {room.lastMessage || "최근 메시지가 없습니다."}
                     </LastMessage>
+                </MessageContainer>
+                <RightContainer>
+                    <Timestamp>
+                        {room.timestamp || ""}
+                    </Timestamp>
                     {room.unreadMessages > 0 && (
                         <UnreadBadge>{room.unreadMessages}</UnreadBadge>
                     )}
-                </RoomFooterRow>
+                </RightContainer>
             </RoomDetails>
         </RoomItem>
     );

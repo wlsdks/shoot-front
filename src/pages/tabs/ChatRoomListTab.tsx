@@ -16,12 +16,19 @@ import {
     TabSectionTitle,
     TabSectionCount,
 } from '../../styles/tabStyles';
+import styled from 'styled-components';
 
 const ChatRoomList: React.FC = () => {
     const { user, subscribeToSse, unsubscribeFromSse, reconnectSse } = useAuth();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; room: ChatRoom | null }>({
+        visible: false,
+        x: 0,
+        y: 0,
+        room: null
+    });
     const updatesReceivedRef = useRef(false);
     const location = useLocation();
     const navigate = useNavigate();
@@ -153,8 +160,7 @@ const ChatRoomList: React.FC = () => {
     }, [user?.id, fetchRooms, subscribeToSse, unsubscribeFromSse]);
 
     // 즐겨찾기 토글 함수
-    const toggleFavorite = async (roomId: number, currentFavorite: boolean, e: React.MouseEvent) => {
-        e.preventDefault();
+    const toggleFavorite = async (roomId: number, currentFavorite: boolean) => {
         try {
             await updateChatRoomFavorite(roomId, user!.id, !currentFavorite);
             fetchRooms();
@@ -163,6 +169,30 @@ const ChatRoomList: React.FC = () => {
             setError("즐겨찾기 업데이트 실패");
         }
     };
+
+    // 우클릭 메뉴 처리
+    const handleContextMenu = (e: React.MouseEvent, room: ChatRoom) => {
+        e.preventDefault();
+        setContextMenu({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+            room
+        });
+    };
+
+    // 우클릭 메뉴 닫기
+    const handleClickOutside = () => {
+        setContextMenu({ visible: false, x: 0, y: 0, room: null });
+    };
+
+    // 우클릭 메뉴 이벤트 리스너 등록
+    useEffect(() => {
+        document.addEventListener('click', handleClickOutside);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, []);
 
     // 즐겨찾기된 채팅방과 일반 채팅방으로 분류
     const pinnedRooms = rooms.filter(room => room.isPinned);
@@ -179,17 +209,7 @@ const ChatRoomList: React.FC = () => {
 
     return (
         <TabContainer>
-            <TabHeader 
-                title="채팅방"
-                actions={
-                    <Icon>
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                        <line x1="9" y1="10" x2="15" y2="10" />
-                        <line x1="12" y1="7" x2="12" y2="13" />
-                    </Icon>
-                }
-            />
-            
+            <TabHeader title="채팅방" />
             <TabContent>
                 {error && (
                     <div style={{ color: 'red', padding: '1rem' }}>
@@ -201,7 +221,7 @@ const ChatRoomList: React.FC = () => {
                         {error}
                     </div>
                 )}
-                
+
                 {rooms.length === 0 ? (
                     <EmptyState
                         icon={
@@ -224,7 +244,7 @@ const ChatRoomList: React.FC = () => {
                                     <ChatRoomItem
                                         key={`pinned-${room.roomId}`}
                                         room={room}
-                                        onToggleFavorite={toggleFavorite}
+                                        onContextMenu={(e) => handleContextMenu(e, room)}
                                     />
                                 ))}
                             </TabSection>
@@ -241,16 +261,59 @@ const ChatRoomList: React.FC = () => {
                                     <ChatRoomItem
                                         key={`normal-${room.roomId}`}
                                         room={room}
-                                        onToggleFavorite={toggleFavorite}
+                                        onContextMenu={(e) => handleContextMenu(e, room)}
                                     />
                                 ))}
                             </TabSection>
                         )}
                     </>
                 )}
+
+                {contextMenu.visible && contextMenu.room && (
+                    <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
+                        <ContextMenuItem onClick={() => {
+                            toggleFavorite(contextMenu.room!.roomId, contextMenu.room!.isPinned);
+                            setContextMenu({ visible: false, x: 0, y: 0, room: null });
+                        }}>
+                            <Icon>
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </Icon>
+                            {contextMenu.room.isPinned ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                        </ContextMenuItem>
+                    </ContextMenu>
+                )}
             </TabContent>
         </TabContainer>
     );
 };
+
+const ContextMenu = styled.div`
+    position: fixed;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 150px;
+`;
+
+const ContextMenuItem = styled.div`
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    color: #333;
+    font-size: 0.9rem;
+
+    &:hover {
+        background-color: #f5f5f5;
+    }
+
+    svg {
+        width: 1rem;
+        height: 1rem;
+        color: #666;
+    }
+`;
 
 export default ChatRoomList;
