@@ -17,11 +17,17 @@ export const getChatRooms = async (userId: number) => { // userId 타입 변경
  * 채팅방 즐겨찾기(핀) 상태 업데이트 API
  */
 export const updateChatRoomFavorite = async (
-    roomId: number, // roomId 타입 변경 
-    userId: number, // userId 타입 변경
+    roomId: number,
+    userId: number,
     isFavorite: boolean
 ) => {
-    const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, { params: { roomId, userId, isFavorite } });
+    const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, {
+        params: {
+            roomId,
+            userId,
+            isFavorite
+        }
+    });
     return extractData(response);
 };
 

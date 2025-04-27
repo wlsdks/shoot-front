@@ -9,6 +9,10 @@ interface Friend {
     username: string;
 }
 
+interface FriendSearchProps {
+    onClose: () => void;
+}
+
 const slideDown = keyframes`
     from { transform: translateY(-20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -45,7 +49,6 @@ const LoadingMessage = styled.p`
     margin-top: 8px;
 `;
 
-
 const ResultList = styled.ul`
     list-style: none;
     margin: 12px 0 0 0;
@@ -68,7 +71,23 @@ const NoResultsMessage = styled.p`
     font-size: 0.95rem;
 `;
 
-const FriendSearch: React.FC = () => {
+const CloseButton = styled.button`
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 1.2rem;
+    
+    &:hover {
+        color: #333;
+    }
+`;
+
+const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
     const { user } = useAuth();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<Friend[]>([]);
@@ -114,6 +133,7 @@ const FriendSearch: React.FC = () => {
 
     return (
         <SearchContainer>
+            <CloseButton onClick={onClose}>&times;</CloseButton>
             <SearchInput
                 type="text"
                 placeholder="친구 검색..."
@@ -128,7 +148,7 @@ const FriendSearch: React.FC = () => {
                 <ResultList>
                     {results.map((friend) => (
                         <ResultItem key={friend.id}>
-                            {friend.username} {/* Friend.name 사용 */}
+                            {friend.username}
                         </ResultItem>
                     ))}
                 </ResultList>
