@@ -3,16 +3,16 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Signup from './pages/SignUp';
-import FindId from './pages/FindId';  // 새로 추가된 컴포넌트
-import FindPassword from './pages/FindPassword';  // 새로 추가된 컴포넌트
+import Login from './pages/auth/Login';
+import Signup from './pages/auth/SignUp';
+import FindId from './pages/auth/FindId';
+import FindPassword from './pages/auth/FindPassword';
 import Navigation from './components/Navigation';
-import BottomNavLayout from './pages/BottomNavLayout';
+import BottomNavLayout from './components/layout/BottomNavLayout';
 import PrivateRoute from './components/PrivateRoute';
-import FriendCodePage from './pages/FriendCodePage';
-import ChatRoom from './pages/ChatRoom';
-import EditProfile from './pages/EditProfile';
+import FriendCodePage from './pages/profile/FriendCodePage';
+import ChatRoom from './pages/chat/ChatRoom';
+import EditProfile from './pages/profile/EditProfile';
 
 const App: React.FC = () => {
   return (

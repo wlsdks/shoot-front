@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { login as loginApi, fetchUserInfo } from '../services/auth';
+import { login as loginApi, fetchUserInfo } from '../../services/auth';
 import styled, { keyframes } from 'styled-components';
 import axios from 'axios';
 

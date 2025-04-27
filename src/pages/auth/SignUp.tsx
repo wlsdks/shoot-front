@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signup } from '../services/auth';
+import { useState, useCallback } from 'react';
+import { signup } from '../../services/auth';
 import styled, { keyframes } from 'styled-components';
 
 // 애니메이션 정의

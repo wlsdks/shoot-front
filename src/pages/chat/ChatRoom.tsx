@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../services/message";
-import { markAllMessagesAsRead } from "../services/chatRoom";
+import { useAuth } from "../../context/AuthContext";
+import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
+import { markAllMessagesAsRead } from "../../services/chatRoom";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import styled, { keyframes } from "styled-components";

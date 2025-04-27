@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
-import EditProfile from '../EditProfile';
+import EditProfile from '../../pages/profile/EditProfile';
 
 // 애니메이션 정의
 const fadeIn = keyframes`

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import FriendTab from "./tabs/FriendsTab";      // 위에서 완성한 친구 탭
-import SocialTab from "./tabs/SocialTab";       // 소셜 탭
-import ChatTab from "./tabs/ChatRoomListTab";   // 채팅방 목록 탭
-import SettingsTab from "./tabs/SettingsTab";   // 설정 탭 (EditProfile 포함)
+import FriendTab from "../../pages/tabs/FriendsTab";      // 위에서 완성한 친구 탭
+import SocialTab from "../../pages/tabs/SocialTab";       // 소셜 탭
+import ChatTab from "../../pages/tabs/ChatRoomListTab";   // 채팅방 목록 탭
+import SettingsTab from "../../pages/tabs/SettingsTab";   // 설정 탭 (EditProfile 포함)
 
 const Container = styled.div`
     display: flex;
