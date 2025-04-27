@@ -87,36 +87,46 @@ const Actions = styled.div`
 const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disabled?: boolean }>`
     background: ${(props) => 
         props.disabled ? '#f1f3f5' :
-        props.$primary ? '#007bff' : 
-        props.$danger ? '#dc3545' : '#f8f9fa'};
+        props.$primary ? '#4CAF50' : 
+        props.$danger ? '#f44336' : '#f8f9fa'};
     color: ${(props) => 
         props.disabled ? '#adb5bd' :
         (props.$primary || props.$danger) ? '#ffffff' : '#666'};
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 20px;
     cursor: ${(props) => props.disabled ? 'default' : 'pointer'};
     font-weight: 500;
     display: flex;
     align-items: center;
     transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     
     &:hover {
         background: ${(props) => 
             props.disabled ? '#f1f3f5' :
-            props.$primary ? '#0056b3' : 
-            props.$danger ? '#c82333' : '#e9ecef'};
+            props.$primary ? '#43A047' : 
+            props.$danger ? '#E53935' : '#e9ecef'};
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    }
+    
+    &:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
     
     svg {
-        margin-right: ${(props) => (props.children && props.children !== "친구" && props.children !== "요청됨") ? '0.4rem' : '0'};
+        margin-right: ${(props) => (props.children && props.children !== "친구" && props.children !== "요청됨") ? '0.3rem' : '0'};
+        width: 14px;
+        height: 14px;
     }
 `;
 
 interface SocialItemProps {
     friend: Friend;
-    status: 'friend' | 'requested' | 'recommended';
+    status: 'friend' | 'requested' | 'recommended' | 'outgoing';
     onAction: (friendId: number) => void;
 }
 
@@ -133,16 +143,25 @@ const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => 
             case 'friend':
                 return <ActionButton disabled>친구</ActionButton>;
             case 'requested':
-                return <ActionButton disabled>요청됨</ActionButton>;
+                return (
+                    <>
+                        <ActionButton $primary onClick={() => onAction(friend.id)}>
+                            수락
+                        </ActionButton>
+                        <ActionButton $danger onClick={() => onAction(friend.id)}>
+                            거절
+                        </ActionButton>
+                    </>
+                );
+            case 'outgoing':
+                return (
+                    <ActionButton $danger onClick={() => onAction(friend.id)}>
+                        취소
+                    </ActionButton>
+                );
             case 'recommended':
                 return (
                     <ActionButton $primary onClick={() => onAction(friend.id)}>
-                        <Icon>
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <line x1="19" y1="8" x2="19" y2="14" />
-                            <line x1="16" y1="11" x2="22" y2="11" />
-                        </Icon>
                         친구 추가
                     </ActionButton>
                 );
@@ -163,8 +182,10 @@ const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => 
                         {status === 'friend' 
                             ? '이미 친구입니다' 
                             : status === 'requested' 
-                                ? '친구 요청 보냄' 
-                                : '추천 친구'}
+                                ? '친구 요청 받음' 
+                                : status === 'outgoing'
+                                    ? '친구 요청 보냄'
+                                    : '추천 친구'}
                     </FriendStatus>
                 </FriendInfo>
             </UserInfo>

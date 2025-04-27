@@ -122,7 +122,7 @@ const SocialTab: React.FC = () => {
         if (!user) return;
         try {
             await acceptFriendRequest(user.id, requesterId);
-        
+            
             // 받은 요청에서 해당 사용자를 찾아 친구 목록으로 이동
             const acceptedUser = incoming.find(r => r.id === requesterId);
             if (acceptedUser) {
@@ -140,12 +140,26 @@ const SocialTab: React.FC = () => {
         if (!user) return;
         try {
             await rejectFriendRequest(user.id, requesterId);
-        
+            
             // 받은 요청에서 해당 사용자 제거
             setIncoming(prev => prev.filter(r => r.id !== requesterId));
         } catch (err) {
             console.error(err);
             setError("친구 요청 거절 실패");
+        }
+    };
+
+    // 친구 요청 취소
+    const handleCancelRequest = async (targetUserId: number) => {
+        if (!user) return;
+        try {
+            await rejectFriendRequest(user.id, targetUserId);
+            
+            // 보낸 요청에서 해당 사용자 제거
+            setOutgoing(prev => prev.filter(r => r.id !== targetUserId));
+        } catch (err) {
+            console.error(err);
+            setError("친구 요청 취소 실패");
         }
     };
 
@@ -239,8 +253,8 @@ const SocialTab: React.FC = () => {
                             <SocialItem
                                 key={friend.id}
                                 friend={friend}
-                                status="requested"
-                                onAction={() => {}}
+                                status="outgoing"
+                                onAction={handleCancelRequest}
                             />
                         ))
                     )}
