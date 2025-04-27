@@ -2,46 +2,21 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { login as loginApi, fetchUserInfo } from '../../services/auth';
-import styled, { keyframes } from 'styled-components';
 import axios from 'axios';
+import {
+  PageWrapper,
+  MobileContainer,
+  Form,
+  InputGroup,
+  Label,
+  Input,
+  Button,
+  ErrorMessage,
+  LinkContainer,
+  StyledLink
+} from '../../styles/auth/common';
+import styled from 'styled-components';
 
-// Animation definitions
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-// Main container with fixed height and no scrolling
-const PageContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f5f7fa;
-  z-index: 1000;
-  overflow: hidden;
-`;
-
-// Mobile screen container - matches BottomNavLayout dimensions
-const MobileContainer = styled.div`
-  width: 375px;
-  height: 667px;
-  background-color: #fff;
-  border-radius: 30px;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  border: 2px solid #ddd;
-  position: relative;
-  animation: ${fadeIn} 0.5s ease-out;
-  overflow: hidden;
-`;
-
-// Login content container
 const LoginContent = styled.div`
   display: flex;
   flex-direction: column;
@@ -52,7 +27,6 @@ const LoginContent = styled.div`
   background: linear-gradient(to bottom, #ffffff 0%, #f9f9f9 100%);
 `;
 
-// Logo area
 const LogoArea = styled.div`
   margin-bottom: 2.5rem;
   text-align: center;
@@ -69,43 +43,6 @@ const Logo = styled.div`
 const LogoTagline = styled.div`
   font-size: 0.95rem;
   color: #666;
-`;
-
-// Form styling
-const Form = styled.form`
-  width: 100%;
-  max-width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-`;
-
-const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #555;
-  margin-bottom: 0.5rem;
-`;
-
-const Input = styled.input`
-  padding: 0.9rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  background-color: #f9f9f9;
-  
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    background-color: #fff;
-  }
 `;
 
 const RememberContainer = styled.div`
@@ -128,43 +65,6 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   cursor: pointer;
 `;
 
-// 버튼 스타일
-const Button = styled.button`
-  padding: 1rem;
-  background: linear-gradient(90deg, #007bff, #0062cc);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  margin-top: 0.75rem;
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.25);
-  
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 7px 15px rgba(0, 123, 255, 0.3);
-    background: linear-gradient(90deg, #0069d9, #0056b3);
-  }
-  
-  &:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
-  }
-  
-  &:disabled {
-    background: linear-gradient(90deg, #cccccc, #bbbbbb);
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-  
-  &:focus {
-    outline: none;
-  }
-`;
-
-// 회원가입 및 계정 관련 링크 영역
 const AccountLinks = styled.div`
   display: flex;
   justify-content: center;
@@ -207,39 +107,6 @@ const AccountLink = styled(Link)`
   }
 `;
 
-const RegisterPrompt = styled.div`
-  margin-top: 2rem;
-  text-align: center;
-  font-size: 0.95rem;
-  color: #666;
-`;
-
-const RegisterLink = styled(Link)`
-  color: #007bff;
-  text-decoration: none;
-  font-weight: 600;
-  margin-left: 0.25rem;
-  
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: #e53935;
-  text-align: center;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-  background-color: rgba(229, 57, 53, 0.1);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 300px;
-`;
-
 const ErrorIcon = styled.div`
   margin-right: 0.5rem;
   display: flex;
@@ -262,24 +129,17 @@ const Login: React.FC = () => {
     localStorage.clear();
 
     try {
-      // Login request
       const loginResponse = await loginApi(username, password);
-      
-      // Store tokens
       const { accessToken, refreshToken } = loginResponse;
       localStorage.setItem("accessToken", accessToken);
       if (refreshToken) {
         localStorage.setItem("refreshToken", refreshToken);
       }
       
-      // Set API headers
       axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
       
       try {
-        // Fetch user info
         const userData = await fetchUserInfo();
-        
-        // Login and redirect
         login(userData, accessToken, refreshToken);
         navigate('/');
       } catch (userError) {
@@ -299,7 +159,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <PageContainer>
+    <PageWrapper>
       <MobileContainer>
         <LoginContent>
           <LogoArea>
@@ -370,7 +230,7 @@ const Login: React.FC = () => {
           </AccountLinks>
         </LoginContent>
       </MobileContainer>
-    </PageContainer>
+    </PageWrapper>
   );
 };
 

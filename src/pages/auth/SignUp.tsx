@@ -1,88 +1,32 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useState, useCallback } from 'react';
 import { signup } from '../../services/auth';
-import styled, { keyframes } from 'styled-components';
+import {
+  PageWrapper,
+  MobileContainer,
+  Header,
+  BackButton,
+  Title,
+  Form,
+  InputGroup,
+  Label,
+  Input,
+  Button,
+  ErrorMessage,
+  SuccessMessage,
+  LinkContainer,
+  StyledLink
+} from '../../styles/auth/common';
+import styled from 'styled-components';
 
-// 애니메이션 정의
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-// 페이지 전체를 고정시키는 컨테이너
-const PageWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f0f2f5;
-  z-index: 1000;
-  overflow: hidden;
-`;
-
-// 모바일 디바이스 크기에 맞는 컨테이너 - 정확히 375px 너비 유지
-const MobileContainer = styled.div`
-  width: 375px;
-  height: 667px;
-  background-color: #fff;
-  border-radius: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  animation: ${fadeIn} 0.3s ease;
-  border: 1px solid #eaeaea;
-  overflow: hidden; /* 중요: 자식 요소가 컨테이너를 넘치지 않도록 함 */
-`;
-
-// 헤더 영역
-const Header = styled.div`
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid #f5f5f5;
-  position: relative;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩을 너비에 포함 */
-`;
-
-const Title = styled.h1`
-  font-size: 1.25rem;
-  color: #333;
-  margin: 0;
-  font-weight: 600;
-`;
-
-const BackButton = styled(Link)`
-  position: absolute;
-  left: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #555;
-  text-decoration: none;
-  
-  &:hover {
-    color: #007bff;
-  }
-`;
-
-// 폼 스크롤 영역 - 너비 제한
 const ScrollContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden; /* 가로 스크롤 방지 */
+  overflow-x: hidden;
   padding: 20px;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩을 너비에 포함 */
+  width: 100%;
+  box-sizing: border-box;
   
-  /* 스크롤바 커스텀 */
   &::-webkit-scrollbar {
     width: 5px;
   }
@@ -97,19 +41,10 @@ const ScrollContainer = styled.div`
   }
 `;
 
-// 폼 스타일 - 너비 제한
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
-`;
-
 const Section = styled.div`
   margin-bottom: 20px;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 const SectionTitle = styled.h2`
@@ -119,8 +54,8 @@ const SectionTitle = styled.h2`
   font-weight: 600;
   display: flex;
   align-items: center;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
+  width: 100%;
+  box-sizing: border-box;
   
   &::after {
     content: '';
@@ -131,50 +66,11 @@ const SectionTitle = styled.h2`
   }
 `;
 
-const InputGroup = styled.div`
-  margin-bottom: 16px;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
-`;
-
-const Label = styled.label`
-  display: block;
-  font-size: 0.9rem;
-  color: #555;
-  margin-bottom: 8px;
-  font-weight: 500;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
-`;
-
 const OptionalTag = styled.span`
   color: #999;
   font-size: 0.75rem;
   font-weight: normal;
   margin-left: 6px;
-`;
-
-// 다양한 입력 필드 스타일 - 너비 제한
-const Input = styled.input`
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  font-size: 1rem;
-  background-color: #fafafa;
-  transition: all 0.2s ease;
-  box-sizing: border-box; /* 패딩 포함 */
-  
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-    background-color: #fff;
-  }
-  
-  &::placeholder {
-    color: #bbb;
-  }
 `;
 
 const Textarea = styled.textarea`
@@ -187,7 +83,7 @@ const Textarea = styled.textarea`
   min-height: 100px;
   resize: none;
   transition: all 0.2s ease;
-  box-sizing: border-box; /* 패딩 포함 */
+  box-sizing: border-box;
   
   &:focus {
     outline: none;
@@ -203,8 +99,8 @@ const Textarea = styled.textarea`
 
 const FileInputContainer = styled.div`
   position: relative;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 const FileInputLabel = styled.label`
@@ -221,7 +117,7 @@ const FileInputLabel = styled.label`
   transition: all 0.2s ease;
   font-size: 0.9rem;
   color: #666;
-  box-sizing: border-box; /* 패딩 포함 */
+  box-sizing: border-box;
   
   &:hover {
     border-color: #007bff;
@@ -230,19 +126,18 @@ const FileInputLabel = styled.label`
   
   svg {
     color: #999;
-    flex-shrink: 0; /* SVG 크기 유지 */
+    flex-shrink: 0;
   }
   
   &:hover svg {
     color: #007bff;
   }
   
-  /* 텍스트 오버플로우 처리 */
   span {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px; /* 최대 너비 설정 */
+    max-width: 200px;
   }
 `;
 
@@ -253,7 +148,6 @@ const FileInput = styled.input`
   height: 0;
 `;
 
-// 유효성 검증 메시지
 const ValidationMessage = styled.div<{ isValid: boolean }>`
   font-size: 0.75rem;
   margin-top: 6px;
@@ -261,73 +155,19 @@ const ValidationMessage = styled.div<{ isValid: boolean }>`
   display: flex;
   align-items: center;
   gap: 5px;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
+  width: 100%;
+  box-sizing: border-box;
   
-  /* 아이콘과 텍스트 정렬 */
   svg {
-    flex-shrink: 0; /* SVG 크기 유지 */
+    flex-shrink: 0;
   }
   
   span {
     flex: 1;
-    word-break: break-word; /* 긴 텍스트 처리 */
+    word-break: break-word;
   }
 `;
 
-// 버튼 스타일
-const SubmitButton = styled.button`
-  width: 100%;
-  padding: 14px;
-  background: linear-gradient(90deg, #007bff, #0062cc);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-top: 10px;
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
-  box-sizing: border-box; /* 패딩 포함 */
-  
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 123, 255, 0.3);
-  }
-  
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-  
-  &:disabled {
-    background: linear-gradient(90deg, #cccccc, #bbbbbb);
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-`;
-
-// 에러 메시지
-const ErrorMessage = styled.div`
-  background-color: #fff5f5;
-  color: #e53e3e;
-  padding: 12px;
-  border-radius: 8px;
-  border-left: 3px solid #e53e3e;
-  margin-top: 20px;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
-  
-  svg {
-    flex-shrink: 0; /* SVG 크기 유지 */
-  }
-`;
-
-// 성공 화면
 const SuccessContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -336,8 +176,8 @@ const SuccessContainer = styled.div`
   padding: 40px 20px;
   height: 100%;
   text-align: center;
-  width: 100%; /* 명시적 너비 설정 */
-  box-sizing: border-box; /* 패딩 포함 */
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 const SuccessCircle = styled.div`
@@ -350,14 +190,14 @@ const SuccessCircle = styled.div`
   justify-content: center;
   margin-bottom: 24px;
   color: #28a745;
-  flex-shrink: 0; /* 크기 유지 */
+  flex-shrink: 0;
 `;
 
 const SuccessTitle = styled.h2`
   font-size: 1.5rem;
   color: #333;
   margin: 0 0 16px 0;
-  width: 100%; /* 명시적 너비 설정 */
+  width: 100%;
 `;
 
 const SuccessText = styled.p`
@@ -365,7 +205,7 @@ const SuccessText = styled.p`
   color: #666;
   margin: 0 0 24px 0;
   line-height: 1.5;
-  width: 100%; /* 명시적 너비 설정 */
+  width: 100%;
 `;
 
 const LoginButton = styled(Link)`
@@ -391,7 +231,6 @@ const LoginButton = styled(Link)`
 const SignUp: React.FC = () => {
   const navigate = useNavigate();
   
-  // 폼 입력 상태
   const [username, setUsername] = useState('');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
@@ -401,7 +240,6 @@ const SignUp: React.FC = () => {
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImageName, setProfileImageName] = useState('');
   
-  // UI 상태
   const [usernameValid, setUsernameValid] = useState<boolean | null>(null);
   const [passwordValid, setPasswordValid] = useState<boolean | null>(null);
   const [passwordMatch, setPasswordMatch] = useState<boolean | null>(null);
@@ -410,7 +248,6 @@ const SignUp: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   
-  // 유효성 검사 함수
   const validateUsername = (value: string) => {
     const isValid = /^[a-zA-Z0-9]{4,12}$/.test(value);
     setUsernameValid(isValid);
@@ -424,14 +261,11 @@ const SignUp: React.FC = () => {
   };
   
   const checkPasswordMatch = useCallback(() => {
-    // 두 비밀번호 모두 입력되었을 때만 검증
     if (password.length > 0 && confirmPassword.length > 0) {
       const isMatch = password === confirmPassword;
-      console.log('비밀번호 확인:', { password, confirmPassword, isMatch });
       setPasswordMatch(isMatch);
       return isMatch;
     }
-    // 둘 중 하나라도 비어있으면 검증하지 않음
     setPasswordMatch(null);
     return null;
   }, [password, confirmPassword]);
@@ -442,18 +276,15 @@ const SignUp: React.FC = () => {
     return isValid;
   };
   
-  // 파일 입력 처리
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // 파일 크기 검증 (5MB 이하)
       if (file.size > 5 * 1024 * 1024) {
         setError('이미지 크기는 5MB 이하여야 합니다.');
         return;
       }
       
-      // 파일 타입 검증
       if (!file.type.match('image/*')) {
         setError('이미지 파일만 업로드 가능합니다.');
         return;
@@ -465,12 +296,10 @@ const SignUp: React.FC = () => {
     }
   };
   
-  // 폼 제출 처리
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     
-    // 필수 필드 검증
     const isUsernameValid = validateUsername(username);
     const isPasswordValid = validatePassword(password);
     const isPasswordsMatch = checkPasswordMatch();
@@ -486,7 +315,7 @@ const SignUp: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('username', username);
-      formData.append('nickname', nickname || username); // 닉네임이 없으면 아이디로 대체
+      formData.append('nickname', nickname || username);
       formData.append('password', password);
       formData.append('email', email);
       
@@ -503,7 +332,6 @@ const SignUp: React.FC = () => {
     }
   };
   
-  // 성공 화면
   if (isSuccess) {
     return (
       <PageWrapper>
@@ -586,7 +414,6 @@ const SignUp: React.FC = () => {
                   id="password"
                   type="password"
                   value={password}
-                  // 비밀번호 입력 필드
                   onChange={(e) => {
                     const newPassword = e.target.value;
                     setPassword(newPassword);
@@ -627,16 +454,14 @@ const SignUp: React.FC = () => {
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
-                  // 비밀번호 확인 입력 필드
                   onChange={(e) => {
                     const newConfirmPassword = e.target.value;
                     setConfirmPassword(newConfirmPassword);
                     if (password && newConfirmPassword) {
-                      // 입력 즉시 일치 여부 확인
                       setPasswordMatch(password === newConfirmPassword);
                     }
                   }}
-                  onBlur={checkPasswordMatch} // 포커스를 잃을 때 다시 한번 확인
+                  onBlur={checkPasswordMatch}
                   placeholder="비밀번호 재입력"
                 />
                 {passwordMatch !== null && (
@@ -751,12 +576,12 @@ const SignUp: React.FC = () => {
               </InputGroup>
             </Section>
             
-            <SubmitButton 
+            <Button 
               type="submit" 
               disabled={isSubmitting || !username || !password || !confirmPassword || !email}
             >
               {isSubmitting ? '처리중...' : '회원가입'}
-            </SubmitButton>
+            </Button>
             
             {error && (
               <ErrorMessage>
