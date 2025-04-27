@@ -46,10 +46,17 @@ const RoomDetails = styled.div`
     align-items: flex-start;
 `;
 
-const MessageContainer = styled.div`
+const LeftContainer = styled.div`
     flex: 1;
     min-width: 0;
     margin-right: 0.5rem;
+`;
+
+const SenderName = styled.div`
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
 `;
 
 const LastMessage = styled.div`
@@ -84,17 +91,20 @@ const UnreadBadge = styled.div`
 `;
 
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({ room, onContextMenu }) => {
+    const displayName = room.title.replace('님과의 대화', '');
+
     return (
         <RoomItem to={`/chatroom/${room.roomId}`} onContextMenu={onContextMenu}>
             <Avatar>
                 {room.title.charAt(0).toUpperCase()}
             </Avatar>
             <RoomDetails>
-                <MessageContainer>
+                <LeftContainer>
+                    <SenderName>{displayName}</SenderName>
                     <LastMessage>
                         {room.lastMessage || "최근 메시지가 없습니다."}
                     </LastMessage>
-                </MessageContainer>
+                </LeftContainer>
                 <RightContainer>
                     <Timestamp>
                         {room.timestamp || ""}

@@ -5,6 +5,7 @@ export interface ChatRoom {
     unreadMessages: number;
     isPinned: boolean;
     timestamp?: string;
+    type: 'INDIVIDUAL' | 'GROUP';
 }
 
 export interface ChatMessage {
