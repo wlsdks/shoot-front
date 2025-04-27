@@ -2,6 +2,7 @@ export interface Friend {
     id: number;
     name: string;
     username: string;
+    nickname?: string;
     status: string;
     profileImage?: string;
     profileImageUrl?: string;
@@ -26,5 +27,6 @@ export interface FriendRecommendation extends Friend {
 export interface FriendResponse {
     id: number;
     username: string;
+    nickname?: string;
     profileImageUrl?: string;
 } 

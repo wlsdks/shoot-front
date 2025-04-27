@@ -54,6 +54,7 @@ const FriendsTab: React.FC = () => {
                 id: friend.id,
                 name: friend.username,
                 username: friend.username,
+                nickname: friend.nickname,
                 status: "온라인", // TODO: 실제 상태 정보로 대체
                 profileImage: friend.profileImageUrl
             }));
@@ -159,6 +160,7 @@ const FriendsTab: React.FC = () => {
                                 id: user.id,
                                 name: user.username,
                                 username: user.username,
+                                nickname: user.nickname,
                                 status: "온라인",
                                 profileImage: user.profileImageUrl
                             }}
@@ -194,7 +196,7 @@ const FriendsTab: React.FC = () => {
                                 key={friend.id}
                                 friend={friend}
                                 onChatClick={() => handleFriendClick(friend.id)}
-                                onClick={() => {}}
+                                onClick={() => handleFriendClick(friend.id)}
                             />
                         ))}
                     </TabSection>

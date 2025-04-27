@@ -11,75 +11,83 @@ interface FriendItemProps {
 const FriendItemComponent = styled.div`
   display: flex;
   align-items: center;
-  padding: ${({ theme }) => theme.spacing.md};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.white};
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
   cursor: pointer;
   transition: background-color 0.2s;
+  background-color: #ffffff;
 
   &:hover {
-    background-color: ${({ theme }) => theme.colors.light};
+    background-color: #f8f9fa;
   }
 `;
 
-const ProfileImage = styled.div<{ imageUrl?: string }>`
+const ProfileImageContainer = styled.div`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: ${({ theme }) => theme.colors.primary};
-  margin-right: ${({ theme }) => theme.spacing.md};
+  overflow: hidden;
+  margin-right: 1rem;
+  background-color: #e9ecef;
+  flex-shrink: 0;
+  border: 1px solid #dee2e6;
+`;
+
+const ProfileImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ProfileInitial = styled.div`
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${({ theme }) => theme.colors.white};
-  font-weight: ${({ theme }) => theme.typography.fontWeight.bold};
-  background-image: ${({ imageUrl }) => imageUrl ? `url(${imageUrl})` : 'none'};
-  background-size: cover;
-  background-position: center;
+  background-color: #007bff;
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
 `;
 
-const ChatButton = styled.button`
-  margin-left: auto;
-  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.primary};
-  border-radius: ${({ theme }) => theme.borderRadius.medium};
-  background: ${({ theme }) => theme.colors.white};
-  color: ${({ theme }) => theme.colors.primary};
-  cursor: pointer;
-  transition: all 0.2s;
+const UserInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+`;
 
-  &:hover {
-    background: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.white};
-  }
+const UserName = styled.div`
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.15rem;
+`;
+
+const UserStatus = styled.div`
+  font-size: 0.8rem;
+  color: #666;
 `;
 
 export const FriendItem: React.FC<FriendItemProps> = ({ friend, onChatClick, onClick }) => {
-  const getInitial = (name: string) => {
-    const firstChar = name.charAt(0);
-    // 한글인 경우
-    if (/[가-힣]/.test(firstChar)) {
-      return firstChar;
+  const renderProfileImage = () => {
+    if (friend.profileImageUrl) {
+      return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
     }
-    // 영어인 경우 대문자로 변환
-    return firstChar.toUpperCase();
+    return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
   };
+
+  const displayName = friend.nickname || friend.name;
 
   return (
     <FriendItemComponent onClick={onClick}>
-      <ProfileImage imageUrl={friend.profileImage}>
-        {!friend.profileImage && getInitial(friend.name)}
-      </ProfileImage>
-      <div>
-        <div style={{ fontWeight: 'bold' }}>{friend.name}</div>
-        <div style={{ fontSize: '0.8rem', color: '#666' }}>{friend.status}</div>
-      </div>
-      <ChatButton onClick={(e) => {
-        e.stopPropagation();
-        onChatClick();
-      }}>
-        채팅
-      </ChatButton>
+      <ProfileImageContainer>
+        {renderProfileImage()}
+      </ProfileImageContainer>
+      <UserInfo>
+        <UserName>{displayName}</UserName>
+        <UserStatus>{friend.status}</UserStatus>
+      </UserInfo>
     </FriendItemComponent>
   );
 }; 
