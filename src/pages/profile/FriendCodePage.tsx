@@ -3,6 +3,10 @@ import styled, { keyframes } from "styled-components";
 import { createMyCode, sendFriendRequestByCode, findUserByCode } from "../../services/userCode";
 import { useAuth } from "../../context/AuthContext";
 
+interface FriendCodePageProps {
+    onClose: () => void;
+}
+
 // 슬라이드 다운 애니메이션 정의
 const slideDown = keyframes`
     from {
@@ -25,6 +29,7 @@ const Container = styled.div`
     box-sizing: border-box;
     margin-bottom: 16px;
     animation: ${slideDown} 0.3s ease-out;
+    position: relative;
 `;
 
 const Title = styled.h2`
@@ -104,7 +109,23 @@ const Message = styled.p`
     margin-top: 16px;
 `;
 
-const FriendCodePage: React.FC = () => {
+const CloseButton = styled.button`
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 1.2rem;
+    
+    &:hover {
+        color: #333;
+    }
+`;
+
+const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
     const { user } = useAuth(); // AuthContext를 통해 로그인한 사용자 정보 사용
     const [code, setCode] = useState("");
     const [searchedUser, setSearchedUser] = useState<any>(null);
@@ -161,6 +182,7 @@ const FriendCodePage: React.FC = () => {
 
     return (
         <Container>
+            <CloseButton onClick={onClose}>&times;</CloseButton>
             <Title>코드로 친구 찾기 / 코드 등록</Title>
             <FormGroup>
                 <Label>코드 입력</Label>
