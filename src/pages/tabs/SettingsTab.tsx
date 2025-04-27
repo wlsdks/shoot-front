@@ -2,37 +2,44 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import EditProfile from '../../pages/profile/EditProfile';
-import TabContainer from '../../components/common/TabContainer';
-import TabHeader from '../../components/common/TabHeader';
-import Icon from '../../components/common/Icon';
 import {
-    TabContent,
-    TabSection
-} from '../../styles/tabStyles';
-import styled from 'styled-components';
+    TabContainer,
+    Header,
+    Title,
+    HeaderActions,
+    IconButton,
+    ScrollArea,
+    Card,
+    TextArea,
+    CardTitle,
+    CardDescription,
+    IconContainer,
+    ModalOverlay,
+    ModalContent,
+    ModalTitle,
+    ModalText,
+    ModalButtonGroup,
+    ModalButton
+} from '../../styles/commonStyles';
 
-const SettingsItem = styled.div`
-    display: flex;
-    align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    cursor: pointer;
-    
-    &:hover {
-        background-color: ${({ theme }) => theme.colors.background};
-    }
-`;
+// 아이콘 SVG 컴포넌트
+const IconSVG = ({ children }: { children: React.ReactNode }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        {children}
+    </svg>
+);
 
-const SettingsItemIcon = styled.div`
-    margin-right: 1rem;
-    color: ${({ theme }) => theme.colors.text};
-`;
-
-const SettingsItemText = styled.div`
-    flex: 1;
-    color: ${({ theme }) => theme.colors.text};
-`;
-
+// 설정 탭 컴포넌트
 const SettingsTab: React.FC = () => {
     const [activeSection, setActiveSection] = useState<string>('main');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -57,126 +64,150 @@ const SettingsTab: React.FC = () => {
 
     // 로그아웃 확인 모달
     const LogoutConfirmModal = () => (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 1000,
-            }}
-            onClick={() => setShowLogoutModal(false)}
-        >
-            <div
-                style={{
-                    backgroundColor: 'white',
-                    padding: '1.5rem',
-                    borderRadius: '12px',
-                    boxShadow: '0 5px 20px rgba(0, 0, 0, 0.2)',
-                    width: '80%',
-                    maxWidth: '320px',
-                    textAlign: 'center',
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.2rem', color: '#333', fontWeight: 600 }}>
-                    로그아웃
-                </h3>
-                <p style={{ marginBottom: '1.5rem', color: '#6c757d', fontSize: '0.95rem' }}>
-                    정말 로그아웃 하시겠습니까?
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.8rem' }}>
-                    <button
-                        onClick={() => setShowLogoutModal(false)}
-                        style={{
-                            padding: '0.7rem 1.2rem',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            fontSize: '0.95rem',
-                            background: '#f0f0f0',
-                            color: '#333',
-                        }}
-                    >
+        <ModalOverlay onClick={() => setShowLogoutModal(false)}>
+            <ModalContent onClick={(e) => e.stopPropagation()}>
+                <ModalTitle>로그아웃</ModalTitle>
+                <ModalText>정말 로그아웃 하시겠습니까?</ModalText>
+                <ModalButtonGroup>
+                    <ModalButton onClick={() => setShowLogoutModal(false)}>
                         취소
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            padding: '0.7rem 1.2rem',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            fontSize: '0.95rem',
-                            background: '#dc3545',
-                            color: 'white',
-                        }}
-                    >
+                    </ModalButton>
+                    <ModalButton $primary onClick={handleLogout}>
                         로그아웃
-                    </button>
-                </div>
-            </div>
-        </div>
+                    </ModalButton>
+                </ModalButtonGroup>
+            </ModalContent>
+        </ModalOverlay>
     );
 
     // 메인 설정 화면
     if (activeSection === 'main') {
         return (
             <TabContainer>
-                <TabHeader title="설정" />
-                <TabContent>
-                    <TabSection>
-                        <SettingsItem onClick={() => setActiveSection('profile')}>
-                            <SettingsItemIcon>
-                                <Icon>
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                    <circle cx="12" cy="7" r="4" />
-                                </Icon>
-                            </SettingsItemIcon>
-                            <SettingsItemText>프로필 설정</SettingsItemText>
-                        </SettingsItem>
-                        
-                        <SettingsItem onClick={() => navigate("/notifications")}>
-                            <SettingsItemIcon>
-                                <Icon>
-                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                </Icon>
-                            </SettingsItemIcon>
-                            <SettingsItemText>알림 설정</SettingsItemText>
-                        </SettingsItem>
-                        
-                        <SettingsItem onClick={() => navigate("/privacy")}>
-                            <SettingsItemIcon>
-                                <Icon>
-                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </Icon>
-                            </SettingsItemIcon>
-                            <SettingsItemText>개인정보 보호</SettingsItemText>
-                        </SettingsItem>
-                        
-                        <SettingsItem onClick={() => setShowLogoutModal(true)}>
-                            <SettingsItemIcon>
-                                <Icon>
-                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                    <polyline points="16 17 21 12 16 7" />
-                                    <line x1="21" y1="12" x2="9" y2="12" />
-                                </Icon>
-                            </SettingsItemIcon>
-                            <SettingsItemText>로그아웃</SettingsItemText>
-                        </SettingsItem>
-                    </TabSection>
-                </TabContent>
+                <Header>
+                    <Title>설정</Title>
+                    <HeaderActions>
+                        <IconButton>
+                            <IconSVG>
+                                <circle cx="12" cy="12" r="5" />
+                                <line x1="12" y1="1" x2="12" y2="3" />
+                                <line x1="12" y1="21" x2="12" y2="23" />
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                                <line x1="1" y1="12" x2="3" y2="12" />
+                                <line x1="21" y1="12" x2="23" y2="12" />
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                            </IconSVG>
+                        </IconButton>
+                    </HeaderActions>
+                </Header>
+                
+                <ScrollArea>
+                    <Card onClick={() => setActiveSection('profile')}>
+                        <TextArea>
+                            <CardTitle>프로필 관리</CardTitle>
+                            <CardDescription>개인 정보 및 프로필 사진 수정</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <circle cx="12" cy="7" r="4" />
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                    
+                    <Card>
+                        <TextArea>
+                            <CardTitle>알림 설정</CardTitle>
+                            <CardDescription>알림 및 소리 설정 관리</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                    
+                    <Card>
+                        <TextArea>
+                            <CardTitle>개인정보 보호</CardTitle>
+                            <CardDescription>개인정보 보호 및 보안 설정</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                    
+                    <Card>
+                        <TextArea>
+                            <CardTitle>테마</CardTitle>
+                            <CardDescription>앱 디자인 테마 변경</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <circle cx="12" cy="12" r="5" />
+                                <line x1="12" y1="1" x2="12" y2="3" />
+                                <line x1="12" y1="21" x2="12" y2="23" />
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                                <line x1="1" y1="12" x2="3" y2="12" />
+                                <line x1="21" y1="12" x2="23" y2="12" />
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                    
+                    <Card>
+                        <TextArea>
+                            <CardTitle>언어</CardTitle>
+                            <CardDescription>앱 언어 설정</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="2" y1="12" x2="22" y2="12" />
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                    
+                    <Card>
+                        <TextArea>
+                            <CardTitle>도움말 및 지원</CardTitle>
+                            <CardDescription>자주 묻는 질문 및 지원받기</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                    
+                    <Card onClick={() => setShowLogoutModal(true)}>
+                        <TextArea>
+                            <CardTitle>로그아웃</CardTitle>
+                            <CardDescription>계정에서 로그아웃</CardDescription>
+                        </TextArea>
+                        <IconContainer style={{ color: '#dc3545' }}>
+                            <IconSVG>
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
+                </ScrollArea>
+                
+                {/* 로그아웃 확인 모달 */}
+                {showLogoutModal && <LogoutConfirmModal />}
             </TabContainer>
         );
     }
@@ -185,19 +216,20 @@ const SettingsTab: React.FC = () => {
     if (activeSection === 'profile') {
         return (
             <TabContainer>
-                <TabHeader title="프로필 관리" />
-                <TabContent>
-                    <TabSection>
-                        <EditProfile onClose={handleBack} />
-                    </TabSection>
-                </TabContent>
+                <Header>
+                    <IconButton onClick={handleBack}>
+                        <IconSVG>
+                            <line x1="19" y1="12" x2="5" y2="12" />
+                            <polyline points="12 19 5 12 12 5" />
+                        </IconSVG>
+                    </IconButton>
+                    <Title>프로필 관리</Title>
+                </Header>
+                <ScrollArea>
+                    <EditProfile onClose={handleBack} />
+                </ScrollArea>
             </TabContainer>
         );
-    }
-
-    // 로그아웃 확인 모달
-    if (showLogoutModal) {
-        return <LogoutConfirmModal />;
     }
 
     return null;
