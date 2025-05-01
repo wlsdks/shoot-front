@@ -928,6 +928,8 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     // 메시지 상태 표시 로직
     const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
         if (!isOwn || !currentStatus) return null;
+        
+        // SAVED 상태이거나 persistedId가 있으면 상태 표시하지 않음
         if (currentStatus === MessageStatus.SAVED || isPersisted) return null;
         
         return (
@@ -973,17 +975,37 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 <ChatArea ref={chatAreaRef}>
                     <MessagesContainer className={input ? 'typing' : ''}>
                         {messages.map((msg, idx) => {
+                            // 내 메시지인가?
                             const isOwn = String(msg.senderId) === String(user?.id);
+                            
+                            // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                             const currentStatus = msg.tempId
                                 ? messageStatuses[msg.tempId]?.status || msg.status
                                 : msg.status;
-                            const isPersisted = msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
-                            const otherHasRead = msg.readBy 
-                                ? Object.entries(msg.readBy as Record<string, boolean>)
-                                    .filter(([id]) => id !== user?.id.toString())
-                                    .some(([, read]) => read === true)
-                                : false;
+                            
+                            // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
+                            const isPersisted = !!msg.id && msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
+                            
+                            // 읽음 상태 확인 로직 수정
+                            // 내 메시지의 경우, 가장 먼저 다른 참여자가 있는지 확인
+                            const otherParticipants = msg.readBy 
+                                ? Object.keys(msg.readBy).filter(id => id !== user?.id.toString()) 
+                                : [];
+                            
+                            // 1. 내 메시지가 아니거나 저장되지 않은 메시지면 1 표시 안함 (true)
+                            // 2. 내 메시지이고 저장됐지만 다른 참여자가 없으면 1 표시 필요 (false)
+                            // 3. 내 메시지이고 저장됐고 다른 참여자가 있지만 읽지 않았으면 1 표시 필요 (false)
+                            // 4. 내 메시지이고 저장됐고 다른 참여자가 모두 읽었으면 1 표시 안함 (true)
+                            const otherHasRead = !isOwn || !isPersisted 
+                                ? true
+                                : otherParticipants.length === 0 
+                                    ? false 
+                                    : otherParticipants.every(id => msg.readBy[id] === true);
+                            
+                            // indicatorText: 메시지를 모든 상대방이 읽지 않았으면 "1" 표시
                             const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
+                            
+                            // 상태표시
                             const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
                             
                             const nextMessage = messages[idx + 1];
