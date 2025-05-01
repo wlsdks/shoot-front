@@ -302,9 +302,9 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         }
         // 새 메시지 추가 시 (new)
         else if (messageDirection === "new") {
-            // 현재 스크롤이 거의 하단에 있는 경우만 스크롤 다운
-            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
-            if (isNearBottom) {
+            // 내가 보낸 메시지인 경우에만 스크롤 다운
+            const isOwnMessage = messages[messages.length - 1]?.senderId === user?.id;
+            if (isOwnMessage) {
                 chatArea.scrollTop = chatArea.scrollHeight;
             }
         }
