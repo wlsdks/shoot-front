@@ -7,6 +7,7 @@ import {
     sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
+    cancelFriendRequest,
 } from "../../services/friends";
 import { useAuth } from "../../context/AuthContext";
 import { Friend, FriendResponse } from "../../types/friend.types";
@@ -153,7 +154,7 @@ const SocialTab: React.FC = () => {
     const handleCancelRequest = async (targetUserId: number) => {
         if (!user) return;
         try {
-            await rejectFriendRequest(user.id, targetUserId);
+            await cancelFriendRequest(user.id, targetUserId);
             
             // 보낸 요청에서 해당 사용자 제거
             setOutgoing(prev => prev.filter(r => r.id !== targetUserId));

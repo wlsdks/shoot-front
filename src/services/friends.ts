@@ -64,3 +64,13 @@ export const getRecommendations = async (
     const response = await api.get<ApiResponse<Friend[]>>(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth, skip } });
     return extractData(response);
 };
+
+export const cancelFriendRequest = async (userId: number, targetUserId: number): Promise<void> => {
+    const response = await api.post(`/friends/cancel`, null, {
+        params: {
+            userId,
+            targetUserId
+        }
+    });
+    return response.data;
+};
