@@ -1,0 +1,70 @@
+export enum MessageStatus {
+    SENDING = 'SENDING',
+    PROCESSING = 'PROCESSING',
+    SENT_TO_KAFKA = 'SENT_TO_KAFKA',
+    SAVED = 'SAVED',
+    FAILED = 'FAILED'
+}
+
+// 채팅 메시지 인터페이스
+export interface ChatMessageItem {
+    id: string;
+    tempId?: string;
+    roomId: number;
+    senderId: number;
+    content: {
+        text: string;
+        type: string;
+        attachments: any[];
+        isEdited: boolean;
+        isDeleted: boolean;
+        urlPreview?: {
+            url: string;
+            title?: string;
+            description?: string;
+            imageUrl?: string;
+            siteName?: string;
+        }
+    };
+    createdAt?: string;
+    status: MessageStatus;
+    readBy: { [userId: string]: boolean };
+    metadata: {
+        tempId: string,
+        needsUrlPreview: boolean,
+        previewUrl: null
+    }
+}
+
+// 타이핑 인디케이터 메시지 인터페이스
+export interface TypingIndicatorMessage {
+    roomId: number;
+    userId: number;
+    username: string;
+    isTyping: boolean;
+}
+
+export interface MessageStatusData {
+    status: MessageStatus;
+    messageId?: string;
+    persistedId: string | null;
+    createdAt: string;
+}
+
+export interface MessageStatusUpdate {
+    tempId: string;
+    messageId: string;
+    status: MessageStatus;
+    timestamp?: number;
+}
+
+export interface ChatRoomProps {
+    socket?: any;
+}
+
+export type MessageStatusInfo = {
+    status: MessageStatus;
+    persistedId: string | null;
+    createdAt?: string | null;
+    messageId?: string;
+}; 

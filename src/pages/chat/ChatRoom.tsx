@@ -5,819 +5,82 @@ import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../
 import { markAllMessagesAsRead } from "../../services/chatRoom";
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
-import styled, { keyframes } from "styled-components";
 import { throttle } from "lodash";
 
-enum MessageStatus {
-    SENDING = 'SENDING',
-    PROCESSING = 'PROCESSING',
-    SENT_TO_KAFKA = 'SENT_TO_KAFKA',
-    SAVED = 'SAVED',
-    FAILED = 'FAILED'
-}
+// 스타일 임포트
+import {
+    ChatWrapper,
+    ChatContainer,
+    Header,
+    BackButton,
+    HeaderTitle,
+    ChatArea,
+    MessagesContainer,
+    MessageRow,
+    ChatBubble,
+    TimeContainer,
+    TypingIndicatorContainer,
+    TypingDots,
+    ChatInputContainer,
+    Input,
+    SendButton,
+    ErrorMessage,
+    ContextMenu,
+    ContextMenuItem,
+    ModalOverlay,
+    ModalContent,
+    ModalButtons,
+    PinnedMessagesContainer,
+    PinnedMessagesHeader,
+    ExpandButton,
+    PinnedMessagesSummary,
+    PinnedMessagesTitle,
+    PinnedMessagesContent,
+    PinnedMessageItem,
+    PinnedMessageContent,
+    PinnedMessageSender,
+    UnpinButton,
+    UrlPreviewContainer,
+    PreviewImage,
+    PreviewContent,
+    PreviewSite,
+    PreviewTitle,
+    PreviewDescription
+} from './styles/ChatRoom.styles';
 
-// 채팅 메시지 인터페이스
-export interface ChatMessageItem {
-    id: string;
-    tempId?: string;
-    roomId: number;
-    senderId: number;
-    content: {
-        text: string;
-        type: string;
-        attachments: any[];
-        isEdited: boolean;
-        isDeleted: boolean;
-        urlPreview?: {  // 백엔드 구조와 일치시킴
-            url: string;
-            title?: string;
-            description?: string;
-            imageUrl?: string;
-            siteName?: string;
-        }
-    };
-    createdAt?: string;
-    status: MessageStatus;
-    readBy: { [userId: string]: boolean };
-    metadata: {
-        tempId: string,
-        needsUrlPreview: boolean,
-        previewUrl: null
-    }
-}
+// 타입 임포트
+import {
+    MessageStatus,
+    ChatMessageItem,
+    TypingIndicatorMessage,
+    MessageStatusData,
+    MessageStatusUpdate,
+    ChatRoomProps,
+    MessageStatusInfo
+} from './types/ChatRoom.types';
 
-// 타이핑 인디케이터 메시지 인터페이스
-interface TypingIndicatorMessage {
-    roomId: number;
-    userId: number;
-    username: string;
-    isTyping: boolean;
-}
+// 커스텀 훅 임포트
+import { useMessageState } from './hooks/useMessageState';
+import { useTypingState } from './hooks/useTypingState';
+import { useScrollManager } from './hooks/useScrollManager';
 
-// 애니메이션 정의
-const fadeIn = keyframes`
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-`;
+// 아이콘 컴포넌트 임포트
+import {
+    BackIcon,
+    SendIcon,
+    ForwardIcon,
+    ErrorIcon,
+    PinIcon,
+    ChevronDownIcon
+} from './components/icons';
 
-const bounce = keyframes`
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-3px); }
-`;
-
-// ============= 스타일 컴포넌트 정의 =============
-
-// 채팅 컨테이너
-const ChatWrapper = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: calc(100vh - 60px);
-    padding-top: 60px;
-    background-color: #f5f7fa;
-    overflow: hidden;
-`;
-
-const ChatContainer = styled.div`
-    width: 375px;
-    height: 667px;
-    background-color: #fff;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-`;
-
-// 헤더 스타일
-const Header = styled.div`
-    padding: 14px 16px;
-    background: #fff;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    align-items: center;
-    z-index: 10;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-`;
-
-const BackButton = styled.button`
-    background: #f0f7ff;
-    border: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    color: #007bff;
-    margin-right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    
-    &:hover {
-        background: #e1ecff;
-        transform: translateX(-2px);
-    }
-`;
-
-const HeaderTitle = styled.h2`
-    font-size: 1.1rem;
-    margin: 0;
-    color: #333;
-    font-weight: 600;
-    flex: 1;
-`;
-
-// 채팅 영역 스타일
-const ChatArea = styled.div`
-    flex: 1;
-    padding: 10px;
-    padding-bottom: 0px;
-    background: #f8f9fa;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #ddd transparent;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    
-    &::-webkit-scrollbar {
-        width: 5px;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-        background: #ddd;
-        border-radius: 3px;
-    }
-    
-    &::-webkit-scrollbar-track {
-        background: transparent;
-    }
-`;
-
-const MessagesContainer = styled.div`
-    display: flex;
-    flex-direction: column;
-    min-height: min-content;
-    width: 100%;
-    padding-bottom: 2px;
-`;
-
-// 메시지 행: 채팅 말풍선과 시간/Indicator를 수평 배치
-const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
-    display: flex;
-    align-items: flex-end;
-    justify-content: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
-    margin-bottom: 10px;
-    animation: ${fadeIn} 0.3s ease-out;
-`;
-
-// 채팅 말풍선
-const ChatBubble = styled.div<{ $isOwnMessage: boolean }>`
-    max-width: 100%;
-    padding: 10px 14px;
-    border-radius: 18px;
-    background: ${({ $isOwnMessage }) =>
-        $isOwnMessage 
-        ? "linear-gradient(135deg, #007bff, #0056b3)" 
-        : "#ffffff"};
-    color: ${({ $isOwnMessage }) => ($isOwnMessage ? "#fff" : "#333")};
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    font-size: 0.95rem;
-    border: ${({ $isOwnMessage }) => $isOwnMessage ? "none" : "1px solid #eee"};
-    cursor: pointer;
-    transition: all 0.2s;
-    word-break: break-word;
-    position: relative;
-    className: "chat-bubble"; /* 클래스명 추가 - 선택자로 사용하기 위함 */
-    
-    &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-    }
-`;
-
-// 시간 및 상태 컨테이너
-const TimeContainer = styled.div<{ $isOwnMessage: boolean }>`
-    font-size: 0.7rem;
-    color: #999;
-    margin: 0 6px;
-    display: flex;
-    flex-direction: column;
-    align-items: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
-`;
-
-// 타이핑 인디케이터
-const TypingIndicatorContainer = styled.div`
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    color: #666;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 18px;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    max-width: 75%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    align-self: flex-start;
-    position: relative;
-    margin-top: 8px;
-    margin-bottom: 8px;
-    z-index: 1;
-`;
-
-const TypingDots = styled.div`
-    display: flex;
-    margin-left: 8px;
-    
-    span {
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background-color: #aaa;
-        margin: 0 2px;
-        animation: ${bounce} 1s infinite;
-        
-        &:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        
-        &:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-    }
-`;
-
-// 입력 영역
-const ChatInputContainer = styled.div`
-    display: flex;
-    padding: 12px 16px;
-    background: #fff;
-    border-top: 1px solid #eee;
-    z-index: 10;
-    position: relative;
-`;
-
-const Input = styled.input`
-    flex: 1;
-    padding: 12px 16px;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 20px;
-    background: #f0f2f5;
-    
-    &:focus {
-        outline: none;
-        background: #e8eaed;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
-    }
-    
-    &::placeholder {
-        color: #aaa;
-    }
-`;
-
-const SendButton = styled.button`
-    padding: 0;
-    width: 40px;
-    height: 40px;
-    margin-left: 8px;
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    &:hover {
-        transform: scale(1.05);
-        box-shadow: 0 2px 5px rgba(0, 123, 255, 0.4);
-    }
-    
-    &:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
-`;
-
-const ErrorMessage = styled.div`
-    padding: 10px;
-    background: #ffebee;
-    color: #c62828;
-    text-align: center;
-    font-size: 0.9rem;
-    border-radius: 10px;
-    margin: 8px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    svg {
-        margin-right: 6px;
-    }
-`;
-
-const ContextMenu = styled.div`
-    position: fixed; /* absolute 대신 fixed 사용 */
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    z-index: 1000; /* 충분히 높은 z-index */
-    overflow: hidden;
-    border: 1px solid #eee;
-    min-width: 150px; /* 최소 너비 지정 */
-`;
-
-const ContextMenuItem = styled.div`
-    padding: 10px 14px;
-    cursor: pointer;
-    transition: background 0.2s;
-    display: flex;
-    align-items: center;
-    
-    svg {
-        margin-right: 8px;
-        color: #666;
-    }
-    
-    &:hover {
-        background: #f5f9ff;
-    }
-`;
-
-const ModalOverlay = styled.div`
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1001;
-`;
-
-const ModalContent = styled.div`
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    min-width: 300px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    
-    h3 {
-        margin-top: 0;
-        color: #333;
-    }
-    
-    input {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        margin: 10px 0;
-        font-size: 0.95rem;
-        
-        &:focus {
-            outline: none;
-            border-color: #007bff;
-        }
-    }
-`;
-
-const ModalButtons = styled.div`
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    
-    button {
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        
-        &:first-child {
-            background: #f0f0f0;
-            border: none;
-            color: #333;
-            
-            &:hover {
-                background: #e0e0e0;
-            }
-        }
-        
-        &:last-child {
-            background: #007bff;
-            border: none;
-            color: white;
-            
-            &:hover {
-                background: #0056b3;
-            }
-        }
-    }
-`;
-
-// URL 미리보기 스타일
-const UrlPreviewContainer = styled.div`
-    margin-top: 15px;
-    margin-bottom: 5px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    overflow: hidden;
-    background: white;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s;
-    max-width: 300px;
-    width: 100%;
-    
-    &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-`;
-
-const PreviewImage = styled.div<{ $hasImage: boolean }>`
-    width: 100%;
-    height: ${({ $hasImage }) => ($hasImage ? '140px' : '0')};
-    background-color: #f1f3f5;
-    display: ${({ $hasImage }) => ($hasImage ? 'block' : 'none')};
-    
-    img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-`;
-
-const PreviewContent = styled.div`
-    padding: 10px 12px;
-`;
-
-const PreviewSite = styled.div`
-    font-size: 0.7rem;
-    color: #777;
-    margin-bottom: 4px;
-`;
-
-const PreviewTitle = styled.div`
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #007bff;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-decoration: underline;
-`;
-
-const PreviewDescription = styled.div`
-    font-size: 0.8rem;
-    color: #666;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-`;
-
-// 고정된 메시지 섹션 스타일 (다른 스타일 컴포넌트 근처에 추가)
-const PinnedMessagesContainer = styled.div<{ $isExpanded: boolean }>`
-    background-color: #f8f9fa;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    padding: 0;
-    max-height: ${props => props.$isExpanded ? '200px' : '56px'};
-    overflow: ${props => props.$isExpanded ? 'auto' : 'hidden'};
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-`;
-
-const PinnedMessagesHeader = styled.div<{ $isExpanded: boolean }>`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    background-color: #f0f5ff;
-    border-bottom: ${props => props.$isExpanded ? '1px solid rgba(0, 123, 255, 0.1)' : 'none'};
-    cursor: pointer;
-`;
-
-const ExpandButton = styled.button<{ $isExpanded: boolean }>`
-    background: none;
-    border: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #007bff;
-    cursor: pointer;
-    transition: all 0.2s;
-    
-    &:hover {
-        background-color: rgba(0, 123, 255, 0.1);
-    }
-    
-    svg {
-        transition: transform 0.3s ease;
-        transform: ${props => props.$isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};
-    }
-`;
-
-// 공지사항 요약 컨테이너 추가
-const PinnedMessagesSummary = styled.div`
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    flex: 1;
-    margin-left: 10px;
-    
-    span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 0.85rem;
-        color: #666;
-    }
-`;
-
-const PinnedMessagesTitle = styled.div`
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #007bff;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-`;
-
-const PinnedMessagesContent = styled.div`
-    padding: 8px 0;
-    max-height: 200px;
-    overflow-y: auto;
-`;
-
-const PinnedMessageItem = styled.div`
-    display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    background-color: #fff;
-    margin: 4px 8px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    position: relative;
-    transition: all 0.2s;
-    border-left: 3px solid #007bff;
-    
-    &:hover {
-        background-color: #f9f9f9;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-`;
-
-const PinnedMessageContent = styled.div`
-    flex: 1;
-    font-size: 0.9rem;
-    color: #333;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const PinnedMessageSender = styled.span`
-    font-weight: 600;
-    margin-right: 6px;
-    color: #007bff;
-`;
-
-const UnpinButton = styled.button`
-    background: none;
-    border: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #aaa;
-    cursor: pointer;
-    margin-left: 8px;
-    transition: all 0.2s;
-    
-    &:hover {
-        color: #dc3545;
-        background-color: rgba(220, 53, 69, 0.1);
-    }
-`;
-
-// ============= 아이콘 컴포넌트 =============
-const BackIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="19" y1="12" x2="5" y2="12"></line>
-        <polyline points="12 19 5 12 12 5"></polyline>
-    </svg>
-);
-
-const SendIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"></line>
-        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-    </svg>
-);
-
-const ForwardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="17 8 22 12 17 16"></polyline>
-        <line x1="4" y1="12" x2="22" y2="12"></line>
-    </svg>
-);
-
-const ErrorIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-);
-
-// 핀 아이콘 컴포넌트
-const PinIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L12 6"></path>
-        <path d="M12 12L12 19"></path>
-        <line x1="4.5" y1="12" x2="19.5" y2="12"></line>
-        <path d="M8 12c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2v3c0 1.1-.9 2-2 2H8z"></path>
-    </svg>
-);
-
-// 화살표 아이콘 컴포넌트
-const ChevronDownIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"></polyline>
-    </svg>
-);
-
-// ============= ChatRoom 컴포넌트 =============
-interface MessageStatusData {
-    status: MessageStatus;
-    messageId?: string;
-    persistedId: string | null;
-    createdAt: string;
-}
-
-interface MessageStatusUpdate {
-    tempId: string;
-    messageId: string;
-    status: MessageStatus;
-    timestamp?: number;
-}
-
-interface ChatRoomProps {
-    socket?: any; // socket prop은 실제로 사용되지 않음
-}
-
-// 메시지 정렬 유틸리티 함수 추가
+// 메시지 정렬 유틸리티 함수
 const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[] => {
     return [...messages].sort((a, b) => {
-        const timeA = new Date(a.createdAt || "").getTime();
-        const timeB = new Date(b.createdAt || "").getTime();
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return timeA - timeB;
     });
-};
-
-// 메시지 상태 타입 정의
-type MessageStatusInfo = {
-    status: MessageStatus;
-    persistedId: string | null;
-    createdAt?: string | null;
-    messageId?: string;  // messageId 필드 추가
-};
-
-// 메시지 상태 관리를 위한 커스텀 훅
-const useMessageState = () => {
-    const [messages, setMessages] = useState<ChatMessageItem[]>([]);
-    const [messageStatuses, setMessageStatuses] = useState<Record<string, MessageStatusInfo>>({});
-    const [messageDirection, setMessageDirection] = useState<"INITIAL" | "BEFORE" | "AFTER" | "new">("INITIAL");
-    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-    const messagesRef = useRef<ChatMessageItem[]>([]);
-    const chatAreaRef = useRef<HTMLDivElement>(null);
-
-    const updateMessages = useCallback((newMsg: ChatMessageItem) => {
-        setMessages(prev => {
-            const messageMap = new Map<string, ChatMessageItem>();
-            prev.forEach(msg => {
-                if (msg.id) messageMap.set(msg.id, msg);
-                if (msg.tempId) messageMap.set(msg.tempId, msg);
-            });
-            
-            if (newMsg.id && messageMap.has(newMsg.id) || 
-                newMsg.tempId && messageMap.has(newMsg.tempId)) {
-                return prev;
-            }
-            
-            return [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
-        });
-    }, []);
-
-    const updateMessageStatus = useCallback((tempId: string, status: MessageStatusInfo) => {
-        setMessageStatuses(prev => ({
-            ...prev,
-            [tempId]: {
-                ...status,
-                messageId: status.messageId  // messageId가 없으면 undefined가 됨
-            }
-        }));
-    }, []);
-
-    // messagesRef 업데이트
-    useEffect(() => {
-        messagesRef.current = messages;
-    }, [messages]);
-
-    return {
-        messages,
-        messageStatuses,
-        messageDirection,
-        initialLoadComplete,
-        setMessageDirection,
-        setInitialLoadComplete,
-        updateMessages,
-        updateMessageStatus,
-        setMessages,
-        setMessageStatuses,
-        messagesRef,
-        chatAreaRef
-    };
-};
-
-// 타이핑 상태 관리를 위한 커스텀 훅
-const useTypingState = () => {
-    const [typingUsers, setTypingUsers] = useState<string[]>([]);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    return {
-        typingUsers,
-        setTypingUsers,
-        typingTimeoutRef
-    };
-};
-
-// 스크롤 관리를 위한 커스텀 훅
-const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) => {
-    const lastScrollPosRef = useRef(0);
-    const scrollHeightBeforeUpdateRef = useRef(0);
-    const isPreviousMessagesLoadingRef = useRef(false);
-    const firstVisibleMessageRef = useRef<string | null>(null);
-
-    const scrollToBottom = useCallback(() => {
-        if (chatAreaRef.current) {
-            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-        }
-    }, []);
-
-    const handleScroll = useCallback((direction: "INITIAL" | "BEFORE" | "AFTER" | "new") => {
-        if (!chatAreaRef.current) return;
-
-        const chatArea = chatAreaRef.current;
-        
-        if (direction === "BEFORE" && isPreviousMessagesLoadingRef.current) {
-            const newScrollHeight = chatArea.scrollHeight;
-            const heightDifference = newScrollHeight - scrollHeightBeforeUpdateRef.current;
-            chatArea.scrollTop = lastScrollPosRef.current + heightDifference;
-            isPreviousMessagesLoadingRef.current = false;
-        } else if (direction === "INITIAL" || direction === "AFTER") {
-            chatArea.scrollTop = chatArea.scrollHeight;
-        } else if (direction === "new") {
-            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
-            if (isNearBottom) {
-                chatArea.scrollTop = chatArea.scrollHeight;
-            }
-        }
-    }, []);
-
-    const saveScrollPosition = useCallback(() => {
-        if (chatAreaRef.current) {
-            scrollHeightBeforeUpdateRef.current = chatAreaRef.current.scrollHeight;
-            lastScrollPosRef.current = chatAreaRef.current.scrollTop;
-        }
-    }, []);
-
-    return {
-        lastScrollPosRef,
-        scrollHeightBeforeUpdateRef,
-        isPreviousMessagesLoadingRef,
-        firstVisibleMessageRef,
-        scrollToBottom,
-        handleScroll,
-        saveScrollPosition
-    };
 };
 
 const ChatRoom = ({ socket }: ChatRoomProps) => {
@@ -847,7 +110,10 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const {
         typingUsers,
         setTypingUsers,
-        typingTimeoutRef
+        typingTimeoutRef,
+        updateTypingStatus,
+        removeTypingUser,
+        getTypingUsernames
     } = useTypingState();
 
     const {
@@ -1265,15 +531,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
                         const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
                         if (typingMsg.userId === user.id) return;
-                        setTypingUsers((prev: string[]) => {
-                            const newUsers = typingMsg.isTyping
-                                ? prev.includes(typingMsg.username || typingMsg.userId.toString())
-                                    ? prev 
-                                    : [...prev, typingMsg.username || typingMsg.userId.toString()]
-                                : prev.filter((u: string) => u !== (typingMsg.username || typingMsg.userId.toString()));
-                            if (newUsers.length > 0) scrollToBottom();
-                            return newUsers;
-                        });
+                        updateTypingStatus(typingMsg);
                     });
 
                     // 메시지 상태 채널 구독
@@ -2140,9 +1398,9 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 </React.Fragment>
                             );
                         })}
-                        {typingUsers.length > 0 && (
+                        {Object.keys(typingUsers).length > 0 && (
                             <TypingIndicatorContainer>
-                                {typingUsers.join(", ")}님이 타이핑 중...
+                                {getTypingUsernames()}님이 타이핑 중...
                                 <TypingDots>
                                     <span></span>
                                     <span></span>
