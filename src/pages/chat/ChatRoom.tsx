@@ -3,9 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
 import { markAllMessagesAsRead } from "../../services/chatRoom";
-import SockJS from "sockjs-client";
-import { Client, IMessage } from "@stomp/stompjs";
+import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
 import { throttle } from "lodash";
+import { WebSocketMessage, MessageStatusUpdate } from "../../services/websocket/types";
 
 // 스타일 임포트
 import {
@@ -70,11 +70,11 @@ const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[]
 const ChatRoom = ({ socket }: ChatRoomProps) => {
     const { user } = useAuth();
     const { roomId } = useParams<{ roomId: string }>();
-    const [stompClient, setStompClient] = useState<Client | null>(null);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const webSocketService = useRef(createWebSocketService());
 
     const {
         messages,
@@ -373,424 +373,276 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         }
     }, [roomId, isConnected, fetchPinnedMessages]);
 
-    // 초기 메시지 로드 및 STOMP 연결
+    // WebSocket 연결 및 이벤트 핸들러 설정
     useEffect(() => {
-        // DOM이 준비되었는지 확인
-        if (!chatAreaRef.current) return;
+        if (!roomId || !user) return;
 
-        // DOM이 준비된 후 웹소켓 연결 로직 시작
-        const connectWebSocket = () => {
-            if (!roomId || !user) return;
+        const connectWebSocket = async () => {
+            try {
+                await webSocketService.current.connect(Number(roomId), user.id);
+                setConnectionError(null);
+                setIsConnected(true);
 
-            // 이미 연결이 있으면 먼저 정리
-            if (stompClient && stompClient.connected) {
-                stompClient.deactivate();
-            }
-
-            // STOMP 연결
-            const token = localStorage.getItem("accessToken");
-            const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
-            const client = new Client({
-                webSocketFactory: () => socket,
-                reconnectDelay: 5000,
-                debug: function(message) {
-                    // console.log("STOMP 디버그:", message);
-                },
-                onConnect: () => {
-                    console.log("WebSocket 연결됨");
-                    setConnectionError(null);
-                    setIsConnected(true);
-
-                    // 최신 DOM 준비 상태(ref)를 확인합니다.
-                    if (domReadyRef.current) {
-                        // DOM이 준비되었으면 약간의 딜레이 후 동기화 요청을 보냅니다.
-                        setTimeout(() => {
-                            // 동기화 요청 (마지막 메시지 ID가 있으면 해당 ID 이후의 메시지만 받아옴) 
-                            const lastMessageId = messages.length > 0 
-                                ? messages[messages.length - 1].id 
-                                : null;
-
-                            console.log("동기화 요청 보내기:", roomId, lastMessageId);
-
-                            // 동기화 요청: 마지막 메시지가 있으면 "AFTER", 없으면 "INITIAL"
-                            client.publish({
-                                destination: "/app/sync",
-                                body: JSON.stringify({
-                                    roomId,
-                                    userId: user.id,
-                                    lastMessageId,
-                                    timestamp: new Date().toISOString(),
-                                    direction: lastMessageId ? "AFTER" : "INITIAL"
-                                })
-                            });
-                        }, 100); // 100ms 정도의 딜레이 (상황에 따라 조정)
-                    } else {
-                        console.log("DOM이 아직 준비되지 않음. 동기화 요청 대기");
-                        // 필요하다면 DOM 준비 상태를 주기적으로 확인해 동기화 요청을 재시도할 수 있습니다.
-                        // 예를 들어, 아래와 같이 재시도할 수 있습니다.
-                        const retryInterval = setInterval(() => {
-                            if (domReadyRef.current) {
-                                clearInterval(retryInterval);
-
-                                setTimeout(() => {
-                                    // 마지막 메시지 id 추출
-                                    const lastMessageId = messages.length > 0 
-                                        ? messages[messages.length - 1].id 
-                                        : null;
-
-                                    console.log("동기화 요청 보내기 (재시도):", roomId, lastMessageId);
-
-                                    // 요청 보내기
-                                    client.publish({
-                                        destination: "/app/sync",
-                                        body: JSON.stringify({
-                                            roomId,
-                                            userId: user.id,
-                                            lastMessageId,
-                                            timestamp: new Date().toISOString(),
-                                            direction: lastMessageId ? "AFTER" : "INITIAL"
-                                        })
-                                    });
-                                }, 100);
-                            }
-                        }, 200);
-                    }
-
-                    // 활성 상태 전송
-                    if (stompClient && stompClient.connected) {
-                        stompClient.publish({
-                            destination: "/app/active",
-                            body: JSON.stringify({ userId: user.id, roomId, active: true })
+                // 메시지 수신 핸들러
+                webSocketService.current.onMessage((msg: ChatMessageItem) => {
+                    console.log("웹소켓 메시지 수신:", {
+                        id: msg.id,
+                        tempId: msg.tempId,
+                        text: msg.content.text,
+                        source: "websocket"
+                    });
+                    
+                    updateMessages(msg);
+                    
+                    if (
+                        document.visibilityState === "visible" &&
+                        msg.readBy && !msg.readBy[user.id] &&
+                        msg.senderId !== user.id &&
+                        msg.tempId && messageStatuses[msg.tempId]?.persistedId
+                    ) {
+                        webSocketService.current.sendMessage({
+                            ...msg,
+                            id: messageStatuses[msg.tempId].persistedId!
                         });
-                    } else {
-                        console.warn("연결이 되지 않았으므로 publish 호출을 스킵합니다.");
-                        // 필요 시 재연결 로직 추가
                     }
+                });
 
-                    // Heartbeat 설정
-                    heartbeatRef.current = setInterval(() => {
-                        if (client.connected) {
-                            client.publish({
-                                destination: "/app/active",
-                                body: JSON.stringify({ userId: user.id, roomId, active: true })
+                // 타이핑 인디케이터 핸들러
+                webSocketService.current.onTypingIndicator((typingMsg: TypingIndicatorMessage) => {
+                    if (typingMsg.userId === user.id) return;
+                    updateTypingStatus(typingMsg);
+                });
+
+                // 메시지 상태 핸들러
+                webSocketService.current.onMessageStatus((update: MessageStatusUpdate) => {
+                    const statusUpdate = Array.isArray(update) 
+                        ? update[update.length - 1] 
+                        : update;
+                    
+                    if (!statusUpdate || !statusUpdate.tempId) return;
+
+                    setMessageStatuses((prev) => {
+                        const existingStatus = prev[statusUpdate.tempId] || {};
+                        const newStatus = {
+                            status: statusUpdate.status,
+                            persistedId: statusUpdate.persistedId || existingStatus.persistedId,
+                            createdAt: statusUpdate.createdAt || existingStatus.createdAt
+                        };
+                        
+                        return {
+                            ...prev,
+                            [statusUpdate.tempId]: newStatus
+                        };
+                    });
+
+                    setMessages((prev) => {
+                        const messageMap = new Map<string, ChatMessageItem>();
+                        
+                        prev.forEach(msg => {
+                            if (msg.tempId === statusUpdate.tempId) return;
+                            messageMap.set(msg.id, msg);
+                        });
+
+                        const updatedMsg = prev.find(msg => msg.tempId === statusUpdate.tempId);
+                        if (updatedMsg) {
+                            const newMsg = {
+                                ...updatedMsg,
+                                status: statusUpdate.status,
+                                id: statusUpdate.persistedId || updatedMsg.id
+                            };
+                            messageMap.set(newMsg.id, newMsg);
+                        }
+
+                        return Array.from(messageMap.values()).sort((a, b) => 
+                            new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                        );
+                    });
+
+                    if (statusUpdate.status === MessageStatus.SAVED && statusUpdate.persistedId) {
+                        const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
+                        if (currentMsg && !currentMsg.readBy[user.id] && currentMsg.senderId !== user.id) {
+                            webSocketService.current.sendMessage({
+                                ...currentMsg,
+                                id: statusUpdate.persistedId
                             });
                         }
-                    }, 120000); // 2분
+                    }
 
-                    // 메시지 수신 구독 (실시간 신규 메시지 처리)
-                    client.subscribe(`/topic/messages/${roomId}`, (message: IMessage) => {
-                        try {
-                            const msg: ChatMessageItem = JSON.parse(message.body);
-                            console.log("웹소켓 메시지 수신:", {
+                    if (statusUpdate.status === MessageStatus.FAILED) {
+                        setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
+                        setTimeout(() => setConnectionError(null), 3000);
+                    }
+                });
+
+                // 메시지 업데이트 핸들러
+                webSocketService.current.onMessageUpdate((updatedMessage: ChatMessageItem) => {
+                    setMessages((prevMessages) => 
+                        prevMessages.map((msg) => 
+                            msg.id === updatedMessage.id ? updatedMessage : msg
+                        )
+                    );
+                });
+
+                // 읽음 처리 핸들러
+                webSocketService.current.onReadBulk(({ messageIds, userId }: { messageIds: string[], userId: number }) => {
+                    updateBulkMessageReadStatus(messageIds, userId.toString());
+                });
+
+                // 핀 상태 변경 핸들러
+                webSocketService.current.onPinUpdate(() => {
+                    fetchPinnedMessages();
+                });
+
+                // 동기화 핸들러
+                webSocketService.current.onSync((syncResponse: { roomId: number, direction?: string, messages: any[] }) => {
+                    console.log("동기화 응답 수신:", {
+                        direction: syncResponse.direction,
+                        messageCount: syncResponse.messages.length,
+                        source: "sync"
+                    });
+                    
+                    if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
+                        const targetMessageId = firstVisibleMessageRef.current;
+                        const originalScrollTop = lastScrollPosRef.current;
+                        const originalScrollHeight = scrollHeightBeforeUpdateRef.current;
+                        
+                        setMessages((prevMessages) => {
+                            const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg: any) => ({
                                 id: msg.id,
                                 tempId: msg.tempId,
-                                text: msg.content.text,
-                                source: "websocket"
-                            });
+                                roomId: Number(syncResponse.roomId),
+                                senderId: msg.senderId,
+                                content: msg.content || { 
+                                    text: '메시지를 불러올 수 없습니다', 
+                                    type: 'TEXT', 
+                                    attachments: [], 
+                                    isEdited: false, 
+                                    isDeleted: false 
+                                },
+                                createdAt: msg.timestamp,
+                                status: msg.status || "SAVED",
+                                readBy: msg.readBy || {},
+                                metadata: {
+                                    tempId: msg.tempId,
+                                    needsUrlPreview: true,
+                                    previewUrl: null
+                                }
+                            }));
                             
-                            // 중복 체크 후 업데이트
-                            updateMessages(msg);
-                            
-                            // 읽음 처리
-                            if (
-                                document.visibilityState === "visible" &&
-                                msg.readBy && !msg.readBy[user!.id] &&
-                                msg.senderId !== user!.id &&
-                                msg.tempId && messageStatuses[msg.tempId]?.persistedId
-                            ) {
-                                client.publish({
-                                    destination: "/app/read",
-                                    body: JSON.stringify({ 
-                                        messageId: messageStatuses[msg.tempId].persistedId, 
-                                        userId: user!.id 
-                                    }),
-                                });
-                            }
-                        } catch (error) {
-                            console.error("메시지 처리 중 오류:", error);
-                        }
-                    });
-
-                    // 타이핑 인디케이터 구독
-                    client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
-                        const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
-                        if (typingMsg.userId === user.id) return;
-                        updateTypingStatus(typingMsg);
-                    });
-
-                    // 메시지 상태 채널 구독
-                    client.subscribe(`/topic/message/status/${roomId}`, (message: IMessage) => {
-                        const statusUpdate = JSON.parse(message.body);
-                        const update = Array.isArray(statusUpdate) 
-                            ? statusUpdate[statusUpdate.length - 1] 
-                            : statusUpdate;
-                        
-                        if (!update || !update.tempId) return;
-
-                        // 1. messageStatuses 업데이트
-                        setMessageStatuses((prev: Record<string, MessageStatusInfo>) => {
-                            const existingStatus = prev[update.tempId] || {};
-                            const newStatus = {
-                                status: update.status as MessageStatus,
-                                persistedId: update.persistedId || existingStatus.persistedId,
-                                createdAt: update.createdAt || existingStatus.createdAt
-                            };
-                            
-                            return {
-                                ...prev,
-                                [update.tempId]: newStatus
-                            };
-                        });
-
-                        // 2. 메시지 목록 업데이트
-                        setMessages((prev) => {
                             const messageMap = new Map<string, ChatMessageItem>();
+                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
                             
-                            prev.forEach(msg => {
-                                if (msg.tempId === update.tempId) return;
-                                messageMap.set(msg.id, msg);
-                            });
-
-                            const updatedMsg = prev.find(msg => msg.tempId === update.tempId);
-                            if (updatedMsg) {
-                                const newMsg = {
-                                    ...updatedMsg,
-                                    status: update.status as MessageStatus,
-                                    id: update.persistedId || updatedMsg.id
-                                };
-                                messageMap.set(newMsg.id, newMsg);
-                            }
-
                             return Array.from(messageMap.values()).sort((a, b) => 
                                 new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
                             );
                         });
-
-                        // 3. SAVED 상태일 때 읽음 처리
-                        if (update.status === MessageStatus.SAVED && update.persistedId) {
-                            const currentMsg = messagesRef.current.find(m => m.tempId === update.tempId);
-                            if (currentMsg && !currentMsg.readBy[user!.id] && currentMsg.senderId !== user!.id) {
-                                client.publish({
-                                    destination: "/app/read",
-                                    body: JSON.stringify({ messageId: update.persistedId, userId: user!.id }),
-                                });
-                            }
-                        }
-
-                        // 4. 실패 상태 처리
-                        if (update.status === MessageStatus.FAILED) {
-                            setConnectionError(`메시지 저장 실패: ${update.errorMessage || '알 수 없는 오류'}`);
-                            setTimeout(() => setConnectionError(null), 3000);
-                        }
-                    });
-
-                    // 메시지 업데이트 구독 (URL 미리보기 등)
-                    client.subscribe(`/topic/message/update/${roomId}`, (message: IMessage) => {
-                        const updatedMessage = JSON.parse(message.body);
-                        // console.log("메시지 업데이트 수신:", updatedMessage);
                         
-                        // 기존 메시지 목록에서 업데이트된 메시지 찾아 교체
-                        setMessages((prevMessages) => 
-                            prevMessages.map((msg) => 
-                                msg.id === updatedMessage.id ? updatedMessage : msg
-                            )
-                        );
-                    });
-
-                    // 읽음 처리 상태 구독
-                    client.subscribe(`/topic/read-bulk/${roomId}`, (message: IMessage) => {
-                        const { messageIds, userId } = JSON.parse(message.body);
-                        updateBulkMessageReadStatus(messageIds, userId);
-                    });
-                    
-                    // 웹소켓 구독 추가 (onConnect 함수 내 다른 구독 부분에 추가)
-                    // 메시지 핀 상태 변경 구독
-                    client.subscribe(`/topic/pin/${roomId}`, (message: IMessage) => {
-                        console.log("메시지 핀 상태 변경:", message.body);
-                        try {
-                            // 고정된 메시지 목록 새로고침
-                            fetchPinnedMessages();
-                        } catch (error) {
-                            console.error("핀 메시지 업데이트 처리 실패:", error);
-                        }
-                    });
-
-                    // 동기화 구독
-                    client.subscribe(`/user/queue/sync`, (message: IMessage) => {
-                        const syncResponse = JSON.parse(message.body) as {
-                            roomId: string;
-                            direction?: string;
-                            messages: Array<any>;
-                        };
-                        
-                        console.log("동기화 응답 수신:", {
-                            direction: syncResponse.direction,
-                            messageCount: syncResponse.messages.length,
-                            source: "sync"
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                const chatArea = chatAreaRef.current;
+                                if (!chatArea) return;
+                                
+                                if (targetMessageId) {
+                                    const targetElement = document.getElementById(`msg-${targetMessageId}`);
+                                    if (targetElement) {
+                                        targetElement.scrollIntoView({ block: 'start', behavior: 'auto' });
+                                        console.log("타겟 메시지로 스크롤:", targetMessageId);
+                                        isPreviousMessagesLoadingRef.current = false;
+                                        return;
+                                    }
+                                }
+                                
+                                const newScrollHeight = chatArea.scrollHeight;
+                                const heightDifference = newScrollHeight - originalScrollHeight;
+                                const newScrollPosition = originalScrollTop + heightDifference;
+                                
+                                chatArea.scrollTop = newScrollPosition;
+                                isPreviousMessagesLoadingRef.current = false;
+                            });
+                        });
+                    } else {
+                        setMessages((prevMessages) => {
+                            const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg: any) => ({
+                                id: msg.id,
+                                tempId: msg.tempId,
+                                roomId: Number(syncResponse.roomId),
+                                senderId: msg.senderId,
+                                content: msg.content || { 
+                                    text: '메시지를 불러올 수 없습니다', 
+                                    type: 'TEXT', 
+                                    attachments: [], 
+                                    isEdited: false, 
+                                    isDeleted: false 
+                                },
+                                createdAt: msg.timestamp,
+                                status: msg.status || "SAVED",
+                                readBy: msg.readBy || {},
+                                metadata: {
+                                    tempId: msg.tempId,
+                                    needsUrlPreview: true,
+                                    previewUrl: null
+                                }
+                            }));
+                            
+                            const messageMap = new Map<string, ChatMessageItem>();
+                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            
+                            return Array.from(messageMap.values()).sort((a, b) => 
+                                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
+                            );
                         });
                         
-                        if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
-                            // 처리 전 중요한 정보 저장
-                            const targetMessageId = firstVisibleMessageRef.current;
-                            const originalScrollTop = lastScrollPosRef.current;
-                            const originalScrollHeight = scrollHeightBeforeUpdateRef.current;
-                            
-                            // 메시지 업데이트
-                            setMessages((prevMessages) => {
-                                // 메시지 변환 및 중복 제거
-                                const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
-                                    id: msg.id,
-                                    tempId: msg.tempId,
-                                    roomId: Number(syncResponse.roomId),
-                                    senderId: msg.senderId,
-                                    content: msg.content || { 
-                                        text: '메시지를 불러올 수 없습니다', 
-                                        type: 'TEXT', 
-                                        attachments: [], 
-                                        isEdited: false, 
-                                        isDeleted: false 
-                                    },
-                                    createdAt: msg.timestamp,
-                                    status: msg.status || "SAVED",
-                                    readBy: msg.readBy || {},
-                                    metadata: {
-                                        tempId: msg.tempId,
-                                        needsUrlPreview: true,
-                                        previewUrl: null
-                                    }
-                                }));
-                                
-                                // 중복 제거를 위한 Map 사용
-                                const messageMap = new Map<string, ChatMessageItem>();
-                                prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                                syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                                
-                                const mergedMessages = Array.from(messageMap.values());
-                                return sortMessagesByTimestamp(mergedMessages);
-                            });
-                            
-                            // 메시지 업데이트 후 DOM 업데이트 타이밍에 맞춰 스크롤 위치 조정
-                            // requestAnimationFrame은 DOM 업데이트 후 실행됨
-                            requestAnimationFrame(() => {
-                                // 두 번째 requestAnimationFrame으로 이중 보호하여 더 안정적으로 만듦
-                                requestAnimationFrame(() => {
-                                    const chatArea = chatAreaRef.current;
-                                    if (!chatArea) return;
-                                    
-                                    // 첫 번째 접근 방식: 이전에 보이던 메시지로 스크롤
-                                    if (targetMessageId) {
-                                        const targetElement = document.getElementById(`msg-${targetMessageId}`);
-                                        if (targetElement) {
-                                            // 'smooth' 대신 'auto'를 사용하여 즉시 이동
-                                            targetElement.scrollIntoView({ block: 'start', behavior: 'auto' });
-                                            console.log("타겟 메시지로 스크롤:", targetMessageId);
-                                            isPreviousMessagesLoadingRef.current = false;
-                                        return;
-                                        }
-                                    }
-                                    
-                                    // 두 번째 접근 방식: 높이 차이를 계산하여 스크롤 위치 보정
-                                    const newScrollHeight = chatArea.scrollHeight;
-                                    const heightDifference = newScrollHeight - originalScrollHeight;
-                                    const newScrollPosition = originalScrollTop + heightDifference;
-                                    
-                                    // 스크롤 위치 즉시 설정 (부드러운 전환 없이)
-                                    chatArea.scrollTop = newScrollPosition;
-                                    
-                                    // 플래그 해제
-                                    isPreviousMessagesLoadingRef.current = false;
-                                });
-                            });
-                            } else {
-                            // 다른 방향의 메시지 처리 (초기 로드 또는 새 메시지)
-                            // 이 부분은 기존 코드와 동일하게 유지...
-                            setMessages((prevMessages) => {
-                                // 메시지 변환 코드...
-                                const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg) => ({
-                                    id: msg.id,
-                                    tempId: msg.tempId,
-                                    roomId: Number(syncResponse.roomId),
-                                    senderId: msg.senderId,
-                                    content: msg.content || { 
-                                        text: '메시지를 불러올 수 없습니다', 
-                                        type: 'TEXT', 
-                                        attachments: [], 
-                                        isEdited: false, 
-                                        isDeleted: false 
-                                    },
-                                    createdAt: msg.timestamp,
-                                    status: msg.status || "SAVED",
-                                    readBy: msg.readBy || {},
-                                    metadata: {
-                                        tempId: msg.tempId,
-                                        needsUrlPreview: true,
-                                        previewUrl: null
-                                    }
-                                }));
-                                
-                                const messageMap = new Map<string, ChatMessageItem>();
-                                prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                                syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                                
-                                const mergedMessages = Array.from(messageMap.values());
-                                return sortMessagesByTimestamp(mergedMessages);
-                            });
-                            
-                            if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
-                                setMessageDirection("INITIAL");
-                            }
-                            else if (syncResponse.direction === "AFTER") {
-                                setMessageDirection("AFTER");
-                                setTimeout(() => {
-                                    if (chatAreaRef.current) {
-                                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                                    }
-                                }, 100);
-                            }
+                        if (!syncResponse.direction || syncResponse.direction === "INITIAL") {
+                            setMessageDirection("INITIAL");
                         }
-                    });
-                },
-                onDisconnect: () => {
-                    setConnectionError("연결 끊김, 재접속 시도 중...");
-                    setIsConnected(false);
-                },
-                onStompError: () => {
-                    setConnectionError("연결 오류, 재접속 시도 중...");
-                    setIsConnected(false);
-                }
-            });
+                        else if (syncResponse.direction === "AFTER") {
+                            setMessageDirection("AFTER");
+                            setTimeout(() => {
+                                if (chatAreaRef.current) {
+                                    chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                                }
+                            }, 100);
+                        }
+                    }
+                });
 
-            client.activate();
-            setStompClient(client);
+                // Heartbeat 설정
+                heartbeatRef.current = setInterval(() => {
+                    if (webSocketService.current.isConnected()) {
+                        webSocketService.current.sendActiveStatus(true);
+                    }
+                }, 120000);
 
-            // 창 종료 이벤트
-            const handleBeforeUnload = () => {
-                if (client && client.connected) {
-                    client.publish({
-                        destination: "/app/active",
-                        body: JSON.stringify({ userId: user.id, roomId, active: false })
-                    });
-                    client.deactivate();
-                }
-            };
-            window.addEventListener("beforeunload", handleBeforeUnload);
+                // 초기 동기화 요청
+                setTimeout(() => {
+                    const lastMessageId = messages.length > 0 
+                        ? messages[messages.length - 1].id 
+                        : null;
 
-            return () => {
-                if (client && client.connected) {
-                    client.publish({
-                        destination: "/app/active",
-                        body: JSON.stringify({ userId: user.id, roomId, active: false })
-                    });
-                    client.deactivate();
-                }
-                if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-                window.removeEventListener("beforeunload", handleBeforeUnload);
-            };
-        }
-        // 약간의 지연을 주어 DOM이 완전히 렌더링된 후 연결
-        const timer = setTimeout(connectWebSocket, 300);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line
+                    webSocketService.current.requestSync(
+                        lastMessageId || undefined,
+                        lastMessageId ? "AFTER" : "INITIAL"
+                    );
+                }, 100);
+
+            } catch (error) {
+                console.error("WebSocket 연결 실패:", error);
+                setConnectionError("연결 실패, 재시도 중...");
+                setIsConnected(false);
+            }
+        };
+
+        connectWebSocket();
+
+        return () => {
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
+            }
+            webSocketService.current.disconnect();
+            resetWebSocketService();
+        };
     }, [roomId, user]);
 
     // 이전 메시지를 로드할 때 사용자 화면에 보이는 첫 번째 메시지를 찾는 함수
@@ -818,44 +670,27 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     // 이전 메시지 조회 (웹소켓 사용)
     const fetchPreviousMessages = useCallback((oldestMessageId: string) => {
-        if (!stompClient || !stompClient.connected || !roomId || !user) {
+        if (!webSocketService.current.isConnected() || !roomId || !user) {
             console.error("이전 메시지 조회 불가: 연결 끊김 또는 유효하지 않은 상태");
             return;
         }
         
         const chatArea = chatAreaRef.current;
-        if (!chatArea || isPreviousMessagesLoadingRef.current) return; // 중복 요청 방지
+        if (!chatArea || isPreviousMessagesLoadingRef.current) return;
         
-        // 플래그 설정
         isPreviousMessagesLoadingRef.current = true;
         
-        // 현재 스크롤 위치를 정확히 저장
         requestAnimationFrame(() => {
             if (!chatArea) return;
             
-            // 현재 스크롤 위치와 높이를 정확히 저장
             scrollHeightBeforeUpdateRef.current = chatArea.scrollHeight;
             lastScrollPosRef.current = chatArea.scrollTop;
-            
-            // 중요: 현재 화면에 보이는 첫 번째 메시지를 저장
             firstVisibleMessageRef.current = findFirstVisibleMessage();
             
-            // 방향 설정 후 메시지 요청
             setMessageDirection("BEFORE");
-            
-            // 이전 메시지 요청
-            stompClient.publish({
-                destination: "/app/sync",
-                body: JSON.stringify({
-                    roomId: roomId,
-                    userId: user.id,
-                    lastMessageId: oldestMessageId,
-                    timestamp: new Date().toISOString(),
-                    direction: "BEFORE"
-                })
-            });
+            webSocketService.current.requestSync(oldestMessageId, "BEFORE");
         });
-    }, [roomId, user, stompClient]);
+    }, [roomId, user]);
 
     // 스크롤 이벤트 핸들러 (페이징)
     useEffect(() => {
@@ -882,14 +717,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         const handleFocus = () => {
             if (user && roomId) {
                 // 연결 상태 확인
-                if (!isConnected || !stompClient?.connected) {
+                if (!isConnected || !webSocketService.current.isConnected()) {
                     console.log("ChatRoom: Connection lost, attempting to reconnect...");
                     setConnectionError("연결이 끊어졌습니다. 재연결 시도 중...");
                     
                     // 기존 연결 종료
-                    if (stompClient) {
-                        stompClient.deactivate();
-                    }
+                    webSocketService.current.disconnect();
                     
                     // 페이지 재로드
                     setTimeout(() => {
@@ -905,23 +738,14 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         };
         window.addEventListener("focus", handleFocus);
         return () => window.removeEventListener("focus", handleFocus);
-    }, [roomId, user, isConnected, stompClient, markAllRead]);
+    }, [roomId, user, isConnected]);
 
     // 타이핑 인디케이터 전송
     const sendTypingIndicator = (isTyping: boolean) => {
-        if (!stompClient || !roomId || !user || !stompClient.connected) return;
-        const typingPayload: TypingIndicatorMessage = { 
-            roomId: Number(roomId),
-            userId: user.id,
-            username: user.username || "Unknown",
-            isTyping 
-        };
-        stompClient.publish({
-            destination: "/app/typing",
-            body: JSON.stringify(typingPayload),
-        });
+        if (!webSocketService.current.isConnected() || !roomId || !user) return;
+        
+        webSocketService.current.sendTypingIndicator(isTyping);
 
-        // 타이핑 상태가 변경될 때 스크롤 처리
         if (isTyping && chatAreaRef.current) {
             const chatArea = chatAreaRef.current;
             const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 200;
@@ -938,7 +762,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         const value = e.target.value;
         setInput(value);
 
-        if (!stompClient || !roomId || !user || !stompClient.connected) return;
+        if (!webSocketService.current.isConnected() || !roomId || !user) return;
 
         // 입력값이 비어있으면 즉시 타이핑 인디케이터 끄기
         if (value.trim() === "") {
@@ -954,10 +778,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         sendTypingIndicator(true);
 
         // 활성 여부를 알림 (타이핑 아님)
-        stompClient.publish({
-            destination: "/app/active",
-            body: JSON.stringify({ userId: user.id, roomId, active: true }),
-        });
+        webSocketService.current.sendActiveStatus(true);
 
         // 기존 타이머 제거 후, 1초 후에 타이핑 인디케이터 끄기
         if (typingTimeoutRef.current) {
@@ -972,18 +793,15 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     // 메시지 전송
     const sendMessage = () => {
-        if (!stompClient || !stompClient.connected || input.trim() === "" || !roomId || !user) {
+        if (!webSocketService.current.isConnected() || input.trim() === "" || !roomId || !user) {
             console.error("전송 불가: 연결 끊김 또는 유효하지 않은 입력");
             return;
         }
 
-        // 방향을 '새 메시지'로 설정
         setMessageDirection("new");
 
-        // tempId 생성      
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
-        // 메시지 세팅
         const chatMessage: ChatMessageItem = {
             id: tempId,
             tempId: tempId,
@@ -1006,21 +824,14 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             }
         };
 
-        // 상태 추적을 위해 messageStatuses에 추가
         updateMessageStatus(tempId, { 
             status: MessageStatus.SENDING, 
             persistedId: null,
             createdAt: new Date().toISOString()
         });
 
-        // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
         updateMessages(chatMessage);
-        
-        // 실제 전송
-        stompClient.publish({
-            destination: "/app/chat",
-            body: JSON.stringify(chatMessage),
-        });
+        webSocketService.current.sendMessage(chatMessage);
         setInput("");
         sendTypingIndicator(false);
     };
@@ -1077,7 +888,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     useEffect(() => {
         const handleOnline = () => {
             console.log("네트워크 연결됨, 재연결 시도...");
-            if (!stompClient?.connected) {
+            if (!webSocketService.current.isConnected()) {
                 setConnectionError("재연결 시도 중...");
                 
                 // 페이지 새로고침으로 완전 재연결
@@ -1098,7 +909,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             window.removeEventListener("online", handleOnline);
             window.removeEventListener("offline", handleOffline);
         };
-    }, [stompClient]);
+    }, []);
 
     // 모달 제출: 대상 채팅방 ID 입력 후 메시지 전달 API 호출
     const handleModalSubmit = async () => {
