@@ -102,7 +102,7 @@ export class WebSocketServiceImpl implements WebSocketService {
         const typingPayload: TypingIndicatorMessage = {
             roomId: this.roomId,
             userId: this.userId,
-            username: "Unknown", // 실제 구현에서는 사용자 이름을 가져와야 함
+            username: localStorage.getItem("username") || "Unknown",
             isTyping
         };
 

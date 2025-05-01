@@ -28,18 +28,12 @@ export const useTypingState = () => {
         });
     }, []);
 
-    const getTypingUsernames = useCallback(() => {
-        return Object.values(typingUsers)
-            .map(user => user.username || `User ${user.userId}`)
-            .join(", ");
-    }, [typingUsers]);
 
     return {
         typingUsers,
         setTypingUsers,
         typingTimeoutRef,
         updateTypingStatus,
-        removeTypingUser,
-        getTypingUsernames
+        removeTypingUser
     };
 }; 

@@ -16,8 +16,9 @@ export const useTypingHandlers = ({
     updateTypingStatus
 }: UseTypingHandlersProps) => {
     const handleTypingIndicator = useCallback((typingMsg: TypingIndicatorMessage) => {
-        if (typingMsg.userId === userId) return;
-        updateTypingStatus(typingMsg);
+        if (typingMsg.userId !== userId) {
+            updateTypingStatus(typingMsg);
+        }
     }, [userId, updateTypingStatus]);
 
     const sendTypingIndicator = useCallback((isTyping: boolean) => {

@@ -107,6 +107,7 @@ export const MessagesContainer = styled.div`
     min-height: min-content;
     width: 100%;
     padding-bottom: 2px;
+    position: relative;
 `;
 
 export const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
@@ -165,7 +166,7 @@ export const TypingIndicatorContainer = styled.div`
     position: relative;
     margin-top: 8px;
     margin-bottom: 8px;
-    z-index: 1;
+    z-index: 10;
 `;
 
 export const TypingDots = styled.div`

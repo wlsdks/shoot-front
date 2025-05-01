@@ -99,8 +99,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         setTypingUsers,
         typingTimeoutRef,
         updateTypingStatus,
-        removeTypingUser,
-        getTypingUsernames
+        removeTypingUser
     } = useTypingState();
 
     const {
@@ -1007,7 +1006,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         })}
                         {Object.keys(typingUsers).length > 0 && (
                             <TypingIndicatorContainer>
-                                {getTypingUsernames()}님이 타이핑 중...
+                                타이핑 중입니다
                                 <TypingDots>
                                     <span></span>
                                     <span></span>
