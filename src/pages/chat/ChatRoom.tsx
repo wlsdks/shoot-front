@@ -16,9 +16,6 @@ import {
     HeaderTitle,
     ChatArea,
     MessagesContainer,
-    MessageRow,
-    ChatBubble,
-    TimeContainer,
     TypingIndicatorContainer,
     TypingDots,
     ChatInputContainer,
@@ -26,26 +23,7 @@ import {
     SendButton,
     ErrorMessage,
     ContextMenu,
-    ContextMenuItem,
-    ModalOverlay,
-    ModalContent,
-    ModalButtons,
-    PinnedMessagesContainer,
-    PinnedMessagesHeader,
-    ExpandButton,
-    PinnedMessagesSummary,
-    PinnedMessagesTitle,
-    PinnedMessagesContent,
-    PinnedMessageItem,
-    PinnedMessageContent,
-    PinnedMessageSender,
-    UnpinButton,
-    UrlPreviewContainer,
-    PreviewImage,
-    PreviewContent,
-    PreviewSite,
-    PreviewTitle,
-    PreviewDescription
+    ContextMenuItem
 } from './styles/ChatRoom.styles';
 
 // 타입 임포트
@@ -53,10 +31,8 @@ import {
     MessageStatus,
     ChatMessageItem,
     TypingIndicatorMessage,
-    MessageStatusData,
-    MessageStatusUpdate,
-    ChatRoomProps,
-    MessageStatusInfo
+    MessageStatusInfo,
+    ChatRoomProps
 } from './types/ChatRoom.types';
 
 // 커스텀 훅 임포트
@@ -64,15 +40,23 @@ import { useMessageState } from './hooks/useMessageState';
 import { useTypingState } from './hooks/useTypingState';
 import { useScrollManager } from './hooks/useScrollManager';
 
+// 컴포넌트 임포트
+import { MessageRow } from './components/MessageRow';
+import { UrlPreview } from './components/UrlPreview';
+import { PinnedMessages } from './components/PinnedMessages';
+import { ForwardMessageModal } from './components/ForwardMessageModal';
+
 // 아이콘 컴포넌트 임포트
 import {
     BackIcon,
     SendIcon,
     ForwardIcon,
     ErrorIcon,
-    PinIcon,
-    ChevronDownIcon
+    PinIcon
 } from './components/icons';
+
+// 유틸리티 임포트
+import { formatTime } from './utils/timeUtils';
 
 // 메시지 정렬 유틸리티 함수
 const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[] => {
@@ -1041,35 +1025,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         sendTypingIndicator(false);
     };
 
-    // URL 미리보기 렌더링 함수
-    const renderUrlPreview = (message: ChatMessageItem) => {
-        // content.urlPreview가 있는지 확인
-        const preview = message.content?.urlPreview;
-        
-        // URL 미리보기가 없으면 렌더링하지 않음
-        if (!preview) {
-            return null;
-        }
-        
-        // 미리보기 정보가 충분하지 않으면 렌더링하지 않음
-        if (!preview.title && !preview.description) {
-            return null;
-        }
-        
-        return (
-            <UrlPreviewContainer onClick={() => preview.url && window.open(preview.url, '_blank')}>
-                <PreviewImage $hasImage={!!preview.imageUrl}>
-                    {preview.imageUrl && <img src={preview.imageUrl} alt={preview.title || "Preview"} />}
-                </PreviewImage>
-                <PreviewContent>
-                    {preview.siteName && <PreviewSite>{preview.siteName}</PreviewSite>}
-                    {preview.title && <PreviewTitle>{preview.title}</PreviewTitle>}
-                    {preview.description && <PreviewDescription>{preview.description}</PreviewDescription>}
-                </PreviewContent>
-            </UrlPreviewContainer>
-        );
-    };
-
     // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
         e.preventDefault();
@@ -1166,86 +1121,9 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         setTargetRoomId("");
     };
 
-    // 오전/오후 및 12시간제 시:분 포맷팅 함수
-    const formatTime = (dateString: string): string => {
-        if (!dateString) return "";
-        try {
-            const date = new Date(dateString);
-            const hours = date.getHours();
-            const minutes = date.getMinutes();
-            const period = hours < 12 ? "오전" : "오후";
-            const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-            const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-            return `${period} ${hour12}:${formattedMinutes}`;
-        } catch (e) {
-            console.error("시간 형식 변환 오류:", e);
-            return "";
-        }
-    };
-
-    // 메시지 상태 업데이트 구독
-    useEffect(() => {
-        if (!socket) return;
-
-        const handleMessageStatusUpdate = (updates: MessageStatusUpdate[]): void => {
-            setMessageStatuses(prevStatuses => {
-                const newStatuses = { ...prevStatuses };
-                updates.forEach(update => {
-                    if (update.tempId) {
-                        newStatuses[update.tempId] = {
-                            status: update.status,
-                            messageId: update.messageId,
-                            persistedId: update.messageId || null,
-                            createdAt: update.timestamp ? new Date(update.timestamp).toISOString() : new Date().toISOString()
-                        };
-                    }
-                });
-                return newStatuses;
-            });
-
-            // SAVED 상태인 메시지 업데이트
-            updates.forEach(update => {
-                if (update.status === MessageStatus.SAVED && update.messageId) {
-                    setMessages(prevMessages => {
-                        // 메시지 맵 생성
-                        const messageMap = new Map<string, ChatMessageItem>();
-                        prevMessages.forEach(msg => {
-                            if (msg.id) messageMap.set(msg.id, msg);
-                            if (msg.tempId) messageMap.set(msg.tempId, msg);
-                        });
-                        
-                        // 이미 저장된 메시지인지 확인
-                        if (messageMap.has(update.messageId)) {
-                            return prevMessages;
-                        }
-                        
-                        // tempId로 메시지 찾아서 업데이트
-                        if (update.tempId && messageMap.has(update.tempId)) {
-                            return prevMessages.map(msg => 
-                                msg.tempId === update.tempId
-                                    ? { ...msg, id: update.messageId, status: MessageStatus.SAVED }
-                                    : msg
-                            );
-                        }
-                        
-                        return prevMessages;
-                    });
-                }
-            });
-        };
-
-        socket.on('messageStatusUpdate', handleMessageStatusUpdate);
-
-        return () => {
-            socket.off('messageStatusUpdate', handleMessageStatusUpdate);
-        };
-    }, [socket]);
-
-    // 상태 표시 로직 수정
+    // 메시지 상태 표시 로직
     const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
         if (!isOwn || !currentStatus) return null;
-        
-        // SAVED 상태이거나 persistedId가 있으면 상태 표시하지 않음
         if (currentStatus === MessageStatus.SAVED || isPersisted) return null;
         
         return (
@@ -1267,132 +1145,58 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     </BackButton>
                     <HeaderTitle>채팅방</HeaderTitle>
                 </Header>
-                {pinnedMessages.length > 0 && (
-                    <PinnedMessagesContainer $isExpanded={isPinnedMessagesExpanded}>
-                        <PinnedMessagesHeader 
-                        $isExpanded={isPinnedMessagesExpanded} 
-                        onClick={() => setIsPinnedMessagesExpanded(!isPinnedMessagesExpanded)}
-                        >
-                            <PinnedMessagesTitle>
-                                <PinIcon /> 
-                                <span>공지사항 ({pinnedMessages.length})</span>
-                            </PinnedMessagesTitle>
-                            
-                            {!isPinnedMessagesExpanded && pinnedMessages.length > 0 && (
-                                <PinnedMessagesSummary>
-                                    <span>
-                                        {pinnedMessages[0].senderId === user?.id ? '나' : '상대방'}: {pinnedMessages[0].content?.text}
-                                    </span>
-                                </PinnedMessagesSummary>
-                            )}
-                            
-                            <ExpandButton $isExpanded={isPinnedMessagesExpanded}>
-                                <ChevronDownIcon />
-                            </ExpandButton>
-                        </PinnedMessagesHeader>
-                        
-                        {isPinnedMessagesExpanded && (
-                            <PinnedMessagesContent>
-                                {pinnedMessages.map((pinnedMsg) => (
-                                    <PinnedMessageItem key={`pinned-${pinnedMsg.id}`}>
-                                        <PinnedMessageContent>
-                                            <PinnedMessageSender>
-                                                {pinnedMsg.senderId === user?.id ? '나' : '상대방'}:
-                                            </PinnedMessageSender>
-                                            {pinnedMsg.content?.text}
-                                        </PinnedMessageContent>
-                                        <UnpinButton onClick={(e) => {
-                                            e.stopPropagation(); // 이벤트 버블링 방지
-                                            handleUnpinMessage(pinnedMsg.id);
-                                        }}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                                            </svg>
-                                        </UnpinButton>
-                                    </PinnedMessageItem>
-                                ))}
-                            </PinnedMessagesContent>
-                        )}
-                    </PinnedMessagesContainer>
-                )}
+
+                <PinnedMessages
+                    pinnedMessages={pinnedMessages}
+                    isExpanded={isPinnedMessagesExpanded}
+                    onToggleExpand={() => setIsPinnedMessagesExpanded(!isPinnedMessagesExpanded)}
+                    onUnpin={handleUnpinMessage}
+                    currentUserId={user?.id}
+                />
+
                 {connectionError && 
                     <ErrorMessage>
                         <ErrorIcon />{connectionError}
                     </ErrorMessage>
                 }
+
                 <ChatArea ref={chatAreaRef}>
                     <MessagesContainer>
                         {messages.map((msg, idx) => {
-                            // 내 메시지인가?
                             const isOwn = String(msg.senderId) === String(user?.id);
-                            
-                            // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
                             const currentStatus = msg.tempId
                                 ? messageStatuses[msg.tempId]?.status || msg.status
                                 : msg.status;
-                            // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
                             const isPersisted = msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
-                            // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
                             const otherHasRead = msg.readBy 
                                 ? Object.entries(msg.readBy as Record<string, boolean>)
                                     .filter(([id]) => id !== user?.id.toString())
                                     .some(([, read]) => read === true)
                                 : false;
-                            // indicatorText: 읽지 않았으면 "1" 
                             const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
-                            // 상태표시
                             const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
-                        
-                            // 시간 표시 여부 로직 수정
+                            
                             const nextMessage = messages[idx + 1];
                             const msgCreatedAt = getMessageCreatedAt(msg);
-
-                            // 현재 메시지 시간 포맷팅
                             const currentTime = formatTime(msgCreatedAt);
-
-                            // 다음 메시지 시간 포맷팅 (있는 경우만)
                             const nextTime = nextMessage ? formatTime(getMessageCreatedAt(nextMessage)) : null;
-
-                            // 현재 메시지와 다음 메시지의 시간을 비교
                             const showTime = !nextMessage || currentTime !== nextTime;
                             
                             return (
                                 <React.Fragment key={idx}>
-                                    <MessageRow id={`msg-${msg.id}`} $isOwnMessage={isOwn}>
-                                        {isOwn ? (
-                                            <>
-                                                <TimeContainer $isOwnMessage={true}>
-                                                    {statusIndicator}
-                                                    {indicatorText && <div>{indicatorText}</div>}
-                                                    {showTime && <div>{currentTime}</div>}
-                                                </TimeContainer>
-                                                <ChatBubble 
-                                                    $isOwnMessage={isOwn} 
-                                                    onContextMenu={(e) => handleContextMenu(e, msg)}
-                                                    onClick={(e) => handleChatBubbleClick(e, msg)}
-                                                >
-                                                    <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
-                                                </ChatBubble>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ChatBubble 
-                                                    $isOwnMessage={isOwn} 
-                                                    onContextMenu={(e) => handleContextMenu(e, msg)}
-                                                    onClick={(e) => handleChatBubbleClick(e, msg)}
-                                                >
-                                                    <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
-                                                </ChatBubble>
-                                                <TimeContainer $isOwnMessage={false}>
-                                                    {showTime && <div>{currentTime}</div>}
-                                                </TimeContainer>
-                                            </>
-                                        )}
-                                    </MessageRow>
+                                    <MessageRow
+                                        message={msg}
+                                        isOwn={isOwn}
+                                        showTime={showTime}
+                                        currentTime={currentTime}
+                                        statusIndicator={statusIndicator}
+                                        indicatorText={indicatorText}
+                                        onContextMenu={handleContextMenu}
+                                        onClick={handleChatBubbleClick}
+                                    />
                                     {msg.content?.urlPreview && (
                                         <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>
-                                            {renderUrlPreview(msg)}
+                                            <UrlPreview message={msg} />
                                         </div>
                                     )}
                                 </React.Fragment>
@@ -1411,6 +1215,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     </MessagesContainer>
                     <div ref={bottomRef} />
                 </ChatArea>
+
                 <ChatInputContainer>
                     <Input
                         type="text"
@@ -1433,6 +1238,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         <SendIcon />
                     </SendButton>
                 </ChatInputContainer>
+
                 {contextMenu.visible && (
                     <ContextMenu id="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
                         <ContextMenuItem onClick={handleForwardClick}>
@@ -1452,18 +1258,14 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         )}
                     </ContextMenu>
                 )}
+
                 {showForwardModal && (
-                    <ModalOverlay>
-                        <ModalContent>
-                            <h3>메시지 전달</h3>
-                            <p>전달할 대상 채팅방 ID를 입력하세요:</p>
-                            <input value={targetRoomId} onChange={(e) => setTargetRoomId(e.target.value)} placeholder="대상 채팅방 ID" />
-                            <ModalButtons>
-                                <button onClick={handleModalSubmit}>전달</button>
-                                <button onClick={handleModalCancel}>취소</button>
-                            </ModalButtons>
-                        </ModalContent>
-                    </ModalOverlay>
+                    <ForwardMessageModal
+                        targetRoomId={targetRoomId}
+                        onTargetRoomIdChange={setTargetRoomId}
+                        onSubmit={handleModalSubmit}
+                        onCancel={handleModalCancel}
+                    />
                 )}
             </ChatContainer>
         </ChatWrapper>
