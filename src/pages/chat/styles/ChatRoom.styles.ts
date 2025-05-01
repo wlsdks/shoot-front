@@ -175,8 +175,11 @@ export const TypingIndicatorContainer = styled.div`
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(10px);
-    transition: all 0.3s ease-in-out;
+    transform: translateY(20px);
+    will-change: transform, opacity, visibility;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                visibility 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
     &.visible {
         opacity: 1;

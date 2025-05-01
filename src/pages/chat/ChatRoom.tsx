@@ -819,7 +819,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
         // 웹소켓 연결 상태 확인
         if (!webSocketService.current?.isConnected() || !roomId || !user) {
-            console.log("웹소켓 연결 대기 중...");
             return;
         }
 
@@ -836,9 +835,18 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
         typingTimeoutRef.current = setTimeout(() => {
             sendTypingIndicator(false);
-            setInput('');  // 입력값 초기화
             typingTimeoutRef.current = null;
         }, 1000);
+    };
+
+    // 입력창 포커스가 벗어날 때
+    const handleInputBlur = () => {
+        sendTypingIndicator(false);
+        setIsTyping(false);
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
     };
 
     // 웹소켓 연결 상태 모니터링
@@ -1018,7 +1026,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         onCompositionEnd={handleCompositionEnd}
                         onBlur={() => {
                             sendTypingIndicator(false);
-                            setInput('');
                             if (typingTimeoutRef.current) {
                                 clearTimeout(typingTimeoutRef.current);
                                 typingTimeoutRef.current = null;
@@ -1030,14 +1037,25 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     <SendButton onClick={sendMessage} disabled={!isConnected}>
                         <SendIcon />
                     </SendButton>
-                    <TypingIndicatorContainer className={input ? 'visible' : ''}>
-                        타이핑 중입니다
-                        <TypingDots>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </TypingDots>
-                    </TypingIndicatorContainer>
+                    {(() => {
+                        const otherTypingUsers = Object.values(typingUsers).filter(typingUser => 
+                            String(typingUser.userId) !== String(user?.id)
+                        );
+                        if (otherTypingUsers.length === 0) return null;
+                        return (
+                            <TypingIndicatorContainer className="visible">
+                                {otherTypingUsers.length > 1 
+                                    ? `${otherTypingUsers.length}명이 타이핑 중입니다`
+                                    : '상대방이 타이핑 중입니다'
+                                }
+                                <TypingDots>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </TypingDots>
+                            </TypingIndicatorContainer>
+                        );
+                    })()}
                 </ChatInputContainer>
 
                 {contextMenu.visible && (
