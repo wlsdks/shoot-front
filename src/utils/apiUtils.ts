@@ -1,35 +1,58 @@
 // src/utils/apiUtils.ts
 import { ApiResponse } from '../services/api';
-import { AxiosResponse } from 'axios';
+import { AxiosResponse, AxiosError } from 'axios';
 
 /**
  * API 응답에서 데이터 부분만 추출
  */
 export function extractData<T>(response: AxiosResponse<ApiResponse<T>>): T {
-    // 응답이 성공이고 데이터가 있는 경우에만 데이터 반환
-    if (response.data.success && response.data.data !== null) {
-        return response.data.data;
+    if (!response.data.success) {
+        throw createApiError(response.data);
     }
     
-    // 데이터가 없는 경우 빈 배열 또는 적절한 기본값 반환
-    if (Array.isArray(response.data.data)) {
-        return [] as unknown as T;
-    }
-    
-    // 실패한 경우 에러 던지기
-    throw new Error(response.data.message || '알 수 없는 오류가 발생했습니다.');
+    return response.data.data ?? ([] as unknown as T);
 }
 
 /**
  * API 응답에서 메시지 추출
  */
 export function extractMessage(response: AxiosResponse<ApiResponse<any>>): string {
-    return response.data.message || '';
+    return response.data.message || '알 수 없는 오류가 발생했습니다.';
 }
 
 /**
- * API 응답이 성공인지 확인
+ * API 에러 생성
  */
-export function isSuccess(response: AxiosResponse<ApiResponse<any>>): boolean {
-    return response.data.success;
+export function createApiError(error: ApiResponse<any> | AxiosError): Error {
+    if ('response' in error && error.response?.data) {
+        const apiError = error.response.data as ApiResponse<any>;
+        const customError = new Error(apiError.message || '요청 처리 중 오류가 발생했습니다.');
+        (customError as any).errorCode = apiError.errorCode;
+        (customError as any).statusCode = apiError.code;
+        return customError;
+    }
+    
+    if ('success' in error && !error.success) {
+        const customError = new Error(error.message || '요청 처리 중 오류가 발생했습니다.');
+        (customError as any).errorCode = error.errorCode;
+        (customError as any).statusCode = error.code;
+        return customError;
+    }
+    
+    return new Error('알 수 없는 오류가 발생했습니다.');
+}
+
+/**
+ * API 에러 처리
+ */
+export function handleApiError(error: unknown): Error {
+    if (error instanceof Error) {
+        return error;
+    }
+    
+    if (error && typeof error === 'object' && 'response' in error) {
+        return createApiError(error as AxiosError);
+    }
+    
+    return new Error('알 수 없는 오류가 발생했습니다.');
 }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { createApiError, handleApiError } from '../utils/apiUtils';
 
 // 백엔드의 ResponseDto와 일치하는 인터페이스 정의
 export interface ApiResponse<T> {
@@ -34,30 +35,14 @@ api.interceptors.response.use(
             
             // 성공 응답이 아닌 경우 에러 처리
             if (!apiResponse.success) {
-                const error = new Error(apiResponse.message || '요청 처리 중 오류가 발생했습니다.');
-                // 추가 정보 저장
-                (error as any).errorCode = apiResponse.errorCode;
-                (error as any).statusCode = apiResponse.code;
-                return Promise.reject(error);
+                return Promise.reject(createApiError(apiResponse));
             }
         }
         
         return response;
     },
     (error) => {
-        // Axios 에러 처리
-        if (error.response && error.response.data) {
-            // 백엔드에서 ResponseDto 형식으로 에러를 반환한 경우
-            if ('success' in error.response.data && !error.response.data.success) {
-                const customError = new Error(error.response.data.message || '요청 처리 중 오류가 발생했습니다.');
-                // 추가 정보 저장
-                (customError as any).errorCode = error.response.data.errorCode;
-                (customError as any).statusCode = error.response.data.code;
-                return Promise.reject(customError);
-            }
-        }
-        
-        return Promise.reject(error);
+        return Promise.reject(handleApiError(error));
     }
 );
 

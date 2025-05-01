@@ -674,65 +674,191 @@ const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[]
     });
 };
 
-const ChatRoom = ({ socket }: ChatRoomProps) => {
-    const { roomId } = useParams<{ roomId: string }>();
-    const { user } = useAuth();
+// 메시지 상태 타입 정의
+type MessageStatusInfo = {
+    status: MessageStatus;
+    persistedId: string | null;
+    createdAt?: string | null;
+    messageId?: string;  // messageId 필드 추가
+};
+
+// 메시지 상태 관리를 위한 커스텀 훅
+const useMessageState = () => {
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);
-    const [input, setInput] = useState("");
+    const [messageStatuses, setMessageStatuses] = useState<Record<string, MessageStatusInfo>>({});
+    const [messageDirection, setMessageDirection] = useState<"INITIAL" | "BEFORE" | "AFTER" | "new">("INITIAL");
+    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+    const messagesRef = useRef<ChatMessageItem[]>([]);
+    const chatAreaRef = useRef<HTMLDivElement>(null);
+
+    const updateMessages = useCallback((newMsg: ChatMessageItem) => {
+        setMessages(prev => {
+            const messageMap = new Map<string, ChatMessageItem>();
+            prev.forEach(msg => {
+                if (msg.id) messageMap.set(msg.id, msg);
+                if (msg.tempId) messageMap.set(msg.tempId, msg);
+            });
+            
+            if (newMsg.id && messageMap.has(newMsg.id) || 
+                newMsg.tempId && messageMap.has(newMsg.tempId)) {
+                return prev;
+            }
+            
+            return [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
+        });
+    }, []);
+
+    const updateMessageStatus = useCallback((tempId: string, status: MessageStatusInfo) => {
+        setMessageStatuses(prev => ({
+            ...prev,
+            [tempId]: {
+                ...status,
+                messageId: status.messageId  // messageId가 없으면 undefined가 됨
+            }
+        }));
+    }, []);
+
+    // messagesRef 업데이트
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
+
+    return {
+        messages,
+        messageStatuses,
+        messageDirection,
+        initialLoadComplete,
+        setMessageDirection,
+        setInitialLoadComplete,
+        updateMessages,
+        updateMessageStatus,
+        setMessages,
+        setMessageStatuses,
+        messagesRef,
+        chatAreaRef
+    };
+};
+
+// 타이핑 상태 관리를 위한 커스텀 훅
+const useTypingState = () => {
     const [typingUsers, setTypingUsers] = useState<string[]>([]);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    return {
+        typingUsers,
+        setTypingUsers,
+        typingTimeoutRef
+    };
+};
+
+// 스크롤 관리를 위한 커스텀 훅
+const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) => {
+    const lastScrollPosRef = useRef(0);
+    const scrollHeightBeforeUpdateRef = useRef(0);
+    const isPreviousMessagesLoadingRef = useRef(false);
+    const firstVisibleMessageRef = useRef<string | null>(null);
+
+    const scrollToBottom = useCallback(() => {
+        if (chatAreaRef.current) {
+            chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+        }
+    }, []);
+
+    const handleScroll = useCallback((direction: "INITIAL" | "BEFORE" | "AFTER" | "new") => {
+        if (!chatAreaRef.current) return;
+
+        const chatArea = chatAreaRef.current;
+        
+        if (direction === "BEFORE" && isPreviousMessagesLoadingRef.current) {
+            const newScrollHeight = chatArea.scrollHeight;
+            const heightDifference = newScrollHeight - scrollHeightBeforeUpdateRef.current;
+            chatArea.scrollTop = lastScrollPosRef.current + heightDifference;
+            isPreviousMessagesLoadingRef.current = false;
+        } else if (direction === "INITIAL" || direction === "AFTER") {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        } else if (direction === "new") {
+            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
+            if (isNearBottom) {
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        }
+    }, []);
+
+    const saveScrollPosition = useCallback(() => {
+        if (chatAreaRef.current) {
+            scrollHeightBeforeUpdateRef.current = chatAreaRef.current.scrollHeight;
+            lastScrollPosRef.current = chatAreaRef.current.scrollTop;
+        }
+    }, []);
+
+    return {
+        lastScrollPosRef,
+        scrollHeightBeforeUpdateRef,
+        isPreviousMessagesLoadingRef,
+        firstVisibleMessageRef,
+        scrollToBottom,
+        handleScroll,
+        saveScrollPosition
+    };
+};
+
+const ChatRoom = ({ socket }: ChatRoomProps) => {
+    const { user } = useAuth();
+    const { roomId } = useParams<{ roomId: string }>();
     const [stompClient, setStompClient] = useState<Client | null>(null);
+    const [input, setInput] = useState("");
+    const [isTyping, setIsTyping] = useState(false);
+    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+    const bottomRef = useRef<HTMLDivElement>(null);
+
+    const {
+        messages,
+        messageStatuses,
+        messageDirection,
+        initialLoadComplete,
+        setMessageDirection,
+        setInitialLoadComplete,
+        updateMessages,
+        updateMessageStatus,
+        setMessages,
+        setMessageStatuses,
+        messagesRef,
+        chatAreaRef
+    } = useMessageState();
+
+    const {
+        typingUsers,
+        setTypingUsers,
+        typingTimeoutRef
+    } = useTypingState();
+
+    const {
+        lastScrollPosRef,
+        scrollHeightBeforeUpdateRef,
+        isPreviousMessagesLoadingRef,
+        firstVisibleMessageRef,
+        scrollToBottom,
+        handleScroll,
+        saveScrollPosition
+    } = useScrollManager(chatAreaRef);
+
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
-    const [isComposing, setIsComposing] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; message: ChatMessageItem | null }>({ visible: false, x: 0, y: 0, message: null });
     const navigate = useNavigate();
-    const chatAreaRef = useRef<HTMLDivElement>(null);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
-    const bottomRef = useRef<HTMLDivElement>(null);
-    const messagesRef = useRef<ChatMessageItem[]>([]);
     const domReadyRef = useRef(false);
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
-    const [messageStatuses, setMessageStatuses] = useState<{ [key: string]: MessageStatusData }>({});
-
-    // 1. 더 단순하게 이전 위치 유지를 위한 참조 추가
-    const lastScrollPosRef = useRef(0);
-    const scrollHeightBeforeUpdateRef = useRef(0);
-    const isPreviousMessagesLoadingRef = useRef(false);
-    const lastItemRef = useRef<string | null>(null); // 마지막으로 로드된 메시지 추적 (추가)
-    const firstVisibleMessageRef = useRef<string | null>(null); // 현재 화면에 보이는 첫 번째 메시지 ID
-
-    // 1. 메시지 방향을 추적하는 상태 추가 (스크롤 방향 제어용)
-    const [messageDirection, setMessageDirection] = useState<"INITIAL" | "BEFORE" | "AFTER" | "new">("INITIAL");
-
-    // 메시지 상태를 저장하기 위한 타입 정의 제거 (중복 정의)
-    // type MessageStatus = {
-    //     status: string;
-    //     persistedId: string | null;
-    //     createdAt?: string | null;
-    // };
-
-    // 메시지 상태 추적
-    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-
-    // 스크롤 하단 이동
-    const scrollToBottom = useCallback(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
+    const lastItemRef = useRef<string | null>(null);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
         if (!roomId) return;
         try {
             const response = await getPinnedMessages(Number(roomId));
-            // 응답 구조 확인 및 변환
-            console.log("핀 메시지 응답:", response); // 디버깅용 로그 추가
-            
             if (response && response.data && Array.isArray(response.data.pinnedMessages)) {
-                // 백엔드 응답 구조에 맞게 변환
                 const formattedPinnedMsgs = response.data.pinnedMessages.map((pinMsg: {
                     messageId: string;
                     content: string;
@@ -755,10 +881,8 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     status: "SAVED",
                     readBy: {}
                 }));
-                
                 setPinnedMessages(formattedPinnedMsgs);
             } else if (response && Array.isArray(response.data)) {
-                // 기존 예상 구조도 지원
                 setPinnedMessages(response.data);
             } else {
                 console.error("Unexpected pinned messages format:", response);
@@ -769,7 +893,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             setPinnedMessages([]);
         }
     }, [roomId]);
-    
+
     // 메시지 고정 함수
     const handlePinMessage = async () => {
         if (!contextMenu.message || !contextMenu.message.id) return;
@@ -894,46 +1018,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         }
     }, [messages, messageDirection, initialLoadComplete]);
 
-    // 메시지 업데이트 최적화
-    const updateMessages = useCallback((newMsg: ChatMessageItem) => {
-        setMessages(prev => {
-            // 메시지 맵 생성 (id와 tempId 모두를 키로 사용)
-            const messageMap = new Map<string, ChatMessageItem>();
-            
-            // 기존 메시지를 맵에 추가
-            prev.forEach(msg => {
-                if (msg.id) messageMap.set(msg.id, msg);
-                if (msg.tempId) messageMap.set(msg.tempId, msg);
-            });
-            
-            // 새 메시지가 이미 존재하는지 확인
-            const existingMsg = newMsg.id ? messageMap.get(newMsg.id) : null;
-            const existingTempMsg = newMsg.tempId ? messageMap.get(newMsg.tempId) : null;
-            
-            // 이미 존재하는 메시지면 업데이트하지 않음
-            if (existingMsg || existingTempMsg) {
-                console.log("중복 메시지 감지:", newMsg);
-                return prev;
-            }
-            
-            // 새 메시지 추가
-            console.log("새 메시지 추가:", newMsg);
-            const updatedMessages = [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
-            
-            // 스크롤 조정
-            setTimeout(() => {
-                if (chatAreaRef.current) {
-                    const isNearBottom = chatAreaRef.current.scrollHeight - chatAreaRef.current.scrollTop - chatAreaRef.current.clientHeight < 150;
-                    if (isNearBottom) {
-                        chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                    }
-                }
-            }, 100);
-            
-            return updatedMessages;
-        });
-    }, []);
-
     // 미리보기 로드 후 스크롤 처리를 위한 useEffect 추가
     useEffect(() => {
         // URL 미리보기가 포함된 메시지가 있는지 확인
@@ -949,17 +1033,17 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     // 조합 시작 시
     const handleCompositionStart = () => {
-        setIsComposing(true);
+        setIsTyping(true);
     };
     
     // 조합 종료 시
     const handleCompositionEnd = () => {
-        setIsComposing(false);
+        setIsTyping(false);
     };
 
     // Enter 키 처리
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && !e.shiftKey && !isComposing) {
+        if (e.key === "Enter" && !e.shiftKey && !isTyping) {
             e.preventDefault();
             sendMessage();
         }
@@ -1163,12 +1247,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     client.subscribe(`/topic/typing/${roomId}`, (message: IMessage) => {
                         const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
                         if (typingMsg.userId === user.id) return;
-                        setTypingUsers((prev) => {
+                        setTypingUsers((prev: string[]) => {
                             const newUsers = typingMsg.isTyping
                                 ? prev.includes(typingMsg.username || typingMsg.userId.toString())
                                     ? prev 
                                     : [...prev, typingMsg.username || typingMsg.userId.toString()]
-                                : prev.filter(u => u !== (typingMsg.username || typingMsg.userId.toString()));
+                                : prev.filter((u: string) => u !== (typingMsg.username || typingMsg.userId.toString()));
                             if (newUsers.length > 0) scrollToBottom();
                             return newUsers;
                         });
@@ -1184,7 +1268,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         if (!update || !update.tempId) return;
 
                         // 1. messageStatuses 업데이트
-                        setMessageStatuses((prev) => {
+                        setMessageStatuses((prev: Record<string, MessageStatusInfo>) => {
                             const existingStatus = prev[update.tempId] || {};
                             const newStatus = {
                                 status: update.status as MessageStatus,
@@ -1650,21 +1734,17 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 previewUrl: null
             }
         };
+
         // 상태 추적을 위해 messageStatuses에 추가
-        setMessageStatuses((prev) => ({
-            ...prev,
-            [tempId]: { 
-                status: MessageStatus.SENDING, 
-                persistedId: null,
-                createdAt: new Date().toISOString()
-            }
-        }));
-        // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
-        setMessages((prev) => {
-            const updatedMessages = [...prev, chatMessage];
-            setTimeout(() => scrollToBottom(), 0);
-            return updatedMessages;
+        updateMessageStatus(tempId, { 
+            status: MessageStatus.SENDING, 
+            persistedId: null,
+            createdAt: new Date().toISOString()
         });
+
+        // 메시지를 로컬 상태에 먼저 추가 (UI에 즉시 반영)
+        updateMessages(chatMessage);
+        
         // 실제 전송
         stompClient.publish({
             destination: "/app/chat",
