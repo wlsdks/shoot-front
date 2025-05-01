@@ -222,9 +222,10 @@ const TypingIndicatorContainer = styled.div`
     max-width: 75%;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     align-self: flex-start;
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
+    position: relative;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    z-index: 1;
 `;
 
 const TypingDots = styled.div`
@@ -1681,11 +1682,11 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         // 타이핑 상태가 변경될 때 스크롤 처리
         if (isTyping && chatAreaRef.current) {
             const chatArea = chatAreaRef.current;
-            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
+            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 200;
             if (isNearBottom) {
-                setTimeout(() => {
+                requestAnimationFrame(() => {
                     chatArea.scrollTop = chatArea.scrollHeight;
-                }, 100);
+                });
             }
         }
     };
