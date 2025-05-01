@@ -20,24 +20,45 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.userId = userId;
 
         const token = localStorage.getItem("accessToken");
+        if (!token) {
+            throw new Error("No access token found");
+        }
+
         const socket = new SockJS(`http://localhost:8100/ws/chat?token=${token}`);
         
         this.client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
-            debug: (message) => {
-                // console.log("STOMP 디버그:", message);
-            },
+            debug: () => {},
             onConnect: () => {
                 this.setupSubscriptions();
+            },
+            onStompError: (frame) => {
+                console.error("STOMP 에러:", frame);
+            },
+            onWebSocketError: (event) => {
+                console.error("WebSocket 에러:", event);
             }
         });
 
-        this.client.activate();
+        try {
+            await this.client.activate();
+        } catch (error) {
+            console.error("WebSocket 연결 실패:", error);
+            throw error;
+        }
     }
 
     private setupSubscriptions() {
-        if (!this.client || !this.roomId) return;
+        if (!this.client || !this.roomId) {
+            console.error("WebSocket 클라이언트가 초기화되지 않았거나 roomId가 없습니다.");
+            return;
+        }
+
+        if (!this.client.connected) {
+            console.error("WebSocket이 연결되지 않은 상태입니다.");
+            return;
+        }
 
         // 메시지 수신 구독
         this.client.subscribe(`/topic/messages/${this.roomId}`, (message) => {

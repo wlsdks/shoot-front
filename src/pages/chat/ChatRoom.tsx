@@ -417,15 +417,14 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 setConnectionError(null);
                 setIsConnected(true);
 
+                // 타이핑 인디케이터 핸들러를 먼저 설정
+                webSocketService.current.onTypingIndicator((typingMsg: TypingIndicatorMessage) => {
+                    if (typingMsg.userId === user.id) return;
+                    updateTypingStatus(typingMsg);
+                });
+
                 // 메시지 수신 핸들러
                 webSocketService.current.onMessage((msg: ChatMessageItem) => {
-                    console.log("웹소켓 메시지 수신:", {
-                        id: msg.id,
-                        tempId: msg.tempId,
-                        text: msg.content.text,
-                        source: "websocket"
-                    });
-                    
                     updateMessages(msg);
                     
                     if (
@@ -439,12 +438,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                             id: messageStatuses[msg.tempId].persistedId!
                         });
                     }
-                });
-
-                // 타이핑 인디케이터 핸들러
-                webSocketService.current.onTypingIndicator((typingMsg: TypingIndicatorMessage) => {
-                    if (typingMsg.userId === user.id) return;
-                    updateTypingStatus(typingMsg);
                 });
 
                 // 메시지 상태 핸들러
@@ -824,22 +817,16 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         const value = e.target.value;
         setInput(value);
 
-        if (!webSocketService.current.isConnected() || !roomId || !user) return;
-
-        // 입력값이 비어있으면 즉시 타이핑 인디케이터 끄기
-        if (value.trim() === "") {
-            sendTypingIndicator(false);
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-                typingTimeoutRef.current = null;
-            }
+        // 웹소켓 연결 상태 확인
+        if (!webSocketService.current?.isConnected() || !roomId || !user) {
+            console.log("웹소켓 연결 대기 중...");
             return;
         }
-    
-        // 입력 중일 때는 타이핑 인디케이터 켜기
+
+        // 타이핑 상태 전송
         sendTypingIndicator(true);
 
-        // 활성 여부를 알림 (타이핑 아님)
+        // 활성 여부를 알림
         webSocketService.current.sendActiveStatus(true);
 
         // 기존 타이머 제거 후, 1초 후에 타이핑 인디케이터 끄기
@@ -849,9 +836,22 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
         typingTimeoutRef.current = setTimeout(() => {
             sendTypingIndicator(false);
+            setInput('');  // 입력값 초기화
             typingTimeoutRef.current = null;
         }, 1000);
     };
+
+    // 웹소켓 연결 상태 모니터링
+    useEffect(() => {
+        const checkConnection = setInterval(() => {
+            if (webSocketService.current?.isConnected()) {
+                setIsConnected(true);
+                clearInterval(checkConnection);
+            }
+        }, 100);
+
+        return () => clearInterval(checkConnection);
+    }, []);
 
     // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleChatBubbleClick = (e: React.MouseEvent, message: ChatMessageItem) => {
@@ -963,7 +963,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 }
 
                 <ChatArea ref={chatAreaRef}>
-                    <MessagesContainer>
+                    <MessagesContainer className={input ? 'typing' : ''}>
                         {messages.map((msg, idx) => {
                             const isOwn = String(msg.senderId) === String(user?.id);
                             const currentStatus = msg.tempId
@@ -1004,16 +1004,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 </React.Fragment>
                             );
                         })}
-                        {Object.keys(typingUsers).length > 0 && (
-                            <TypingIndicatorContainer>
-                                타이핑 중입니다
-                                <TypingDots>
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </TypingDots>
-                            </TypingIndicatorContainer>
-                        )}
                     </MessagesContainer>
                     <div ref={bottomRef} />
                 </ChatArea>
@@ -1028,6 +1018,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         onCompositionEnd={handleCompositionEnd}
                         onBlur={() => {
                             sendTypingIndicator(false);
+                            setInput('');
                             if (typingTimeoutRef.current) {
                                 clearTimeout(typingTimeoutRef.current);
                                 typingTimeoutRef.current = null;
@@ -1039,6 +1030,14 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     <SendButton onClick={sendMessage} disabled={!isConnected}>
                         <SendIcon />
                     </SendButton>
+                    <TypingIndicatorContainer className={input ? 'visible' : ''}>
+                        타이핑 중입니다
+                        <TypingDots>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </TypingDots>
+                    </TypingIndicatorContainer>
                 </ChatInputContainer>
 
                 {contextMenu.visible && (

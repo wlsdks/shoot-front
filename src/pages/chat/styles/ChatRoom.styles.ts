@@ -108,6 +108,11 @@ export const MessagesContainer = styled.div`
     width: 100%;
     padding-bottom: 2px;
     position: relative;
+    transition: padding-bottom 0.3s ease-in-out;
+
+    &.typing {
+        padding-bottom: 5px;
+    }
 `;
 
 export const MessageRow = styled.div<{ $isOwnMessage: boolean }>`
@@ -155,18 +160,29 @@ export const TypingIndicatorContainer = styled.div`
     padding: 8px 12px;
     font-size: 0.85rem;
     color: #666;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
     border-radius: 18px;
     margin: 0;
     display: flex;
     align-items: center;
     max-width: 75%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     align-self: flex-start;
-    position: relative;
-    margin-top: 8px;
-    margin-bottom: 8px;
+    position: absolute;
+    bottom: 70px;
+    left: 16px;
     z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.3s ease-in-out;
+
+    &.visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
 `;
 
 export const TypingDots = styled.div`
