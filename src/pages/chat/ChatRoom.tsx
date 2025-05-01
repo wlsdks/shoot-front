@@ -133,11 +133,15 @@ const HeaderTitle = styled.h2`
 // 채팅 영역 스타일
 const ChatArea = styled.div`
     flex: 1;
-    padding: 16px;
+    padding: 10px;
+    padding-bottom: 0px;
     background: #f8f9fa;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #ddd transparent;
+    display: flex;
+    flex-direction: column;
+    position: relative;
     
     &::-webkit-scrollbar {
         width: 5px;
@@ -151,6 +155,14 @@ const ChatArea = styled.div`
     &::-webkit-scrollbar-track {
         background: transparent;
     }
+`;
+
+const MessagesContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    min-height: min-content;
+    width: 100%;
+    padding-bottom: 2px;
 `;
 
 // 메시지 행: 채팅 말풍선과 시간/Indicator를 수평 배치
@@ -204,11 +216,15 @@ const TypingIndicatorContainer = styled.div`
     color: #666;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 18px;
-    margin-bottom: 12px;
+    margin: 0;
     display: flex;
     align-items: center;
     max-width: 75%;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    align-self: flex-start;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
 `;
 
 const TypingDots = styled.div`
@@ -240,6 +256,7 @@ const ChatInputContainer = styled.div`
     background: #fff;
     border-top: 1px solid #eee;
     z-index: 10;
+    position: relative;
 `;
 
 const Input = styled.input`
@@ -1660,6 +1677,17 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             destination: "/app/typing",
             body: JSON.stringify(typingPayload),
         });
+
+        // 타이핑 상태가 변경될 때 스크롤 처리
+        if (isTyping && chatAreaRef.current) {
+            const chatArea = chatAreaRef.current;
+            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
+            if (isNearBottom) {
+                setTimeout(() => {
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                }, 100);
+            }
+        }
     };
 
     // 입력값 변경 및 타이핑 디바운스 처리
@@ -2035,91 +2063,93 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     </ErrorMessage>
                 }
                 <ChatArea ref={chatAreaRef}>
-                    {messages.map((msg, idx) => {
-                        // 내 메시지인가?
-                        const isOwn = String(msg.senderId) === String(user?.id);
+                    <MessagesContainer>
+                        {messages.map((msg, idx) => {
+                            // 내 메시지인가?
+                            const isOwn = String(msg.senderId) === String(user?.id);
+                            
+                            // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
+                            const currentStatus = msg.tempId
+                                ? messageStatuses[msg.tempId]?.status || msg.status
+                                : msg.status;
+                            // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
+                            const isPersisted = msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
+                            // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
+                            const otherHasRead = msg.readBy 
+                                ? Object.entries(msg.readBy as Record<string, boolean>)
+                                    .filter(([id]) => id !== user?.id.toString())
+                                    .some(([, read]) => read === true)
+                                : false;
+                            // indicatorText: 읽지 않았으면 "1" 
+                            const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
+                            // 상태표시
+                            const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
                         
-                        // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
-                        const currentStatus = msg.tempId
-                            ? messageStatuses[msg.tempId]?.status || msg.status
-                            : msg.status;
-                        // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
-                        const isPersisted = msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
-                        // 내 메시지의 경우, 참여자가 읽은 항목이 있는지 확인
-                        const otherHasRead = msg.readBy 
-                            ? Object.entries(msg.readBy as Record<string, boolean>)
-                                .filter(([id]) => id !== user?.id.toString())
-                                .some(([, read]) => read === true)
-                            : false;
-                        // indicatorText: 읽지 않았으면 "1" 
-                        const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
-                        // 상태표시
-                        const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
-                    
-                        // 시간 표시 여부 로직 수정
-                        const nextMessage = messages[idx + 1];
-                        const msgCreatedAt = getMessageCreatedAt(msg);
+                            // 시간 표시 여부 로직 수정
+                            const nextMessage = messages[idx + 1];
+                            const msgCreatedAt = getMessageCreatedAt(msg);
 
-                        // 현재 메시지 시간 포맷팅
-                        const currentTime = formatTime(msgCreatedAt);
+                            // 현재 메시지 시간 포맷팅
+                            const currentTime = formatTime(msgCreatedAt);
 
-                        // 다음 메시지 시간 포맷팅 (있는 경우만)
-                        const nextTime = nextMessage ? formatTime(getMessageCreatedAt(nextMessage)) : null;
+                            // 다음 메시지 시간 포맷팅 (있는 경우만)
+                            const nextTime = nextMessage ? formatTime(getMessageCreatedAt(nextMessage)) : null;
 
-                        // 현재 메시지와 다음 메시지의 시간을 비교
-                        const showTime = !nextMessage || currentTime !== nextTime;
-                        
-                        return (
-                            <React.Fragment key={idx}>
-                                <MessageRow id={`msg-${msg.id}`} $isOwnMessage={isOwn}>
-                                    {isOwn ? (
-                                        <>
-                                            <TimeContainer $isOwnMessage={true}>
-                                                {statusIndicator}
-                                                {indicatorText && <div>{indicatorText}</div>}
-                                                {showTime && <div>{currentTime}</div>}
-                                            </TimeContainer>
-                                            <ChatBubble 
-                                                $isOwnMessage={isOwn} 
-                                                onContextMenu={(e) => handleContextMenu(e, msg)}
-                                                onClick={(e) => handleChatBubbleClick(e, msg)}
-                                            >
-                                                <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
-                                            </ChatBubble>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ChatBubble 
-                                                $isOwnMessage={isOwn} 
-                                                onContextMenu={(e) => handleContextMenu(e, msg)}
-                                                onClick={(e) => handleChatBubbleClick(e, msg)}
-                                            >
-                                                <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
-                                            </ChatBubble>
-                                            <TimeContainer $isOwnMessage={false}>
-                                                {showTime && <div>{currentTime}</div>}
-                                            </TimeContainer>
-                                        </>
+                            // 현재 메시지와 다음 메시지의 시간을 비교
+                            const showTime = !nextMessage || currentTime !== nextTime;
+                            
+                            return (
+                                <React.Fragment key={idx}>
+                                    <MessageRow id={`msg-${msg.id}`} $isOwnMessage={isOwn}>
+                                        {isOwn ? (
+                                            <>
+                                                <TimeContainer $isOwnMessage={true}>
+                                                    {statusIndicator}
+                                                    {indicatorText && <div>{indicatorText}</div>}
+                                                    {showTime && <div>{currentTime}</div>}
+                                                </TimeContainer>
+                                                <ChatBubble 
+                                                    $isOwnMessage={isOwn} 
+                                                    onContextMenu={(e) => handleContextMenu(e, msg)}
+                                                    onClick={(e) => handleChatBubbleClick(e, msg)}
+                                                >
+                                                    <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                                                </ChatBubble>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ChatBubble 
+                                                    $isOwnMessage={isOwn} 
+                                                    onContextMenu={(e) => handleContextMenu(e, msg)}
+                                                    onClick={(e) => handleChatBubbleClick(e, msg)}
+                                                >
+                                                    <div>{msg.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                                                </ChatBubble>
+                                                <TimeContainer $isOwnMessage={false}>
+                                                    {showTime && <div>{currentTime}</div>}
+                                                </TimeContainer>
+                                            </>
+                                        )}
+                                    </MessageRow>
+                                    {msg.content?.urlPreview && (
+                                        <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>
+                                            {renderUrlPreview(msg)}
+                                        </div>
                                     )}
-                                </MessageRow>
-                                {msg.content?.urlPreview && (
-                                    <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>
-                                        {renderUrlPreview(msg)}
-                                    </div>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                    {typingUsers.length > 0 && (
-                        <TypingIndicatorContainer>
-                            {typingUsers.join(", ")}님이 타이핑 중...
-                            <TypingDots>
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </TypingDots>
-                        </TypingIndicatorContainer>
-                    )}
+                                </React.Fragment>
+                            );
+                        })}
+                        {typingUsers.length > 0 && (
+                            <TypingIndicatorContainer>
+                                {typingUsers.join(", ")}님이 타이핑 중...
+                                <TypingDots>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </TypingDots>
+                            </TypingIndicatorContainer>
+                        )}
+                    </MessagesContainer>
                     <div ref={bottomRef} />
                 </ChatArea>
                 <ChatInputContainer>
