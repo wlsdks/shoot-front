@@ -359,13 +359,15 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const markAllRead = useCallback(() => {
         if (!roomId || !user) return;
         const now = Date.now();
-        if (now - lastReadTimeRef.current < 2000) {
+        if (now - lastReadTimeRef.current < 500) { // 2000ms에서 500ms로 줄임
+            console.log("읽음 처리 디바운스 중...");
             return;
         }
         lastReadTimeRef.current = now;
+        console.log("읽음 처리 API 호출:", { roomId, userId: user.id, sessionId });
         markAllMessagesAsRead(Number(roomId), user.id, sessionId)
+            .then(() => console.log("읽음 처리 성공"))
             .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
-        // 이제 백엔드의 동기화(sync) 응답을 통해 누락 메시지가 자동 반영됨
     }, [roomId, user, sessionId]);
 
     // 여러 메시지 읽음 업데이트 처리 함수
@@ -515,6 +517,18 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     updateBulkMessageReadStatus(messageIds, userId.toString());
                 });
 
+                // 개별 메시지 읽음 처리 핸들러 추가
+                webSocketService.current.onRead((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => {
+                    console.log("개별 메시지 읽음 처리:", data);
+                    setMessages(prev => 
+                        prev.map(msg => 
+                            msg.id === data.messageId 
+                                ? { ...msg, readBy: { ...msg.readBy, [data.userId]: true } }
+                                : msg
+                        )
+                    );
+                });
+
                 // 핀 상태 변경 핸들러
                 webSocketService.current.onPinUpdate(() => {
                     fetchPinnedMessages();
@@ -652,6 +666,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         lastMessageId || undefined,
                         lastMessageId ? "AFTER" : "INITIAL"
                     );
+
+                    // 첫 진입 시 읽음 처리 추가
+                    if (roomId && user) {
+                        console.log("첫 진입 시 읽음 처리 시작");
+                        markAllRead();
+                    }
                 }, 100);
 
             } catch (error) {
@@ -992,15 +1012,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 ? Object.keys(msg.readBy).filter(id => id !== user?.id.toString()) 
                                 : [];
                             
-                            // 1. 내 메시지가 아니거나 저장되지 않은 메시지면 1 표시 안함 (true)
-                            // 2. 내 메시지이고 저장됐지만 다른 참여자가 없으면 1 표시 필요 (false)
-                            // 3. 내 메시지이고 저장됐고 다른 참여자가 있지만 읽지 않았으면 1 표시 필요 (false)
-                            // 4. 내 메시지이고 저장됐고 다른 참여자가 모두 읽었으면 1 표시 안함 (true)
+                            // 읽음 상태 계산 로직 개선
                             const otherHasRead = !isOwn || !isPersisted 
-                                ? true
+                                ? true  // 내 메시지가 아니거나 저장되지 않은 메시지는 읽음 표시 안함
                                 : otherParticipants.length === 0 
-                                    ? false 
-                                    : otherParticipants.every(id => msg.readBy[id] === true);
+                                    ? false  // 다른 참여자가 없으면 읽음 표시
+                                    : otherParticipants.every(id => msg.readBy[id] === true);  // 모든 참여자가 읽었는지 확인
                             
                             // indicatorText: 메시지를 모든 상대방이 읽지 않았으면 "1" 표시
                             const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";

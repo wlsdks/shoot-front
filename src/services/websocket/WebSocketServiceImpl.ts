@@ -12,7 +12,7 @@ export class WebSocketServiceImpl implements WebSocketService {
     private messageStatusCallbacks: ((update: MessageStatusUpdate) => void)[] = [];
     private messageUpdateCallbacks: ((message: ChatMessageItem) => void)[] = [];
     private readBulkCallbacks: ((data: { messageIds: string[], userId: number }) => void)[] = [];
-    private readCallbacks: ((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void)[] = []; // 개별 읽음 처리용 콜백 추가
+    private readCallbacks: ((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void)[] = [];
     private pinUpdateCallbacks: (() => void)[] = [];
     private syncCallbacks: ((data: { roomId: number, direction?: string, messages: any[] }) => void)[] = [];
 
@@ -109,11 +109,6 @@ export class WebSocketServiceImpl implements WebSocketService {
                 const data = JSON.parse(message.body);
                 console.log("읽음 처리 메시지 수신:", data);
                 
-                // 만약 메시지 ID와 사용자 ID만 있고 readBy가 없다면 readBy 필드 추가
-                if (data.messageId && data.userId && !data.readBy) {
-                    data.readBy = { [data.userId]: true };
-                }
-                
                 // 읽음 처리 특화 콜백을 별도로 호출
                 if (data.messageId && data.userId) {
                     this.readCallbacks.forEach(callback => callback(data));
@@ -185,11 +180,14 @@ export class WebSocketServiceImpl implements WebSocketService {
             return;
         }
         
+        const payload = { messageId: messageId, userId: this.userId };
+        console.log("읽음 상태 전송 시작:", payload);
+        
         this.client.publish({
             destination: "/app/read",
-            body: JSON.stringify({ messageId: messageId, userId: this.userId })
+            body: JSON.stringify(payload)
         });
-        console.log("읽음 상태 전송:", { messageId, userId: this.userId });
+        console.log("읽음 상태 전송 완료:", payload);
     }
 
     requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL"): void {
