@@ -39,6 +39,9 @@ import {
 import { useMessageState } from './hooks/useMessageState';
 import { useTypingState } from './hooks/useTypingState';
 import { useScrollManager } from './hooks/useScrollManager';
+import { useMessageHandlers } from './hooks/useMessageHandlers';
+import { useTypingHandlers } from './hooks/useTypingHandlers';
+import { useContextMenu } from './hooks/useContextMenu';
 
 // 컴포넌트 임포트
 import { MessageRow } from './components/MessageRow';
@@ -110,11 +113,43 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         saveScrollPosition
     } = useScrollManager(chatAreaRef);
 
+    const {
+        handleMessage,
+        handleMessageStatus,
+        handleMessageUpdate,
+        handleReadBulk
+    } = useMessageHandlers({
+        webSocketService,
+        roomId,
+        userId: user?.id,
+        updateMessages,
+        updateMessageStatus,
+        setMessageStatuses,
+        setMessages,
+        messagesRef,
+        messageStatuses
+    });
+
+    const {
+        handleTypingIndicator,
+        sendTypingIndicator
+    } = useTypingHandlers({
+        webSocketService,
+        roomId,
+        userId: user?.id,
+        updateTypingStatus
+    });
+
+    const {
+        contextMenu,
+        setContextMenu,
+        closeContextMenu
+    } = useContextMenu();
+
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
-    const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; message: ChatMessageItem | null }>({ visible: false, x: 0, y: 0, message: null });
     const navigate = useNavigate();
     const domReadyRef = useRef(false);
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
@@ -740,57 +775,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         return () => window.removeEventListener("focus", handleFocus);
     }, [roomId, user, isConnected]);
 
-    // 타이핑 인디케이터 전송
-    const sendTypingIndicator = (isTyping: boolean) => {
-        if (!webSocketService.current.isConnected() || !roomId || !user) return;
-        
-        webSocketService.current.sendTypingIndicator(isTyping);
-
-        if (isTyping && chatAreaRef.current) {
-            const chatArea = chatAreaRef.current;
-            const isNearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 200;
-            if (isNearBottom) {
-                requestAnimationFrame(() => {
-                    chatArea.scrollTop = chatArea.scrollHeight;
-                });
-            }
-        }
-    };
-
-    // 입력값 변경 및 타이핑 디바운스 처리
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setInput(value);
-
-        if (!webSocketService.current.isConnected() || !roomId || !user) return;
-
-        // 입력값이 비어있으면 즉시 타이핑 인디케이터 끄기
-        if (value.trim() === "") {
-            sendTypingIndicator(false);
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-                typingTimeoutRef.current = null;
-            }
-            return;
-        }
-    
-        // 입력 중일 때는 타이핑 인디케이터 켜기
-        sendTypingIndicator(true);
-
-        // 활성 여부를 알림 (타이핑 아님)
-        webSocketService.current.sendActiveStatus(true);
-
-        // 기존 타이머 제거 후, 1초 후에 타이핑 인디케이터 끄기
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
-
-        typingTimeoutRef.current = setTimeout(() => {
-            sendTypingIndicator(false);
-            typingTimeoutRef.current = null;
-        }, 1000);
-    };
-
     // 메시지 전송
     const sendMessage = () => {
         if (!webSocketService.current.isConnected() || input.trim() === "" || !roomId || !user) {
@@ -836,39 +820,41 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         sendTypingIndicator(false);
     };
 
-    // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
-    const handleContextMenu = (e: React.MouseEvent, message: ChatMessageItem) => {
-        e.preventDefault();
-        setContextMenu({ visible: true, x: e.clientX, y: e.clientY, message });
-    };
+    // 입력값 변경 및 타이핑 디바운스 처리
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setInput(value);
 
-    // 외부 클릭 시 컨텍스트 메뉴 닫기
-    useEffect(() => {
-        const handleClick = (e: MouseEvent) => {
-            // contextMenu가 열려있고, 메뉴 외부를 클릭한 경우에만 닫기
-            if (contextMenu.visible) {
-                const menuElement = document.getElementById('context-menu');
-                if (menuElement && !menuElement.contains(e.target as Node)) {
-                    setContextMenu({ ...contextMenu, visible: false, message: null });
-                }
+        if (!webSocketService.current.isConnected() || !roomId || !user) return;
+
+        // 입력값이 비어있으면 즉시 타이핑 인디케이터 끄기
+        if (value.trim() === "") {
+            sendTypingIndicator(false);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
             }
-        };
-        
-        // 다음 tick에서 이벤트 리스너 등록 (즉시 실행 방지)
-        setTimeout(() => {
-            window.addEventListener("click", handleClick);
-        }, 0);
-        
-        return () => window.removeEventListener("click", handleClick);
-    }, [contextMenu]);
+            return;
+        }
+    
+        // 입력 중일 때는 타이핑 인디케이터 켜기
+        sendTypingIndicator(true);
 
-    // 컨텍스트 메뉴에서 "메시지 전달" 선택
-    const handleForwardClick = () => {
-        setContextMenu({ ...contextMenu, visible: false });
-        setShowForwardModal(true);
+        // 활성 여부를 알림 (타이핑 아님)
+        webSocketService.current.sendActiveStatus(true);
+
+        // 기존 타이머 제거 후, 1초 후에 타이핑 인디케이터 끄기
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        typingTimeoutRef.current = setTimeout(() => {
+            sendTypingIndicator(false);
+            typingTimeoutRef.current = null;
+        }, 1000);
     };
 
-    // 말풍선 클릭 핸들러 함수 추가
+    // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
     const handleChatBubbleClick = (e: React.MouseEvent, message: ChatMessageItem) => {
         e.stopPropagation(); // 이벤트 전파 방지
         
@@ -878,7 +864,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         
         // 이미 메뉴가 표시되어 있으면 닫기
         if (contextMenu.visible && contextMenu.message?.id === message.id) {
-            setContextMenu({ visible: false, x: 0, y: 0, message: null });
+            closeContextMenu();
         } else {
             // 메뉴 표시
             setContextMenu({ visible: true, x, y, message });
@@ -947,6 +933,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         );
     };
 
+    // 컨텍스트 메뉴에서 "메시지 전달" 선택
+    const handleForwardClick = () => {
+        closeContextMenu();
+        setShowForwardModal(true);
+    };
+
     return (
         <ChatWrapper>
             <ChatContainer>
@@ -1002,7 +994,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                         currentTime={currentTime}
                                         statusIndicator={statusIndicator}
                                         indicatorText={indicatorText}
-                                        onContextMenu={handleContextMenu}
+                                        onContextMenu={handleChatBubbleClick}
                                         onClick={handleChatBubbleClick}
                                     />
                                     {msg.content?.urlPreview && (

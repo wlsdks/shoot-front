@@ -62,9 +62,8 @@ export interface ChatRoomProps {
     socket?: any;
 }
 
-export type MessageStatusInfo = {
+export interface MessageStatusInfo {
     status: MessageStatus;
     persistedId: string | null;
-    createdAt?: string | null;
-    messageId?: string;
-}; 
+    createdAt: string;
+} 
