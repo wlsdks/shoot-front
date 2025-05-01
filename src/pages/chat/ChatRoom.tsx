@@ -5,7 +5,7 @@ import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../
 import { markAllMessagesAsRead } from "../../services/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
 import { throttle } from "lodash";
-import { WebSocketMessage, MessageStatusUpdate } from "../../services/websocket/types";
+import { MessageStatusUpdate } from "../../services/websocket/types";
 
 // 스타일 임포트
 import {
@@ -1042,6 +1042,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                         indicatorText={indicatorText}
                                         onContextMenu={handleChatBubbleClick}
                                         onClick={handleChatBubbleClick}
+                                        userId={user?.id || 0}
                                     />
                                     {msg.content?.urlPreview && (
                                         <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>

@@ -156,6 +156,13 @@ export const TimeContainer = styled.div<{ $isOwnMessage: boolean }>`
     align-items: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
 `;
 
+export const ReadIndicator = styled.div`
+    font-size: 0.7rem;
+    color: #007bff;
+    font-weight: bold;
+    margin-bottom: 2px;
+`;
+
 export const TypingIndicatorContainer = styled.div`
     padding: 8px 12px;
     font-size: 0.85rem;
@@ -574,4 +581,4 @@ export const UnpinButton = styled.button`
         color: #dc3545;
         background-color: rgba(220, 53, 69, 0.1);
     }
-`; 
+`;

@@ -1,7 +1,7 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate } from "./types";
-import { ChatMessageItem } from "../../pages/chat/types/ChatRoom.types";
+import { ChatMessageItem, MessageStatus } from "../../pages/chat/types/ChatRoom.types";
 
 export class WebSocketServiceImpl implements WebSocketService {
     private client: Client | null = null;
@@ -32,102 +32,131 @@ export class WebSocketServiceImpl implements WebSocketService {
             reconnectDelay: 5000,
             debug: () => {},
             onConnect: () => {
+                console.log("WebSocket connected successfully");
                 this.setupSubscriptions();
+                // Send active status immediately on connect
+                this.sendActiveStatus(true);
+                // Mark all messages as read on initial connection
+                this.markAllMessagesAsRead();
             },
             onStompError: (frame) => {
-                console.error("STOMP 에러:", frame);
+                console.error("STOMP error:", frame);
             },
             onWebSocketError: (event) => {
-                console.error("WebSocket 에러:", event);
+                console.error("WebSocket error:", event);
             }
         });
 
         try {
             await this.client.activate();
         } catch (error) {
-            console.error("WebSocket 연결 실패:", error);
+            console.error("WebSocket connection failed:", error);
             throw error;
         }
     }
 
     private setupSubscriptions() {
         if (!this.client || !this.roomId) {
-            console.error("WebSocket 클라이언트가 초기화되지 않았거나 roomId가 없습니다.");
+            console.error("WebSocket client not initialized or no roomId");
             return;
         }
 
         if (!this.client.connected) {
-            console.error("WebSocket이 연결되지 않은 상태입니다.");
+            console.error("WebSocket not connected");
             return;
         }
 
-        // 메시지 수신 구독
+        // Message subscription
         this.client.subscribe(`/topic/messages/${this.roomId}`, (message) => {
-            const msg: ChatMessageItem = JSON.parse(message.body);
-            
-            // 여기에 자동 읽음 처리 로직 추가
-            if (
-                document.visibilityState === "visible" && 
-                msg.senderId !== this.userId && 
-                msg.id // tempId가 아닌 실제 id가 있을 때만
-            ) {
-                console.log(`자동 읽음 처리 전송: 메시지 ${msg.id}`);
-                this.sendReadStatus(msg.id);
+            try {
+                const msg: ChatMessageItem = JSON.parse(message.body);
+                
+                // Auto-mark message as read if visible and not from current user
+                if (
+                    document.visibilityState === "visible" && 
+                    msg.senderId !== this.userId && 
+                    msg.id && 
+                    msg.status === MessageStatus.SAVED // Only mark SAVED messages as read
+                ) {
+                    console.log(`Auto-marking message as read: ${msg.id}`);
+                    this.sendReadStatus(msg.id);
+                }
+                
+                this.messageCallbacks.forEach(callback => callback(msg));
+            } catch (error) {
+                console.error("Error processing message:", error);
             }
-            
-            // 기존 콜백 호출 유지
-            this.messageCallbacks.forEach(callback => callback(msg));
         });
 
-        // 타이핑 인디케이터 구독
+        // Typing indicator subscription
         this.client.subscribe(`/topic/typing/${this.roomId}`, (message) => {
             const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
             this.typingIndicatorCallbacks.forEach(callback => callback(typingMsg));
         });
 
-        // 메시지 상태 구독
+        // Message status subscription
         this.client.subscribe(`/topic/message/status/${this.roomId}`, (message) => {
-            const statusUpdate = JSON.parse(message.body);
-            this.messageStatusCallbacks.forEach(callback => callback(statusUpdate));
+            try {
+                const statusUpdate = JSON.parse(message.body);
+                
+                // For newly saved messages from others, automatically mark as read if visible
+                if (
+                    Array.isArray(statusUpdate) &&
+                    statusUpdate.length > 0 &&
+                    statusUpdate[0].status === MessageStatus.SAVED &&
+                    document.visibilityState === "visible"
+                ) {
+                    const update = statusUpdate[statusUpdate.length - 1];
+                    if (update.persistedId) {
+                        this.sendReadStatus(update.persistedId);
+                    }
+                }
+                
+                this.messageStatusCallbacks.forEach(callback => callback(statusUpdate));
+            } catch (error) {
+                console.error("Error processing message status:", error);
+            }
         });
 
-        // 메시지 업데이트 구독
+        // Message update subscription
         this.client.subscribe(`/topic/message/update/${this.roomId}`, (message) => {
             const updatedMessage = JSON.parse(message.body);
             this.messageUpdateCallbacks.forEach(callback => callback(updatedMessage));
         });
 
-        // 읽음 처리 상태 구독
+        // Bulk read status subscription
         this.client.subscribe(`/topic/read-bulk/${this.roomId}`, (message) => {
-            const data = JSON.parse(message.body);
-            this.readBulkCallbacks.forEach(callback => callback(data));
+            try {
+                const data = JSON.parse(message.body);
+                console.log("Received bulk read status:", data);
+                this.readBulkCallbacks.forEach(callback => callback(data));
+            } catch (error) {
+                console.error("Error processing bulk read status:", error);
+            }
         });
 
-        // 개별 읽음 처리 상태 구독
+        // Individual read status subscription (improved)
         this.client.subscribe(`/topic/read/${this.roomId}`, (message) => {
             try {
                 const data = JSON.parse(message.body);
-                console.log("읽음 처리 메시지 수신:", data);
+                console.log("Received individual read status:", data);
                 
-                // 읽음 처리 특화 콜백을 별도로 호출
                 if (data.messageId && data.userId) {
                     this.readCallbacks.forEach(callback => callback(data));
-                    console.log(`메시지 ${data.messageId} 읽음 처리 완료:`, data);
                 } else {
-                    console.warn("읽음 처리 데이터 형식 오류:", data);
+                    console.warn("Invalid read status data:", data);
                 }
             } catch (error) {
-                console.error("읽음 처리 이벤트 처리 오류:", error);
+                console.error("Error processing read status event:", error);
             }
         });
-        
 
-        // 핀 상태 변경 구독
+        // Pin status subscription
         this.client.subscribe(`/topic/pin/${this.roomId}`, () => {
             this.pinUpdateCallbacks.forEach(callback => callback());
         });
 
-        // 동기화 구독
+        // Sync subscription
         this.client.subscribe(`/user/queue/sync`, (message) => {
             const syncData = JSON.parse(message.body);
             this.syncCallbacks.forEach(callback => callback(syncData));
@@ -142,7 +171,10 @@ export class WebSocketServiceImpl implements WebSocketService {
     }
 
     sendMessage(message: ChatMessageItem): void {
-        if (!this.client?.connected) return;
+        if (!this.client?.connected) {
+            console.warn("Cannot send message: WebSocket not connected");
+            return;
+        }
         this.client.publish({
             destination: "/app/chat",
             body: JSON.stringify(message)
@@ -166,28 +198,95 @@ export class WebSocketServiceImpl implements WebSocketService {
     }
 
     sendActiveStatus(active: boolean): void {
-        if (!this.client?.connected || !this.roomId || !this.userId) return;
-        
-        this.client.publish({
-            destination: "/app/active",
-            body: JSON.stringify({ userId: this.userId, roomId: this.roomId, active })
-        });
-    }
-
-    sendReadStatus(messageId: string): void {
-        if (!this.client?.connected || !this.userId) {
-            console.warn("읽음 상태 전송 불가: 연결 끊김", { messageId, connected: this.client?.connected });
+        if (!this.client?.connected || !this.roomId || !this.userId) {
+            console.warn("Cannot send active status: WebSocket not connected or missing roomId/userId");
             return;
         }
         
-        const payload = { messageId: messageId, userId: this.userId };
-        console.log("읽음 상태 전송 시작:", payload);
+        const payload = JSON.stringify({ 
+            userId: this.userId, 
+            roomId: this.roomId, 
+            active 
+        });
+        
+        console.log("Sending active status:", payload);
         
         this.client.publish({
-            destination: "/app/read",
-            body: JSON.stringify(payload)
+            destination: "/app/active",
+            body: payload
         });
-        console.log("읽음 상태 전송 완료:", payload);
+    }
+
+    // Improved read status method
+    sendReadStatus(messageId: string): void {
+        if (!this.client?.connected || !this.userId) {
+            console.warn("Cannot send read status: WebSocket not connected", { 
+                messageId, 
+                connected: this.client?.connected, 
+                userId: this.userId 
+            });
+            return;
+        }
+        
+        const payload = { 
+            messageId, 
+            userId: this.userId 
+        };
+        
+        console.log("Sending read status via WebSocket:", payload);
+        
+        try {
+            this.client.publish({
+                destination: "/app/read",
+                body: JSON.stringify(payload),
+                headers: { 
+                    'content-type': 'application/json'
+                }
+            });
+            console.log("Read status sent successfully");
+        } catch (error) {
+            console.error("Error sending read status:", error);
+        }
+    }
+
+    // New method to mark all messages as read on chat room entry
+    markAllMessagesAsRead(): void {
+        if (!this.client?.connected || !this.roomId || !this.userId) {
+            console.warn("Cannot mark all as read: WebSocket not connected");
+            return;
+        }
+
+        // Generate a unique session ID for this request
+        const sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        const endpoint = `/api/v1/messages/mark-read?roomId=${this.roomId}&userId=${this.userId}&requestId=${sessionId}`;
+        
+        console.log("Marking all messages as read via REST API:", {
+            roomId: this.roomId,
+            userId: this.userId,
+            sessionId
+        });
+
+        // Use fetch API directly to ensure this call happens reliably
+        const token = localStorage.getItem("accessToken");
+        fetch(`http://localhost:8100${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("All messages marked as read successfully:", data);
+        })
+        .catch(error => {
+            console.error("Error marking all messages as read:", error);
+        });
     }
 
     requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL"): void {
