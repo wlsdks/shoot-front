@@ -1,20 +1,41 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { Friend } from '../../types/friend.types';
 import Icon from '../common/Icon';
 import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
+
+const fadeInUp = keyframes`
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+`;
 
 const SocialItemContainer = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
-    background-color: #ffffff;
-    border-bottom: 1px solid #eee;
-    transition: background-color 0.2s;
-    
+    padding: 0.75rem;
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: ${commonBorderRadius.medium};
+    margin-bottom: 0.6rem;
+    transition: all 0.3s ease;
+    animation: ${fadeInUp} 0.3s ease-out;
+    box-shadow: ${commonShadows.small};
+
     &:hover {
-        background-color: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: ${commonShadows.medium};
+        border-color: ${commonColors.primary};
+    }
+
+    &:active {
+        transform: translateY(-1px);
     }
 `;
 
@@ -26,20 +47,32 @@ const UserInfo = styled.div`
 `;
 
 const ProfileImageContainer = styled.div`
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     overflow: hidden;
-    margin-right: 1rem;
+    margin-right: 0.75rem;
     background-color: #e9ecef;
     flex-shrink: 0;
-    border: 1px solid #dee2e6;
+    border: 2px solid #e1ecff;
+    box-shadow: ${commonShadows.small};
+    transition: all 0.3s ease;
+
+    ${SocialItemContainer}:hover & {
+        border-color: ${commonColors.primary};
+        transform: scale(1.05);
+    }
 `;
 
 const ProfileImage = styled.img`
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.3s ease;
+
+    ${SocialItemContainer}:hover & {
+        transform: scale(1.1);
+    }
 `;
 
 const ProfileInitial = styled.div`
@@ -48,10 +81,16 @@ const ProfileInitial = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #007bff;
+    background-color: ${commonColors.primary};
     color: white;
     font-weight: 600;
-    font-size: 1.2rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+
+    ${SocialItemContainer}:hover & {
+        background-color: ${commonColors.primary};
+        transform: scale(1.1);
+    }
 `;
 
 const FriendInfo = styled.div`
@@ -62,17 +101,22 @@ const FriendInfo = styled.div`
 
 const FriendName = styled.span`
     font-weight: 600;
-    color: #333;
-    font-size: 0.95rem;
+    color: ${commonColors.dark};
+    font-size: 0.85rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-bottom: 0.15rem;
+    margin-bottom: 0.1rem;
+    transition: color 0.3s ease;
+
+    ${SocialItemContainer}:hover & {
+        color: ${commonColors.primary};
+    }
 `;
 
 const FriendStatus = styled.span`
-    font-size: 0.8rem;
-    color: #666;
+    font-size: 0.75rem;
+    color: ${commonColors.secondary};
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -87,34 +131,36 @@ const Actions = styled.div`
 const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disabled?: boolean }>`
     background: ${(props) => 
         props.disabled ? '#f1f3f5' :
-        props.$primary ? '#4CAF50' : 
-        props.$danger ? '#f44336' : '#f8f9fa'};
+        props.$primary ? commonColors.primary : 
+        props.$danger ? '#dc3545' : 'white'};
     color: ${(props) => 
         props.disabled ? '#adb5bd' :
-        (props.$primary || props.$danger) ? '#ffffff' : '#666'};
+        (props.$primary || props.$danger) ? '#ffffff' : commonColors.dark};
     padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-    border: none;
-    border-radius: 20px;
+    font-size: 0.75rem;
+    border: 1px solid ${(props) => 
+        props.disabled ? '#e9ecef' :
+        props.$primary ? commonColors.primary : 
+        props.$danger ? '#dc3545' : '#e0e0e0'};
+    border-radius: ${commonBorderRadius.medium};
     cursor: ${(props) => props.disabled ? 'default' : 'pointer'};
     font-weight: 500;
     display: flex;
     align-items: center;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    box-shadow: ${commonShadows.small};
     
     &:hover {
+        transform: translateY(-2px);
+        box-shadow: ${commonShadows.medium};
         background: ${(props) => 
             props.disabled ? '#f1f3f5' :
-            props.$primary ? '#43A047' : 
-            props.$danger ? '#E53935' : '#e9ecef'};
-        transform: translateY(-1px);
-        box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            props.$primary ? '#0056b3' : 
+            props.$danger ? '#c82333' : '#f8f9fa'};
     }
     
     &:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
     }
     
     svg {
