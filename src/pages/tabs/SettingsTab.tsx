@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import EditProfile from '../../pages/profile/EditProfile';
+import UserCodeSettings from '../../pages/profile/UserCodeSettings';
 import {
     TabContainer,
     Header,
@@ -116,6 +117,21 @@ const SettingsTab: React.FC = () => {
                             </IconSVG>
                         </IconContainer>
                     </Card>
+
+                    <Card onClick={() => setActiveSection('userCode')}>
+                        <TextArea>
+                            <CardTitle>유저코드 설정</CardTitle>
+                            <CardDescription>친구 추가를 위한 유저코드 관리</CardDescription>
+                        </TextArea>
+                        <IconContainer>
+                            <IconSVG>
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="8.5" cy="7" r="4" />
+                                <line x1="20" y1="8" x2="20" y2="14" />
+                                <line x1="23" y1="11" x2="17" y2="11" />
+                            </IconSVG>
+                        </IconContainer>
+                    </Card>
                     
                     <Card>
                         <TextArea>
@@ -227,6 +243,26 @@ const SettingsTab: React.FC = () => {
                 </Header>
                 <ScrollArea>
                     <EditProfile onClose={handleBack} />
+                </ScrollArea>
+            </TabContainer>
+        );
+    }
+
+    // 유저코드 설정 화면
+    if (activeSection === 'userCode') {
+        return (
+            <TabContainer>
+                <Header>
+                    <IconButton onClick={handleBack}>
+                        <IconSVG>
+                            <line x1="19" y1="12" x2="5" y2="12" />
+                            <polyline points="12 19 5 12 12 5" />
+                        </IconSVG>
+                    </IconButton>
+                    <Title>유저코드 설정</Title>
+                </Header>
+                <ScrollArea>
+                    <UserCodeSettings />
                 </ScrollArea>
             </TabContainer>
         );
