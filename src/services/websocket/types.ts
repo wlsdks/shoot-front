@@ -7,7 +7,6 @@ export interface WebSocketService {
     sendMessage(message: ChatMessageItem): void;
     sendTypingIndicator(isTyping: boolean): void;
     sendActiveStatus(active: boolean): void;
-    sendReadStatus(messageId: string): void; // 읽음 상태 전송 메서드 추가
     markAllMessagesAsRead(): void;
     requestSync(lastMessageId?: string, direction?: "INITIAL" | "BEFORE" | "AFTER"): void;
     onMessage(callback: (message: ChatMessageItem) => void): void;
@@ -15,7 +14,7 @@ export interface WebSocketService {
     onMessageStatus(callback: (update: MessageStatusUpdate) => void): void;
     onMessageUpdate(callback: (message: ChatMessageItem) => void): void;
     onReadBulk(callback: (data: { messageIds: string[], userId: number }) => void): void;
-    onRead(callback: (data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void): void; // 읽음 상태 콜백 추가
+    onRead(callback: (data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void): void;
     onPinUpdate(callback: () => void): void;
     onSync(callback: (data: { roomId: number, direction?: string, messages: any[] }) => void): void;
     isConnected(): boolean;
