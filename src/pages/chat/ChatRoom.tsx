@@ -154,6 +154,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const lastItemRef = useRef<string | null>(null);
+    const isNearBottom = useRef(false);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -437,6 +438,21 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 // 메시지 수신 핸들러
                 webSocketService.current.onMessage((msg: ChatMessageItem) => {
                     updateMessages(msg);
+                    
+                    // 상대방이 보낸 메시지이고, 현재 스크롤이 맨 하단에 있을 때만 자동 스크롤
+                    if (msg.senderId !== user?.id) {
+                        const chatArea = chatAreaRef.current;
+                        if (chatArea) {
+                            const { scrollTop, scrollHeight, clientHeight } = chatArea;
+                            const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
+                            
+                            if (isAtBottom) {
+                                setTimeout(() => {
+                                    scrollToBottom();
+                                }, 100);
+                            }
+                        }
+                    }
                     
                     if (
                         document.visibilityState === "visible" &&

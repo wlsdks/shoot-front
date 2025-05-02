@@ -23,10 +23,10 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
             if (!chatAreaRef.current) return;
 
             const { scrollTop, scrollHeight, clientHeight } = chatAreaRef.current;
-            const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+            const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
             isNearBottom.current = isAtBottom;
             lastScrollHeight.current = scrollHeight;
-        }, 100),
+        }, 50),
         [chatAreaRef]
     );
 
@@ -41,6 +41,7 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
         const chatArea = chatAreaRef.current;
         if (chatArea) {
             chatArea.addEventListener('scroll', handleScroll);
+            handleScroll();
             return () => chatArea.removeEventListener('scroll', handleScroll);
         }
     }, [chatAreaRef, handleScroll]);
@@ -50,7 +51,7 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
         scrollHeightBeforeUpdateRef,
         isPreviousMessagesLoadingRef,
         firstVisibleMessageRef,
-        isNearBottom: isNearBottom.current,
+        isNearBottom,
         lastScrollHeight: lastScrollHeight.current,
         scrollToBottom,
         handleScroll,
