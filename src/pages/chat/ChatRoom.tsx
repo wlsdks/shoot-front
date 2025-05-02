@@ -31,7 +31,6 @@ import {
     MessageStatus,
     ChatMessageItem,
     TypingIndicatorMessage,
-    MessageStatusInfo,
     ChatRoomProps
 } from './types/ChatRoom.types';
 
@@ -39,7 +38,6 @@ import {
 import { useMessageState } from './hooks/useMessageState';
 import { useTypingState } from './hooks/useTypingState';
 import { useScrollManager } from './hooks/useScrollManager';
-import { useMessageHandlers } from './hooks/useMessageHandlers';
 import { useTypingHandlers } from './hooks/useTypingHandlers';
 import { useContextMenu } from './hooks/useContextMenu';
 
@@ -60,15 +58,6 @@ import {
 
 // 유틸리티 임포트
 import { formatTime } from './utils/timeUtils';
-
-// 메시지 정렬 유틸리티 함수
-const sortMessagesByTimestamp = (messages: ChatMessageItem[]): ChatMessageItem[] => {
-    return [...messages].sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return timeA - timeB;
-    });
-};
 
 const ChatRoom = ({ socket }: ChatRoomProps) => {
     const { user } = useAuth();
@@ -96,10 +85,8 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     const {
         typingUsers,
-        setTypingUsers,
         typingTimeoutRef,
         updateTypingStatus,
-        removeTypingUser
     } = useTypingState();
 
     const {
@@ -108,29 +95,9 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         isPreviousMessagesLoadingRef,
         firstVisibleMessageRef,
         scrollToBottom,
-        handleScroll,
-        saveScrollPosition
     } = useScrollManager(chatAreaRef);
 
     const {
-        handleMessage,
-        handleMessageStatus,
-        handleMessageUpdate,
-        handleReadBulk
-    } = useMessageHandlers({
-        webSocketService,
-        roomId,
-        userId: user?.id,
-        updateMessages,
-        updateMessageStatus,
-        setMessageStatuses,
-        setMessages,
-        messagesRef,
-        messageStatuses
-    });
-
-    const {
-        handleTypingIndicator,
         sendTypingIndicator
     } = useTypingHandlers({
         webSocketService,
@@ -154,7 +121,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const lastItemRef = useRef<string | null>(null);
-    const isNearBottom = useRef(false);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -234,12 +200,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 setInitialLoadComplete(true);
             }, 200); // 약간의 지연을 두고 스크롤
         }
-    }, [messages, initialLoadComplete]);
+    }, [chatAreaRef, setInitialLoadComplete, messages, initialLoadComplete]);
 
     // 메시지 참조 업데이트 (최신 메시지를 유지하기 위함)
     useEffect(() => {
         messagesRef.current = messages;
-    }, [messages]);
+    }, [messagesRef, messages]);
 
     // onConnect 콜백에서 항상 최신의 DOM 준비 상태를 확인할 수 있습니다.
     useEffect(() => {
@@ -268,7 +234,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 isPreviousMessagesLoadingRef.current = false;
             }, 100);
         }
-    }, [messages, messageDirection]); // messageDirection 의존성 추가
+    }, [chatAreaRef, isPreviousMessagesLoadingRef, lastScrollPosRef, scrollHeightBeforeUpdateRef, messages, messageDirection]); // messageDirection 의존성 추가
 
     // 모든 useLayoutEffect 스크롤 위치 조정 코드를 하나로 통합
     useLayoutEffect(() => {
@@ -319,7 +285,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         if (messages.length > 0) {
             // console.log("DOM 요소 개수:", chatAreaRef.current.querySelectorAll('[id^="msg-"]').length);
         }
-    }, [messages, messageDirection, initialLoadComplete]);
+    }, [chatAreaRef, isPreviousMessagesLoadingRef, lastScrollPosRef, scrollHeightBeforeUpdateRef, setInitialLoadComplete, user, messages, messageDirection, initialLoadComplete]);
 
     // 미리보기 로드 후 스크롤 처리를 위한 useEffect 추가
     useEffect(() => {
@@ -381,7 +347,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     }, [roomId, user, sessionId]);
 
     // 여러 메시지 읽음 업데이트 처리 함수
-    const updateBulkMessageReadStatus = (messageIds: string[], userId: string) => {
+    const updateBulkMessageReadStatus = useCallback((messageIds: string[], userId: string) => {
         setMessages((prev) =>
             prev.map((msg) =>
                 messageIds.includes(msg.id)
@@ -389,7 +355,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     : msg
             )
         );
-    };
+    }, [setMessages]);
 
     // 뒤로가기 클릭시 동작
     const handleBack = () => {
@@ -456,8 +422,8 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     
                     if (
                         document.visibilityState === "visible" &&
-                        msg.readBy && !msg.readBy[user.id] &&
-                        msg.senderId !== user.id &&
+                        msg.readBy && !msg.readBy[user?.id || ''] &&
+                        msg.senderId !== user?.id &&
                         msg.tempId && messageStatuses[msg.tempId]?.persistedId
                     ) {
                         webSocketService.current.sendMessage({
@@ -514,7 +480,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
                     if (statusUpdate.status === MessageStatus.SAVED && statusUpdate.persistedId) {
                         const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
-                        if (currentMsg && !currentMsg.readBy[user.id] && currentMsg.senderId !== user.id) {
+                        if (currentMsg && !currentMsg.readBy[user?.id || ''] && currentMsg.senderId !== user?.id) {
                             webSocketService.current.sendMessage({
                                 ...currentMsg,
                                 id: statusUpdate.persistedId
@@ -708,37 +674,84 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
         connectWebSocket();
 
+        // cleanup 함수에서 현재 WebSocket 서비스 참조 저장
+        const currentWebSocketService = webSocketService.current;
+
         return () => {
             if (heartbeatRef.current) {
                 clearInterval(heartbeatRef.current);
             }
-            webSocketService.current.disconnect();
+            currentWebSocketService.disconnect();
             resetWebSocketService();
         };
     }, [roomId, user]);
 
-    // 이전 메시지를 로드할 때 사용자 화면에 보이는 첫 번째 메시지를 찾는 함수
-    const findFirstVisibleMessage = () => {
-    if (!chatAreaRef.current) return null;
-    
-    const chatArea = chatAreaRef.current;
-    const scrollTop = chatArea.scrollTop;
-    const messageElements = chatArea.querySelectorAll('[id^="msg-"]'); // 메시지에 id 속성이 있어야 함
-    
-    for (let i = 0; i < messageElements.length; i++) {
-        const element = messageElements[i] as HTMLElement;
-        const position = element.offsetTop;
+    // WebSocket 이벤트 핸들러 설정을 위한 별도의 useEffect
+    useEffect(() => {
+        if (!webSocketService.current.isConnected()) return;
+
+        // 타이핑 인디케이터 핸들러
+        webSocketService.current.onTypingIndicator((typingMsg: TypingIndicatorMessage) => {
+            if (typingMsg.userId === user?.id) return;
+            updateTypingStatus(typingMsg);
+        });
+
+        // 메시지 수신 핸들러
+        webSocketService.current.onMessage((msg: ChatMessageItem) => {
+            updateMessages(msg);
+            
+            if (msg.senderId !== user?.id) {
+                const chatArea = chatAreaRef.current;
+                if (chatArea) {
+                    const { scrollTop, scrollHeight, clientHeight } = chatArea;
+                    const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
+                    
+                    if (isAtBottom) {
+                        setTimeout(() => {
+                            scrollToBottom();
+                        }, 100);
+                    }
+                }
+            }
+            
+            if (
+                document.visibilityState === "visible" &&
+                msg.readBy && !msg.readBy[user?.id || ''] &&
+                msg.senderId !== user?.id &&
+                msg.tempId && messageStatuses[msg.tempId]?.persistedId
+            ) {
+                webSocketService.current.sendMessage({
+                    ...msg,
+                    id: messageStatuses[msg.tempId].persistedId!
+                });
+            }
+        });
+
+        // ... other WebSocket handlers ...
+
+    }, [user?.id, updateTypingStatus, updateMessages, scrollToBottom, messageStatuses]);
+
+    // findFirstVisibleMessage를 useCallback으로 최적화
+    const findFirstVisibleMessage = useCallback(() => {
+        if (!chatAreaRef.current) return null;
         
-        // 스크롤 위치에 가장 가까운 메시지를 찾음
-        if (position >= scrollTop) {
-        return element.id.replace('msg-', '');
+        const chatArea = chatAreaRef.current;
+        const scrollTop = chatArea.scrollTop;
+        const messageElements = chatArea.querySelectorAll('[id^="msg-"]');
+        
+        for (let i = 0; i < messageElements.length; i++) {
+            const element = messageElements[i] as HTMLElement;
+            const position = element.offsetTop;
+            
+            if (position >= scrollTop) {
+                return element.id.replace('msg-', '');
+            }
         }
-    }
-    
-    return messageElements.length > 0 
-        ? (messageElements[0] as HTMLElement).id.replace('msg-', '')
-        : null;
-    };
+        
+        return messageElements.length > 0 
+            ? (messageElements[0] as HTMLElement).id.replace('msg-', '')
+            : null;
+    }, [chatAreaRef]);
 
     // 이전 메시지 조회 (웹소켓 사용)
     const fetchPreviousMessages = useCallback((oldestMessageId: string) => {
@@ -762,7 +775,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             setMessageDirection("BEFORE");
             webSocketService.current.requestSync(oldestMessageId, "BEFORE");
         });
-    }, [roomId, user]);
+    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, lastScrollPosRef, scrollHeightBeforeUpdateRef, setMessageDirection, findFirstVisibleMessage, roomId, user]);
 
     // 스크롤 이벤트 핸들러 (페이징)
     useEffect(() => {
@@ -782,7 +795,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         
         chatArea.addEventListener("scroll", throttledHandleScroll);
         return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
-    }, [messages, fetchPreviousMessages]);
+    }, [chatAreaRef, isPreviousMessagesLoadingRef,messages, fetchPreviousMessages]);
 
     // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
     useEffect(() => {
@@ -847,7 +860,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 chatArea.removeEventListener('click', handleChatAreaClick);
             }
         };
-    }, [roomId, user, isConnected]);
+    }, [chatAreaRef, markAllRead, roomId, user, isConnected]);
 
     // 메시지 전송
     const sendMessage = () => {
@@ -919,16 +932,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             sendTypingIndicator(false);
             typingTimeoutRef.current = null;
         }, 1000);
-    };
-
-    // 입력창 포커스가 벗어날 때
-    const handleInputBlur = () => {
-        sendTypingIndicator(false);
-        setIsTyping(false);
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-            typingTimeoutRef.current = null;
-        }
     };
 
     // 웹소켓 연결 상태 모니터링
@@ -1030,6 +1033,34 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         setShowForwardModal(true);
     };
 
+    // 읽음 상태 계산 로직 개선
+    const calculateReadStatus = (
+        isOwn: boolean,
+        isPersisted: boolean,
+        otherParticipants: string[],
+        msg: ChatMessageItem
+    ): boolean => {
+        // 1. 내 메시지가 아니거나 저장되지 않은 경우
+        const isNotOwnOrNotPersisted = Boolean((!isOwn) || (!isPersisted));
+        if (isNotOwnOrNotPersisted) {
+            return true;
+        }
+
+        // 2. 다른 참여자가 없는 경우
+        const hasNoParticipants = Boolean(otherParticipants.length === 0);
+        if (hasNoParticipants) {
+            return false;
+        }
+
+        // 3. 모든 참여자가 읽었는지 확인
+        const hasReadByAll = otherParticipants.every((id) => {
+            const hasReadBy = Boolean(msg.readBy && msg.readBy[id]);
+            return hasReadBy;
+        });
+
+        return hasReadByAll;
+    };
+
     return (
         <ChatWrapper>
             <ChatContainer>
@@ -1066,7 +1097,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 : msg.status;
                             
                             // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
-                            const isPersisted = !!msg.id && msg.id !== msg.tempId || currentStatus === MessageStatus.SAVED;
+                            const isPersisted = (!!msg.id && msg.id !== msg.tempId) || (currentStatus === MessageStatus.SAVED);
                             
                             // 읽음 상태 확인 로직 수정
                             // 내 메시지의 경우, 가장 먼저 다른 참여자가 있는지 확인
@@ -1075,11 +1106,12 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 : [];
                             
                             // 읽음 상태 계산 로직 개선
-                            const otherHasRead = !isOwn || !isPersisted 
-                                ? true  // 내 메시지가 아니거나 저장되지 않은 메시지는 읽음 표시 안함
-                                : otherParticipants.length === 0 
-                                    ? false  // 다른 참여자가 없으면 읽음 표시
-                                    : otherParticipants.every(id => msg.readBy[id] === true);  // 모든 참여자가 읽었는지 확인
+                            const otherHasRead = calculateReadStatus(
+                                isOwn,
+                                isPersisted,
+                                otherParticipants,
+                                msg
+                            );
                             
                             // indicatorText: 메시지를 모든 상대방이 읽지 않았으면 "1" 표시
                             const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
