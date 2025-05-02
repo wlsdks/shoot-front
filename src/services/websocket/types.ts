@@ -8,6 +8,7 @@ export interface WebSocketService {
     sendTypingIndicator(isTyping: boolean): void;
     sendActiveStatus(active: boolean): void;
     sendReadStatus(messageId: string): void; // 읽음 상태 전송 메서드 추가
+    markAllMessagesAsRead(): void;
     requestSync(lastMessageId?: string, direction?: "INITIAL" | "BEFORE" | "AFTER"): void;
     onMessage(callback: (message: ChatMessageItem) => void): void;
     onTypingIndicator(callback: (message: TypingIndicatorMessage) => void): void;

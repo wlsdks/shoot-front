@@ -355,19 +355,28 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [sessionId] = useState<string>(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
     const lastReadTimeRef = useRef<number>(0);
 
-    // 모든 메시지 읽음 처리 (API refresh 호출 제거)
+    // 모든 메시지 읽음 처리 (웹소켓으로 통일)
     const markAllRead = useCallback(() => {
         if (!roomId || !user) return;
         const now = Date.now();
-        if (now - lastReadTimeRef.current < 500) { // 2000ms에서 500ms로 줄임
+        if (now - lastReadTimeRef.current < 500) {
             console.log("읽음 처리 디바운스 중...");
             return;
         }
         lastReadTimeRef.current = now;
-        console.log("읽음 처리 API 호출:", { roomId, userId: user.id, sessionId });
-        markAllMessagesAsRead(Number(roomId), user.id, sessionId)
-            .then(() => console.log("읽음 처리 성공"))
-            .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
+
+        // 웹소켓 연결 상태 확인
+        if (!webSocketService.current?.isConnected()) {
+            console.log("웹소켓 연결이 없어 HTTP API로 읽음 처리");
+            markAllMessagesAsRead(Number(roomId), user.id, sessionId)
+                .then(() => console.log("읽음 처리 성공"))
+                .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
+            return;
+        }
+
+        // 웹소켓으로 읽음 처리
+        console.log("웹소켓으로 읽음 처리:", { roomId, userId: user.id });
+        webSocketService.current.markAllMessagesAsRead();
     }, [roomId, user, sessionId]);
 
     // 여러 메시지 읽음 업데이트 처리 함수
@@ -783,8 +792,45 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 }
             }
         };
+
+        // 채팅방 컨테이너 클릭 이벤트 핸들러
+        const handleContainerClick = () => {
+            if (user && roomId && isConnected && webSocketService.current.isConnected()) {
+                console.log("ChatRoom: Container clicked, marking messages as read");
+                markAllRead();
+            }
+        };
+
+        // 채팅 영역 클릭 이벤트 핸들러
+        const handleChatAreaClick = () => {
+            if (user && roomId && isConnected && webSocketService.current.isConnected()) {
+                console.log("ChatRoom: Chat area clicked, marking messages as read");
+                markAllRead();
+            }
+        };
+
         window.addEventListener("focus", handleFocus);
-        return () => window.removeEventListener("focus", handleFocus);
+        
+        // 채팅방 컨테이너와 채팅 영역에 클릭 이벤트 리스너 추가
+        const chatContainer = document.querySelector('.chat-container');
+        const chatArea = chatAreaRef.current;
+        
+        if (chatContainer) {
+            chatContainer.addEventListener('click', handleContainerClick);
+        }
+        if (chatArea) {
+            chatArea.addEventListener('click', handleChatAreaClick);
+        }
+
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+            if (chatContainer) {
+                chatContainer.removeEventListener('click', handleContainerClick);
+            }
+            if (chatArea) {
+                chatArea.removeEventListener('click', handleChatAreaClick);
+            }
+        };
     }, [roomId, user, isConnected]);
 
     // 메시지 전송

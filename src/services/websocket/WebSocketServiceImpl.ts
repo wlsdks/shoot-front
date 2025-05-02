@@ -30,14 +30,19 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.client = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,
-            debug: () => {},
+            debug: (str) => {
+                console.log("STOMP Debug:", str);
+            },
             onConnect: () => {
                 console.log("WebSocket connected successfully");
                 this.setupSubscriptions();
                 // Send active status immediately on connect
                 this.sendActiveStatus(true);
                 // Mark all messages as read on initial connection
-                this.markAllMessagesAsRead();
+                setTimeout(() => {
+                    console.log("Attempting to mark all messages as read...");
+                    this.markAllMessagesAsRead();
+                }, 1000); // 연결 후 1초 뒤에 읽음 처리 시도
             },
             onStompError: (frame) => {
                 console.error("STOMP error:", frame);
@@ -151,6 +156,23 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
+        // Read status update subscription
+        this.client.subscribe(`/topic/read-status/${this.roomId}`, (message) => {
+            try {
+                const data = JSON.parse(message.body);
+                console.log("Received read status update:", data);
+                
+                if (data.messageId && data.readBy) {
+                    this.messageUpdateCallbacks.forEach(callback => callback({
+                        id: data.messageId,
+                        readBy: data.readBy
+                    } as ChatMessageItem));
+                }
+            } catch (error) {
+                console.error("Error processing read status update:", error);
+            }
+        });
+
         // Pin status subscription
         this.client.subscribe(`/topic/pin/${this.roomId}`, () => {
             this.pinUpdateCallbacks.forEach(callback => callback());
@@ -219,18 +241,20 @@ export class WebSocketServiceImpl implements WebSocketService {
 
     // Improved read status method
     sendReadStatus(messageId: string): void {
-        if (!this.client?.connected || !this.userId) {
-            console.warn("Cannot send read status: WebSocket not connected", { 
+        if (!this.client?.connected || !this.userId || !this.roomId) {
+            console.warn("Cannot send read status: WebSocket not connected or missing data", { 
                 messageId, 
                 connected: this.client?.connected, 
-                userId: this.userId 
+                userId: this.userId,
+                roomId: this.roomId
             });
             return;
         }
         
         const payload = { 
             messageId, 
-            userId: this.userId 
+            userId: this.userId,
+            roomId: this.roomId
         };
         
         console.log("Sending read status via WebSocket:", payload);
@@ -252,41 +276,34 @@ export class WebSocketServiceImpl implements WebSocketService {
     // New method to mark all messages as read on chat room entry
     markAllMessagesAsRead(): void {
         if (!this.client?.connected || !this.roomId || !this.userId) {
-            console.warn("Cannot mark all as read: WebSocket not connected");
+            console.warn("Cannot mark all as read: WebSocket not connected or missing data", {
+                connected: this.client?.connected,
+                roomId: this.roomId,
+                userId: this.userId
+            });
             return;
         }
 
-        // Generate a unique session ID for this request
-        const sessionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        const endpoint = `/api/v1/messages/mark-read?roomId=${this.roomId}&userId=${this.userId}&requestId=${sessionId}`;
-        
-        console.log("Marking all messages as read via REST API:", {
+        const payload = {
             roomId: this.roomId,
             userId: this.userId,
-            sessionId
-        });
-
-        // Use fetch API directly to ensure this call happens reliably
-        const token = localStorage.getItem("accessToken");
-        fetch(`http://localhost:8100${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log("All messages marked as read successfully:", data);
-        })
-        .catch(error => {
+            requestId: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        };
+        
+        console.log("Marking all messages as read via WebSocket:", payload);
+        
+        try {
+            this.client.publish({
+                destination: "/app/read-all",
+                body: JSON.stringify(payload),
+                headers: { 
+                    'content-type': 'application/json'
+                }
+            });
+            console.log("All messages marked as read successfully");
+        } catch (error) {
             console.error("Error marking all messages as read:", error);
-        });
+        }
     }
 
     requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL"): void {

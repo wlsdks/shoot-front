@@ -37,20 +37,27 @@ export const updateChatRoomFavorite = async (
  * @param userId 사용자 ID
  * @returns
  */
-export const markAllMessagesAsRead = async (roomId: number, userId: number, requestId?: string) => { // roomId, userId 타입 변경
-    const token = localStorage.getItem("accessToken");
-    
-    // requestId 매개변수 추가 (세션 대신 단일 요청 식별자 사용)
+export const markAllMessagesAsRead = async (roomId: number, userId: number, requestId?: string) => {
     const requestIdParam = requestId ? `&requestId=${requestId}` : '';
     
-    const response = await axios.post<ApiResponse<any>>(
-        `http://localhost:8100/api/v1/messages/mark-read?roomId=${roomId}&userId=${userId}${requestIdParam}`,
-        null,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
+    const response = await api.post<ApiResponse<any>>(
+        `/read-status/rooms/${roomId}/read-all?userId=${userId}${requestIdParam}`,
+        null
+    );
+    
+    return response.data;
+};
+
+/**
+ * 특정 메시지를 읽음 처리하는 API
+ * @param messageId 메시지 ID
+ * @param userId 사용자 ID
+ * @returns
+ */
+export const markMessageAsRead = async (messageId: string, userId: number) => {
+    const response = await api.post<ApiResponse<any>>(
+        `/read-status/messages/${messageId}/read?userId=${userId}`,
+        null
     );
     
     return response.data;
