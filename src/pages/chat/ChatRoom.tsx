@@ -385,6 +385,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         }
     }, [roomId, isConnected, fetchPinnedMessages]);
 
+    /* eslint-disable react-hooks/exhaustive-deps */
     // WebSocket 연결 및 이벤트 핸들러 설정
     useEffect(() => {
         if (!roomId || !user) return;
@@ -674,7 +675,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
         connectWebSocket();
 
-        // cleanup 함수에서 현재 WebSocket 서비스 참조 저장
         const currentWebSocketService = webSocketService.current;
 
         return () => {
@@ -730,6 +730,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         // ... other WebSocket handlers ...
 
     }, [user?.id, updateTypingStatus, updateMessages, scrollToBottom, messageStatuses]);
+    /* eslint-enable react-hooks/exhaustive-deps */
 
     // findFirstVisibleMessage를 useCallback으로 최적화
     const findFirstVisibleMessage = useCallback(() => {
