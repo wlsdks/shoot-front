@@ -157,10 +157,9 @@ export const TimeContainer = styled.div<{ $isOwnMessage: boolean }>`
 `;
 
 export const ReadIndicator = styled.div`
-    font-size: 0.7rem;
-    color: #007bff;
-    font-weight: bold;
-    margin-bottom: 2px;
+    font-size: 0.65rem;
+    color: #333;
+    margin-bottom: 1px;
 `;
 
 export const TypingIndicatorContainer = styled.div`
