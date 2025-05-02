@@ -15,6 +15,8 @@ export class WebSocketServiceImpl implements WebSocketService {
     private readCallbacks: ((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void)[] = [];
     private pinUpdateCallbacks: (() => void)[] = [];
     private syncCallbacks: ((data: { roomId: number, direction?: string, messages: any[] }) => void)[] = [];
+    private activeStatusDebounceTimeout: NodeJS.Timeout | null = null;
+    private lastActiveStatus: boolean | null = null;
 
     async connect(roomId: number, userId: number): Promise<void> {
         this.roomId = roomId;
@@ -172,23 +174,35 @@ export class WebSocketServiceImpl implements WebSocketService {
     }
 
     sendActiveStatus(active: boolean): void {
-        if (!this.client?.connected || !this.roomId || !this.userId) {
-            console.warn("Cannot send active status: WebSocket not connected or missing roomId/userId");
+        if (this.lastActiveStatus === active) {
             return;
         }
-        
-        const payload = JSON.stringify({ 
-            userId: this.userId, 
-            roomId: this.roomId, 
-            active 
-        });
-        
-        console.log("Sending active status:", payload);
-        
-        this.client.publish({
-            destination: "/app/active",
-            body: payload
-        });
+
+        if (this.activeStatusDebounceTimeout) {
+            clearTimeout(this.activeStatusDebounceTimeout);
+        }
+
+        this.activeStatusDebounceTimeout = setTimeout(() => {
+            if (!this.client?.connected || !this.roomId || !this.userId) {
+                console.warn("Cannot send active status: WebSocket not connected or missing roomId/userId");
+                return;
+            }
+            
+            const payload = JSON.stringify({ 
+                userId: this.userId, 
+                roomId: this.roomId, 
+                active 
+            });
+            
+            console.log("Sending active status:", payload);
+            
+            this.client.publish({
+                destination: "/app/active",
+                body: payload
+            });
+
+            this.lastActiveStatus = active;
+        }, 500);
     }
 
     // Improved read status method
