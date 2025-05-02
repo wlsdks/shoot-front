@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
-import { createMyCode, deleteMyCode } from '../../services/userCode';
+import { createMyCode, deleteMyCode, getMyCode } from '../../services/userCode';
 import { commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
 
 const Container = styled.div`
@@ -164,12 +164,50 @@ const LoadingSpinner = styled.div`
     }
 `;
 
+const CurrentCodeDisplay = styled.div`
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: ${commonBorderRadius.medium};
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+`;
+
+const CodeText = styled.div`
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: ${commonColors.primary};
+    font-family: monospace;
+`;
+
 const UserCodeSettings: React.FC = () => {
     const { user } = useAuth();
     const [userCode, setUserCode] = useState('');
+    const [currentCode, setCurrentCode] = useState<string | null>(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchCurrentCode = async () => {
+            if (!user?.id) return;
+            
+            try {
+                const response = await getMyCode(user.id);
+                setCurrentCode(response.userCode || null);
+                setUserCode(response.userCode || '');
+            } catch (err) {
+                console.error('유저코드 조회 실패:', err);
+            } finally {
+                setIsInitialLoading(false);
+            }
+        };
+
+        fetchCurrentCode();
+    }, [user?.id]);
 
     const handleUpdateCode = async () => {
         if (!userCode.trim()) {
@@ -183,6 +221,7 @@ const UserCodeSettings: React.FC = () => {
 
         try {
             await createMyCode(user?.id!, userCode);
+            setCurrentCode(userCode);
             setSuccess('유저코드가 성공적으로 설정되었습니다.');
         } catch (err) {
             setError('유저코드 설정에 실패했습니다. 다시 시도해주세요.');
@@ -198,6 +237,7 @@ const UserCodeSettings: React.FC = () => {
 
         try {
             await deleteMyCode(user?.id!);
+            setCurrentCode(null);
             setUserCode('');
             setSuccess('유저코드가 삭제되었습니다.');
         } catch (err) {
@@ -206,6 +246,16 @@ const UserCodeSettings: React.FC = () => {
             setIsLoading(false);
         }
     };
+
+    if (isInitialLoading) {
+        return (
+            <Container>
+                <Card>
+                    <LoadingSpinner />
+                </Card>
+            </Container>
+        );
+    }
 
     return (
         <Container>
@@ -216,14 +266,22 @@ const UserCodeSettings: React.FC = () => {
                     유저코드는 친구 추가 시 사용됩니다.
                 </Description>
 
+                {currentCode && (
+                    <CurrentCodeDisplay>
+                        <CodeText>#{currentCode}</CodeText>
+                    </CurrentCodeDisplay>
+                )}
+
                 <InputGroup>
-                    <Label htmlFor="userCode">유저코드</Label>
+                    <Label htmlFor="userCode">
+                        {currentCode ? '새로운 유저코드' : '유저코드'}
+                    </Label>
                     <Input
                         id="userCode"
                         type="text"
                         value={userCode}
                         onChange={(e) => setUserCode(e.target.value)}
-                        placeholder="원하는 유저코드를 입력하세요"
+                        placeholder={currentCode ? "새로운 유저코드를 입력하세요" : "원하는 유저코드를 입력하세요"}
                         disabled={isLoading}
                     />
                 </InputGroup>
@@ -242,17 +300,21 @@ const UserCodeSettings: React.FC = () => {
                                 <LoadingSpinner />
                                 처리중...
                             </>
+                        ) : currentCode ? (
+                            '코드 재설정'
                         ) : (
                             '코드 설정'
                         )}
                     </Button>
-                    <Button
-                        $danger
-                        onClick={handleRemoveCode}
-                        disabled={isLoading}
-                    >
-                        코드 삭제
-                    </Button>
+                    {currentCode && (
+                        <Button
+                            $danger
+                            onClick={handleRemoveCode}
+                            disabled={isLoading}
+                        >
+                            코드 삭제
+                        </Button>
+                    )}
                 </ButtonGroup>
             </Card>
         </Container>
