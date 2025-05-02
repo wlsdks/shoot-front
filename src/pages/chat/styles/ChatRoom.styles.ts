@@ -133,7 +133,7 @@ export const ChatBubble = styled.div<{ $isOwnMessage: boolean }>`
         : "#ffffff"};
     color: ${({ $isOwnMessage }) => ($isOwnMessage ? "#fff" : "#333")};
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    font-size: 0.95rem;
+    font-size: 0.80rem;
     border: ${({ $isOwnMessage }) => $isOwnMessage ? "none" : "1px solid #eee"};
     cursor: pointer;
     transition: all 0.2s;
