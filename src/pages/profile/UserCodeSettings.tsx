@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
 import { createMyCode, deleteMyCode, getMyCode } from '../../services/userCode';
@@ -191,23 +191,25 @@ const UserCodeSettings: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchCurrentCode = async () => {
-            if (!user?.id) return;
-            
-            try {
-                const response = await getMyCode(user.id);
-                setCurrentCode(response.userCode || null);
-                setUserCode(response.userCode || '');
-            } catch (err) {
-                console.error('유저코드 조회 실패:', err);
-            } finally {
-                setIsInitialLoading(false);
-            }
-        };
-
-        fetchCurrentCode();
+    const fetchCurrentCode = useCallback(async () => {
+        if (!user?.id) return;
+        
+        try {
+            const response = await getMyCode(user.id);
+            setCurrentCode(response.userCode || null);
+            setUserCode('');
+            setError('');
+        } catch (err: any) {
+            console.error('유저코드 조회 실패:', err);
+            setError(err.response?.data?.message || '유저코드 조회에 실패했습니다.');
+        } finally {
+            setIsInitialLoading(false);
+        }
     }, [user?.id]);
+
+    useEffect(() => {
+        fetchCurrentCode();
+    }, [fetchCurrentCode]);
 
     const handleUpdateCode = async () => {
         if (!userCode.trim()) {
@@ -221,10 +223,10 @@ const UserCodeSettings: React.FC = () => {
 
         try {
             await createMyCode(user?.id!, userCode);
-            setCurrentCode(userCode);
+            await fetchCurrentCode();
             setSuccess('유저코드가 성공적으로 설정되었습니다.');
-        } catch (err) {
-            setError('유저코드 설정에 실패했습니다. 다시 시도해주세요.');
+        } catch (err: any) {
+            setError(err.response?.data?.message || '유저코드 설정에 실패했습니다. 다시 시도해주세요.');
         } finally {
             setIsLoading(false);
         }
@@ -237,11 +239,10 @@ const UserCodeSettings: React.FC = () => {
 
         try {
             await deleteMyCode(user?.id!);
-            setCurrentCode(null);
-            setUserCode('');
-            setSuccess('유저코드가 삭제되었습니다.');
-        } catch (err) {
-            setError('유저코드 삭제에 실패했습니다. 다시 시도해주세요.');
+            await fetchCurrentCode();
+            setSuccess('유저코드가 초기화되었습니다.');
+        } catch (err: any) {
+            setError(err.response?.data?.message || '유저코드 초기화에 실패했습니다. 다시 시도해주세요.');
         } finally {
             setIsLoading(false);
         }
@@ -266,9 +267,11 @@ const UserCodeSettings: React.FC = () => {
                     유저코드는 친구 추가 시 사용됩니다.
                 </Description>
 
-                {currentCode && (
+                {currentCode !== null && (
                     <CurrentCodeDisplay>
-                        <CodeText>#{currentCode}</CodeText>
+                        <CodeText>
+                            {currentCode ? `#${currentCode}` : '유저코드가 초기화되었습니다.'}
+                        </CodeText>
                     </CurrentCodeDisplay>
                 )}
 
@@ -312,7 +315,7 @@ const UserCodeSettings: React.FC = () => {
                             onClick={handleRemoveCode}
                             disabled={isLoading}
                         >
-                            코드 삭제
+                            코드 초기화
                         </Button>
                     )}
                 </ButtonGroup>
