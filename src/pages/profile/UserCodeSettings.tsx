@@ -10,6 +10,7 @@ const Container = styled.div`
     max-width: 1200px;
     margin: 0 auto;
     box-sizing: border-box;
+    background-color: white;
 `;
 
 const Title = styled.h3`
@@ -70,13 +71,12 @@ const Input = styled.input`
     border-radius: ${commonBorderRadius.medium};
     font-size: 0.8rem;
     transition: all 0.2s;
-    background-color: #f8f9fa;
+    background-color: white;
     box-sizing: border-box;
 
     &:focus {
         outline: none;
         border-color: ${commonColors.primary};
-        background-color: white;
         box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }
 
@@ -98,7 +98,9 @@ const ButtonGroup = styled.div`
 const Button = styled.button<{ $primary?: boolean; $danger?: boolean }>`
     flex: 1;
     padding: 0.65rem 0.75rem;
-    border: none;
+    border: 1px solid ${props => 
+        props.$danger ? '#dc3545' : 
+        props.$primary ? commonColors.primary : '#e0e0e0'};
     border-radius: ${commonBorderRadius.medium};
     font-size: 0.8rem;
     font-weight: 600;
@@ -110,7 +112,7 @@ const Button = styled.button<{ $primary?: boolean; $danger?: boolean }>`
     gap: 0.4rem;
     background-color: ${props => 
         props.$danger ? '#dc3545' : 
-        props.$primary ? commonColors.primary : '#f8f9fa'};
+        props.$primary ? commonColors.primary : 'white'};
     color: ${props => props.$primary || props.$danger ? '#fff' : commonColors.dark};
     min-width: 0;
 
@@ -183,7 +185,7 @@ const LoadingSpinner = styled.div`
 `;
 
 const CurrentCodeDisplay = styled.div`
-    background-color: #f8f9fa;
+    background-color: white;
     border: 1px solid #e0e0e0;
     border-radius: ${commonBorderRadius.medium};
     padding: 0.75rem;
@@ -212,8 +214,9 @@ const HelpText = styled.div`
     color: ${commonColors.secondary};
     margin-top: 1rem;
     padding: 0.75rem;
-    background-color: #f8f9fa;
+    background-color: white;
     border-radius: ${commonBorderRadius.medium};
+    border: 1px solid #e0e0e0;
     border-left: 2px solid ${commonColors.primary};
 `;
 

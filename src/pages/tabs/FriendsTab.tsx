@@ -19,6 +19,7 @@ import {
     TabSectionTitle,
     TabSectionCount,
 } from "../../styles/tabStyles";
+import { commonColors } from "../../styles/commonStyles";
 import styled from "styled-components";
 
 const SearchButton = styled.button`
@@ -35,6 +36,21 @@ const SearchButton = styled.button`
     &:hover {
         opacity: 0.8;
     }
+`;
+
+const MySection = styled.div`
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+`;
+
+const MyLabel = styled.div`
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: ${commonColors.secondary};
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 `;
 
 const FriendsTab: React.FC = () => {
@@ -154,20 +170,20 @@ const FriendsTab: React.FC = () => {
                 
                 {/* 내 프로필 카드 */}
                 {user && (
-                    <TabSection>
+                    <MySection>
                         <FriendItem
                             friend={{
                                 id: user.id,
                                 name: user.username,
                                 username: user.username,
                                 nickname: user.nickname,
-                                status: "온라인",
+                                status: "나",
                                 profileImage: user.profileImageUrl
                             }}
                             onChatClick={() => {}}
                             onClick={() => {}}
                         />
-                    </TabSection>
+                    </MySection>
                 )}
                 
                 {/* 친구 섹션 헤더 */}

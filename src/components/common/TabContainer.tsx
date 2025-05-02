@@ -5,7 +5,7 @@ const Container = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: #f8f9fa;
+    background-color: white;
 `;
 
 interface TabContainerProps {
