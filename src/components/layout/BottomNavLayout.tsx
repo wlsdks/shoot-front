@@ -10,7 +10,7 @@ const Container = styled.div`
     justify-content: center;
     align-items: center;
     height: 100vh;  /* 화면을 꽉 채우는 구조 */
-    background-color: #f5f5f5;  /* 배경색 */
+    background-color: #ffffff;  /* 배경색 */
 `;
 
 const MobileScreen = styled.div`

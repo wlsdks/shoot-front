@@ -5,7 +5,7 @@ export const TabContainer = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: ${commonColors.light};
+    background-color: ${commonColors.white};
 `;
 
 export const TabHeader = styled.div`

@@ -46,7 +46,7 @@ export const TabContainer = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: #f8f9fa;
+    background-color: #ffffff;
 `;
 
 // 헤더 - 다른 탭들과 일관된 스타일

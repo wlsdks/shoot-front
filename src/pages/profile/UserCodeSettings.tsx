@@ -5,28 +5,34 @@ import { createMyCode, deleteMyCode, getMyCode } from '../../services/userCode';
 import { commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
 
 const Container = styled.div`
-    padding: 1rem;
+    padding: 1.25rem;
     width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
     box-sizing: border-box;
-`;
-
-const Card = styled.div`
-    background-color: ${commonColors.white};
-    border-radius: ${commonBorderRadius.large};
-    padding: 1.5rem;
-    box-shadow: ${commonShadows.medium};
-    transition: all 0.3s ease;
-    width: 100%;
-    box-sizing: border-box;
-
-    &:hover {
-        box-shadow: ${commonShadows.large};
-    }
 `;
 
 const Title = styled.h3`
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 700;
+    color: ${commonColors.dark};
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e9ecef;
+
+    &::before {
+        content: '#';
+        color: ${commonColors.primary};
+        font-size: 1.2rem;
+    }
+`;
+
+const Description = styled.h3`
+    font-size: 1rem;
+    font-weight: 600;
     color: ${commonColors.dark};
     margin-bottom: 0.75rem;
     display: flex;
@@ -36,40 +42,33 @@ const Title = styled.h3`
     &::before {
         content: '#';
         color: ${commonColors.primary};
-        font-size: 1.4rem;
+        font-size: 1.1rem;
     }
 `;
 
-const Description = styled.p`
-    font-size: 0.9rem;
-    color: ${commonColors.secondary};
-    margin-bottom: 1.5rem;
-    line-height: 1.5;
-    padding-left: 0.5rem;
-    border-left: 2px solid ${commonColors.primary};
-`;
-
 const InputGroup = styled.div`
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
     position: relative;
     width: 100%;
     box-sizing: border-box;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
 `;
 
 const Label = styled.label`
     display: block;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: ${commonColors.dark};
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 `;
 
 const Input = styled.input`
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 0.75rem;
     border: 1px solid #e0e0e0;
     border-radius: ${commonBorderRadius.medium};
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     transition: all 0.2s;
     background-color: #f8f9fa;
     box-sizing: border-box;
@@ -88,25 +87,27 @@ const Input = styled.input`
 
 const ButtonGroup = styled.div`
     display: flex;
-    gap: 0.75rem;
-    margin-top: 1.25rem;
+    gap: 0.65rem;
+    margin-top: 1rem;
     width: 100%;
     box-sizing: border-box;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
 `;
 
 const Button = styled.button<{ $primary?: boolean; $danger?: boolean }>`
     flex: 1;
-    padding: 0.75rem 1rem;
+    padding: 0.65rem 0.75rem;
     border: none;
     border-radius: ${commonBorderRadius.medium};
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     background-color: ${props => 
         props.$danger ? '#dc3545' : 
         props.$primary ? commonColors.primary : '#f8f9fa'};
@@ -131,11 +132,28 @@ const Button = styled.button<{ $primary?: boolean; $danger?: boolean }>`
 `;
 
 const MessageContainer = styled.div`
-    margin-top: 0.75rem;
-    padding: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 0.65rem;
     border-radius: ${commonBorderRadius.medium};
-    animation: fadeIn 0.3s ease;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    opacity: 0;
+    transform: translateY(-10px);
+    animation: slideIn 0.3s ease forwards, fadeOut 0.3s ease 2.7s forwards;
+
+    @keyframes slideIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeOut {
+        to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    }
 `;
 
 const ErrorMessage = styled(MessageContainer)`
@@ -168,28 +186,79 @@ const CurrentCodeDisplay = styled.div`
     background-color: #f8f9fa;
     border: 1px solid #e0e0e0;
     border-radius: ${commonBorderRadius.medium};
-    padding: 1rem;
+    padding: 0.75rem;
     margin-bottom: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: all 0.2s ease;
+
+    &:hover {
+        border-color: ${commonColors.primary};
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
 `;
 
 const CodeText = styled.div`
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: ${commonColors.primary};
     font-family: monospace;
+    letter-spacing: 0.5px;
+`;
+
+const HelpText = styled.div`
+    font-size: 0.75rem;
+    color: ${commonColors.secondary};
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: ${commonBorderRadius.medium};
+    border-left: 2px solid ${commonColors.primary};
+`;
+
+const HelpTitle = styled.div`
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: ${commonColors.dark};
+    font-size: 0.8rem;
+`;
+
+const HelpList = styled.ul`
+    margin: 0;
+    padding-left: 1rem;
+    list-style-type: disc;
+`;
+
+const HelpItem = styled.li`
+    margin-bottom: 0.2rem;
+    line-height: 1.3;
+    &:last-child {
+        margin-bottom: 0;
+    }
 `;
 
 const UserCodeSettings: React.FC = () => {
     const { user } = useAuth();
     const [userCode, setUserCode] = useState('');
     const [currentCode, setCurrentCode] = useState<string | null>(null);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    useEffect(() => {
+        let timeoutId: NodeJS.Timeout;
+        if (message) {
+            timeoutId = setTimeout(() => {
+                setMessage(null);
+            }, 3000);
+        }
+        return () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, [message]);
 
     const fetchCurrentCode = useCallback(async () => {
         if (!user?.id) return;
@@ -198,10 +267,10 @@ const UserCodeSettings: React.FC = () => {
             const response = await getMyCode(user.id);
             setCurrentCode(response.userCode || null);
             setUserCode('');
-            setError('');
+            setMessage(null);
         } catch (err: any) {
             console.error('유저코드 조회 실패:', err);
-            setError(err.response?.data?.message || '유저코드 조회에 실패했습니다.');
+            setMessage({ type: 'error', text: err.response?.data?.message || '유저코드 조회에 실패했습니다.' });
         } finally {
             setIsInitialLoading(false);
         }
@@ -213,20 +282,19 @@ const UserCodeSettings: React.FC = () => {
 
     const handleUpdateCode = async () => {
         if (!userCode.trim()) {
-            setError('유저코드를 입력해주세요.');
+            setMessage({ type: 'error', text: '유저코드를 입력해주세요.' });
             return;
         }
 
         setIsLoading(true);
-        setError('');
-        setSuccess('');
+        setMessage(null);
 
         try {
             await createMyCode(user?.id!, userCode);
             await fetchCurrentCode();
-            setSuccess('유저코드가 성공적으로 설정되었습니다.');
+            setMessage({ type: 'success', text: '유저코드가 성공적으로 설정되었습니다.' });
         } catch (err: any) {
-            setError(err.response?.data?.message || '유저코드 설정에 실패했습니다. 다시 시도해주세요.');
+            setMessage({ type: 'error', text: err.response?.data?.message || '유저코드 설정에 실패했습니다. 다시 시도해주세요.' });
         } finally {
             setIsLoading(false);
         }
@@ -234,15 +302,14 @@ const UserCodeSettings: React.FC = () => {
 
     const handleRemoveCode = async () => {
         setIsLoading(true);
-        setError('');
-        setSuccess('');
+        setMessage(null);
 
         try {
             await deleteMyCode(user?.id!);
             await fetchCurrentCode();
-            setSuccess('유저코드가 초기화되었습니다.');
+            setMessage({ type: 'success', text: '유저코드가 초기화되었습니다.' });
         } catch (err: any) {
-            setError(err.response?.data?.message || '유저코드 초기화에 실패했습니다. 다시 시도해주세요.');
+            setMessage({ type: 'error', text: err.response?.data?.message || '유저코드 초기화에 실패했습니다. 다시 시도해주세요.' });
         } finally {
             setIsLoading(false);
         }
@@ -251,75 +318,84 @@ const UserCodeSettings: React.FC = () => {
     if (isInitialLoading) {
         return (
             <Container>
-                <Card>
-                    <LoadingSpinner />
-                </Card>
+                <LoadingSpinner />
             </Container>
         );
     }
 
     return (
         <Container>
-            <Card>
-                <Title>유저코드 설정</Title>
-                <Description>
-                    다른 사용자들이 당신을 찾을 수 있도록 유저코드를 설정하세요.
-                    유저코드는 친구 추가 시 사용됩니다.
-                </Description>
+            <Description>
+                내 유저코드
+            </Description>
 
-                {currentCode !== null && (
-                    <CurrentCodeDisplay>
-                        <CodeText>
-                            {currentCode ? `#${currentCode}` : '유저코드가 초기화되었습니다.'}
-                        </CodeText>
-                    </CurrentCodeDisplay>
-                )}
+            {currentCode !== null && (
+                <CurrentCodeDisplay>
+                    <CodeText>
+                        {currentCode ? `#${currentCode}` : '유저코드가 초기화되었습니다.'}
+                    </CodeText>
+                </CurrentCodeDisplay>
+            )}
 
-                <InputGroup>
-                    <Label htmlFor="userCode">
-                        {currentCode ? '새로운 유저코드' : '유저코드'}
-                    </Label>
-                    <Input
-                        id="userCode"
-                        type="text"
-                        value={userCode}
-                        onChange={(e) => setUserCode(e.target.value)}
-                        placeholder={currentCode ? "새로운 유저코드를 입력하세요" : "원하는 유저코드를 입력하세요"}
-                        disabled={isLoading}
-                    />
-                </InputGroup>
+            <InputGroup>
+                <Label htmlFor="userCode">
+                    {currentCode ? '새로운 유저코드' : '유저코드'}
+                </Label>
+                <Input
+                    id="userCode"
+                    type="text"
+                    value={userCode}
+                    onChange={(e) => {
+                        setUserCode(e.target.value);
+                        setMessage(null);
+                    }}
+                    placeholder={currentCode ? "새로운 유저코드를 입력하세요" : "원하는 유저코드를 입력하세요"}
+                    disabled={isLoading}
+                />
+                <HelpText>
+                    <HelpTitle>유저코드 안내</HelpTitle>
+                    <HelpList>
+                        <HelpItem>유저코드는 4~12자 사이로 설정해주세요.</HelpItem>
+                        <HelpItem>영문, 숫자, 특수문자 사용이 가능합니다.</HelpItem>
+                        <HelpItem>다른 사용자가 당신을 찾을 때 사용되는 고유한 코드입니다.</HelpItem>
+                        <HelpItem>언제든지 재설정하거나 초기화할 수 있습니다.</HelpItem>
+                    </HelpList>
+                </HelpText>
+            </InputGroup>
 
-                {error && <ErrorMessage>{error}</ErrorMessage>}
-                {success && <SuccessMessage>{success}</SuccessMessage>}
+            {message && (
+                message.type === 'error' ? 
+                <ErrorMessage>{message.text}</ErrorMessage> : 
+                <SuccessMessage>{message.text}</SuccessMessage>
+            )}
 
-                <ButtonGroup>
+            <ButtonGroup>
+                <Button
+                    $primary
+                    onClick={handleUpdateCode}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <>
+                            <LoadingSpinner />
+                            처리중...
+                        </>
+                    ) : currentCode ? (
+                        '코드 재설정'
+                    ) : (
+                        '코드 설정'
+                    )}
+                </Button>
+                {currentCode && (
                     <Button
-                        $primary
-                        onClick={handleUpdateCode}
+                        $danger
+                        onClick={handleRemoveCode}
                         disabled={isLoading}
                     >
-                        {isLoading ? (
-                            <>
-                                <LoadingSpinner />
-                                처리중...
-                            </>
-                        ) : currentCode ? (
-                            '코드 재설정'
-                        ) : (
-                            '코드 설정'
-                        )}
+                        코드 초기화
                     </Button>
-                    {currentCode && (
-                        <Button
-                            $danger
-                            onClick={handleRemoveCode}
-                            disabled={isLoading}
-                        >
-                            코드 초기화
-                        </Button>
-                    )}
-                </ButtonGroup>
-            </Card>
+                )}
+            </ButtonGroup>
         </Container>
     );
 };
