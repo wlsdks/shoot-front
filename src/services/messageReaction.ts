@@ -20,7 +20,7 @@ export interface ReactionListResponse {
 
 export const messageReactionService = {
   addReaction: async (messageId: string, reactionType: string): Promise<ReactionResponse> => {
-    const response = await api.post<ApiResponse<ReactionResponse>>(`/messages/${messageId}/reactions`, {
+    const response = await api.put<ApiResponse<ReactionResponse>>(`/messages/${messageId}/reactions`, {
       reactionType
     });
     return extractData(response);
