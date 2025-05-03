@@ -4,7 +4,6 @@ import { useAuth } from "../../context/AuthContext";
 import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
 import { markAllMessagesAsRead } from "../../services/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
-import { throttle } from "lodash";
 import { MessageStatusUpdate } from "../../services/websocket/types";
 import { SmileOutlined } from '@ant-design/icons';
 import { messageReactionService, ReactionType } from '../../services/messageReaction';
@@ -133,7 +132,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         { code: 'curious', emoji: '🤔', description: '궁금해요' },
         { code: 'surprised', emoji: '😮', description: '놀라워요' }
     ]);
-    const [reactionPickerPosition, setReactionPickerPosition] = useState({ x: 0, y: 0 });
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -556,7 +554,14 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         }))
                     });
                     
-                    if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
+                    if (syncResponse.direction === "BEFORE") {
+                        // 이전 메시지가 없으면 더 이상 요청하지 않음
+                        if (syncResponse.messages.length === 0) {
+                            console.log("더 이상 이전 메시지가 없습니다.");
+                            isPreviousMessagesLoadingRef.current = false;
+                            return;
+                        }
+
                         const targetMessageId = firstVisibleMessageRef.current;
                         const originalScrollTop = lastScrollPosRef.current;
                         const originalScrollHeight = scrollHeightBeforeUpdateRef.current;
@@ -756,71 +761,48 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     }, [user?.id, updateTypingStatus, updateMessages, scrollToBottom, messageStatuses]);
     /* eslint-enable react-hooks/exhaustive-deps */
 
-    // findFirstVisibleMessage를 useCallback으로 최적화
-    const findFirstVisibleMessage = useCallback(() => {
-        if (!chatAreaRef.current) return null;
-        
-        const chatArea = chatAreaRef.current;
-        const scrollTop = chatArea.scrollTop;
-        const messageElements = chatArea.querySelectorAll('[id^="msg-"]');
-        
-        for (let i = 0; i < messageElements.length; i++) {
-            const element = messageElements[i] as HTMLElement;
-            const position = element.offsetTop;
-            
-            if (position >= scrollTop) {
-                return element.id.replace('msg-', '');
-            }
-        }
-        
-        return messageElements.length > 0 
-            ? (messageElements[0] as HTMLElement).id.replace('msg-', '')
-            : null;
-    }, [chatAreaRef]);
-
-    // 이전 메시지 조회 (웹소켓 사용)
-    const fetchPreviousMessages = useCallback((oldestMessageId: string) => {
-        if (!webSocketService.current.isConnected() || !roomId || !user) {
-            console.error("이전 메시지 조회 불가: 연결 끊김 또는 유효하지 않은 상태");
-            return;
-        }
-        
-        const chatArea = chatAreaRef.current;
-        if (!chatArea || isPreviousMessagesLoadingRef.current) return;
-        
-        isPreviousMessagesLoadingRef.current = true;
-        
-        requestAnimationFrame(() => {
-            if (!chatArea) return;
-            
-            scrollHeightBeforeUpdateRef.current = chatArea.scrollHeight;
-            lastScrollPosRef.current = chatArea.scrollTop;
-            firstVisibleMessageRef.current = findFirstVisibleMessage();
-            
-            setMessageDirection("BEFORE");
-            webSocketService.current.requestSync(oldestMessageId, "BEFORE");
-        });
-    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, lastScrollPosRef, scrollHeightBeforeUpdateRef, setMessageDirection, findFirstVisibleMessage, roomId, user]);
-
     // 스크롤 이벤트 핸들러 (페이징)
     useEffect(() => {
-        const chatArea = chatAreaRef.current;
-        if (!chatArea) return;
-        
-        const throttledHandleScroll = throttle(() => {
-            // 이미 로딩 중이면 추가 요청 방지
-            if (isPreviousMessagesLoadingRef.current) return;
+        const handleScroll = () => {
+            if (!chatAreaRef.current) return;
+
+            const { scrollTop } = chatAreaRef.current;
+            // console.log("스크롤 이벤트 발생:", { 
+            //     scrollTop, 
+            //     scrollHeight, 
+            //     clientHeight,
+            //     isPreviousMessagesLoading: isPreviousMessagesLoadingRef.current,
+            //     messagesCount: messages.length
+            // });
             
-            // 상단 근처에 도달했을 때 이전 메시지 요청
-            if (chatArea.scrollTop < 50 && messages.length > 0) {
-                const oldestMessage = messages[0];
-                fetchPreviousMessages(oldestMessage.id);
+            // 스크롤이 맨 위에 가까워졌을 때만 이전 메시지 로드
+            if (scrollTop < 50 && !isPreviousMessagesLoadingRef.current && messages.length > 0) {
+                // 이미 첫 번째 메시지에 도달했는지 확인
+                const firstMessage = messages[0];
+                if (firstMessage) {
+                    console.log("이전 메시지 로드 시작");
+                    isPreviousMessagesLoadingRef.current = true;
+                    firstVisibleMessageRef.current = firstMessage.id;
+                    setMessageDirection("BEFORE");
+                    webSocketService.current.requestSync(firstMessage.id, "BEFORE");
+                }
             }
-        }, 500);
-        
-        chatArea.addEventListener("scroll", throttledHandleScroll);
-        return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
-    }, [chatAreaRef, isPreviousMessagesLoadingRef,messages, fetchPreviousMessages]);
+        };
+
+        const chatArea = chatAreaRef.current;
+        if (chatArea) {
+            // console.log("스크롤 이벤트 리스너 등록");
+            chatArea.addEventListener("scroll", handleScroll);
+            // 초기 스크롤 위치 설정
+            handleScroll();
+        }
+        return () => {
+            if (chatArea) {
+                // console.log("스크롤 이벤트 리스너 제거");
+                chatArea.removeEventListener("scroll", handleScroll);
+            }
+        };
+    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, messages, setMessageDirection]);
 
     // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
     useEffect(() => {
@@ -1084,16 +1066,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         });
 
         return hasReadByAll;
-    };
-
-    const handleReactionUpdate = (messageId: string, newReactions: Record<string, number[]>) => {
-        setMessages(prevMessages =>
-            prevMessages.map(message =>
-                message.id === messageId
-                    ? { ...message, reactions: newReactions }
-                    : message
-            )
-        );
     };
 
     // 리액션 선택 핸들러

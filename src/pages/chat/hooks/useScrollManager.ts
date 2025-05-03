@@ -23,10 +23,14 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
             if (!chatAreaRef.current) return;
 
             const { scrollTop, scrollHeight, clientHeight } = chatAreaRef.current;
+            
+            if (lastScrollPosRef.current === scrollTop) return;
+            
             const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
             isNearBottom.current = isAtBottom;
             lastScrollHeight.current = scrollHeight;
-        }, 50),
+            lastScrollPosRef.current = scrollTop;
+        }, 200),
         [chatAreaRef]
     );
 
