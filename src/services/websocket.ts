@@ -10,9 +10,8 @@ export const connectWebSocket = (onConnect: (client: Client) => void) => {
   const client = new Client({
     webSocketFactory: () => socket,
     reconnectDelay: 5000,
-    debug: (msg) => console.log('[STOMP]', msg),
+    debug: () => {},
     onConnect: () => {
-      console.log('WebSocket 연결 성공');
       onConnect(client);
     },
   });

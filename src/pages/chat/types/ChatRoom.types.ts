@@ -18,22 +18,17 @@ export interface ChatMessageItem {
         attachments: any[];
         isEdited: boolean;
         isDeleted: boolean;
-        urlPreview?: {
-            url: string;
-            title?: string;
-            description?: string;
-            imageUrl?: string;
-            siteName?: string;
-        }
+        urlPreview?: any;
     };
-    createdAt?: string;
+    createdAt: string;
     status: MessageStatus;
-    readBy: { [userId: string]: boolean };
-    metadata: {
-        tempId: string,
-        needsUrlPreview: boolean,
-        previewUrl: null
-    }
+    readBy: Record<string, boolean>;
+    reactions?: Record<string, number[]>;
+    metadata?: {
+        tempId?: string;
+        needsUrlPreview?: boolean;
+        previewUrl?: string | null;
+    };
 }
 
 // 타이핑 인디케이터 메시지 인터페이스

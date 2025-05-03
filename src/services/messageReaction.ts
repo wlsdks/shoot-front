@@ -1,0 +1,43 @@
+import api from "./api";
+import { ApiResponse } from './api';
+import { extractData } from '../utils/apiUtils';
+
+export interface ReactionType {
+  code: string;
+  emoji: string;
+  description: string;
+}
+
+export interface ReactionResponse {
+  messageId: string;
+  reactions: Record<string, number[]>;
+}
+
+export interface ReactionListResponse {
+  messageId: string;
+  reactions: Record<string, number[]>;
+}
+
+export const messageReactionService = {
+  addReaction: async (messageId: string, reactionType: string): Promise<ReactionResponse> => {
+    const response = await api.put<ApiResponse<ReactionResponse>>(`/messages/${messageId}/reactions`, {
+      reactionType
+    });
+    return extractData(response);
+  },
+
+  removeReaction: async (messageId: string, reactionType: string): Promise<ReactionResponse> => {
+    const response = await api.delete<ApiResponse<ReactionResponse>>(`/messages/${messageId}/reactions/${reactionType}`);
+    return extractData(response);
+  },
+
+  getReactions: async (messageId: string): Promise<ReactionListResponse> => {
+    const response = await api.get<ApiResponse<ReactionListResponse>>(`/messages/${messageId}/reactions`);
+    return extractData(response);
+  },
+
+  getReactionTypes: async (): Promise<ReactionType[]> => {
+    const response = await api.get<ApiResponse<ReactionType[]>>('/messages/reactions/types');
+    return extractData(response);
+  }
+}; 

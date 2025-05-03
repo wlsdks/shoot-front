@@ -1,6 +1,32 @@
 import React from 'react';
+import styled from 'styled-components';
 import { ChatMessageItem, MessageStatus } from '../types/ChatRoom.types';
 import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../styles/ChatRoom.styles';
+
+const ReactionEmoji = styled.div<{ $isOwnMessage: boolean }>`
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  font-size: 12px;
+  z-index: 1;
+  background: white;
+  padding: 1px 4px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 1px;
+  min-width: 16px;
+  min-height: 16px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #eee;
+`;
+
+const EmojiSpan = styled.span`
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+`;
 
 interface MessageRowProps {
     message: ChatMessageItem;
@@ -53,6 +79,31 @@ export const MessageRow: React.FC<MessageRowProps> = ({
     // Show indicator if needed
     const showUnreadIndicator = shouldShowReadIndicator();
 
+    const renderReactions = () => {
+        if (!message.reactions || !Array.isArray(message.reactions)) {
+            console.log('Message reactions is not an array:', message.reactions);
+            return null;
+        }
+        
+        // 현재 사용자의 반응 찾기
+        const userReaction = message.reactions.find(reaction => {
+            if (!reaction.userIds || !Array.isArray(reaction.userIds)) {
+                console.log('userIds is not an array');
+                return false;
+            }
+            
+            // userId를 문자열로 변환하여 비교
+            const userIdStr = userId.toString();
+            const hasUser = reaction.userIds.some((id: string | number) => id.toString() === userIdStr);
+            return hasUser;
+        });
+
+        if (!userReaction) return null;
+        return <EmojiSpan>{userReaction.emoji}</EmojiSpan>;
+    };
+
+    const hasReactions = message.reactions && Array.isArray(message.reactions) && message.reactions.length > 0;
+
     return (
         <StyledMessageRow id={`msg-${message.id}`} $isOwnMessage={isOwn}>
             {isOwn ? (
@@ -68,6 +119,11 @@ export const MessageRow: React.FC<MessageRowProps> = ({
                         onClick={(e) => onClick(e, message)}
                     >
                         <div>{message.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                        {hasReactions && (
+                            <ReactionEmoji $isOwnMessage={isOwn}>
+                                {renderReactions()}
+                            </ReactionEmoji>
+                        )}
                     </ChatBubble>
                 </>
             ) : (
@@ -78,6 +134,11 @@ export const MessageRow: React.FC<MessageRowProps> = ({
                         onClick={(e) => onClick(e, message)}
                     >
                         <div>{message.content?.text || '메시지를 불러올 수 없습니다'}</div>
+                        {hasReactions && (
+                            <ReactionEmoji $isOwnMessage={isOwn}>
+                                {renderReactions()}
+                            </ReactionEmoji>
+                        )}
                     </ChatBubble>
                     <TimeContainer $isOwnMessage={false}>
                         {showTime && <div>{currentTime}</div>}

@@ -4,8 +4,10 @@ import { useAuth } from "../../context/AuthContext";
 import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
 import { markAllMessagesAsRead } from "../../services/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
-import { throttle } from "lodash";
 import { MessageStatusUpdate } from "../../services/websocket/types";
+import { SmileOutlined } from '@ant-design/icons';
+import { messageReactionService, ReactionType } from '../../services/messageReaction';
+import { Button } from 'antd';
 
 // 스타일 임포트
 import {
@@ -121,6 +123,16 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const lastItemRef = useRef<string | null>(null);
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
+    const [reactionTypes] = useState<ReactionType[]>([
+        { code: 'like', emoji: '👍', description: '좋아요' },
+        { code: 'sad', emoji: '😢', description: '슬퍼요' },
+        { code: 'dislike', emoji: '👎', description: '싫어요' },
+        { code: 'angry', emoji: '😡', description: '화나요' },
+        { code: 'curious', emoji: '🤔', description: '궁금해요' },
+        { code: 'surprised', emoji: '😮', description: '놀라워요' }
+    ]);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -531,10 +543,27 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     console.log("동기화 응답 수신:", {
                         direction: syncResponse.direction,
                         messageCount: syncResponse.messages.length,
-                        source: "sync"
+                        source: "sync",
+                        messages: syncResponse.messages.map(msg => ({
+                            id: msg.id,
+                            reactions: msg.reactions,
+                            content: msg.content,
+                            senderId: msg.senderId,
+                            timestamp: msg.timestamp,
+                            status: msg.status,
+                            readBy: msg.readBy
+                        }))
                     });
                     
-                    if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
+                    if (syncResponse.direction === "BEFORE") {
+                        // 이전 메시지가 없으면 더 이상 요청하지 않음
+                        if (syncResponse.messages.length === 0) {
+                            console.log("더 이상 이전 메시지가 없습니다.");
+                            isPreviousMessagesLoadingRef.current = false;
+                            setHasMoreMessages(false);
+                            return;
+                        }
+
                         const targetMessageId = firstVisibleMessageRef.current;
                         const originalScrollTop = lastScrollPosRef.current;
                         const originalScrollHeight = scrollHeightBeforeUpdateRef.current;
@@ -555,6 +584,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 createdAt: msg.timestamp,
                                 status: msg.status || "SAVED",
                                 readBy: msg.readBy || {},
+                                reactions: msg.reactions || [],
                                 metadata: {
                                     tempId: msg.tempId,
                                     needsUrlPreview: true,
@@ -611,6 +641,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 createdAt: msg.timestamp,
                                 status: msg.status || "SAVED",
                                 readBy: msg.readBy || {},
+                                reactions: msg.reactions || [],
                                 metadata: {
                                     tempId: msg.tempId,
                                     needsUrlPreview: true,
@@ -732,71 +763,38 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     }, [user?.id, updateTypingStatus, updateMessages, scrollToBottom, messageStatuses]);
     /* eslint-enable react-hooks/exhaustive-deps */
 
-    // findFirstVisibleMessage를 useCallback으로 최적화
-    const findFirstVisibleMessage = useCallback(() => {
-        if (!chatAreaRef.current) return null;
-        
-        const chatArea = chatAreaRef.current;
-        const scrollTop = chatArea.scrollTop;
-        const messageElements = chatArea.querySelectorAll('[id^="msg-"]');
-        
-        for (let i = 0; i < messageElements.length; i++) {
-            const element = messageElements[i] as HTMLElement;
-            const position = element.offsetTop;
-            
-            if (position >= scrollTop) {
-                return element.id.replace('msg-', '');
-            }
-        }
-        
-        return messageElements.length > 0 
-            ? (messageElements[0] as HTMLElement).id.replace('msg-', '')
-            : null;
-    }, [chatAreaRef]);
-
-    // 이전 메시지 조회 (웹소켓 사용)
-    const fetchPreviousMessages = useCallback((oldestMessageId: string) => {
-        if (!webSocketService.current.isConnected() || !roomId || !user) {
-            console.error("이전 메시지 조회 불가: 연결 끊김 또는 유효하지 않은 상태");
-            return;
-        }
-        
-        const chatArea = chatAreaRef.current;
-        if (!chatArea || isPreviousMessagesLoadingRef.current) return;
-        
-        isPreviousMessagesLoadingRef.current = true;
-        
-        requestAnimationFrame(() => {
-            if (!chatArea) return;
-            
-            scrollHeightBeforeUpdateRef.current = chatArea.scrollHeight;
-            lastScrollPosRef.current = chatArea.scrollTop;
-            firstVisibleMessageRef.current = findFirstVisibleMessage();
-            
-            setMessageDirection("BEFORE");
-            webSocketService.current.requestSync(oldestMessageId, "BEFORE");
-        });
-    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, lastScrollPosRef, scrollHeightBeforeUpdateRef, setMessageDirection, findFirstVisibleMessage, roomId, user]);
-
     // 스크롤 이벤트 핸들러 (페이징)
     useEffect(() => {
-        const chatArea = chatAreaRef.current;
-        if (!chatArea) return;
-        
-        const throttledHandleScroll = throttle(() => {
-            // 이미 로딩 중이면 추가 요청 방지
-            if (isPreviousMessagesLoadingRef.current) return;
+        const handleScroll = () => {
+            if (!chatAreaRef.current) return;
+
+            const { scrollTop } = chatAreaRef.current;
             
-            // 상단 근처에 도달했을 때 이전 메시지 요청
-            if (chatArea.scrollTop < 50 && messages.length > 0) {
-                const oldestMessage = messages[0];
-                fetchPreviousMessages(oldestMessage.id);
+            // 스크롤이 맨 위에 가까워졌을 때만 이전 메시지 로드
+            if (scrollTop < 50 && !isPreviousMessagesLoadingRef.current && messages.length > 0 && hasMoreMessages) {
+                // 이미 첫 번째 메시지에 도달했는지 확인
+                const firstMessage = messages[0];
+                if (firstMessage) {
+                    console.log("이전 메시지 로드 시작");
+                    isPreviousMessagesLoadingRef.current = true;
+                    firstVisibleMessageRef.current = firstMessage.id;
+                    setMessageDirection("BEFORE");
+                    webSocketService.current.requestSync(firstMessage.id, "BEFORE");
+                }
             }
-        }, 500);
-        
-        chatArea.addEventListener("scroll", throttledHandleScroll);
-        return () => chatArea.removeEventListener("scroll", throttledHandleScroll);
-    }, [chatAreaRef, isPreviousMessagesLoadingRef,messages, fetchPreviousMessages]);
+        };
+
+        const chatArea = chatAreaRef.current;
+        if (chatArea) {
+            chatArea.addEventListener("scroll", handleScroll);
+            handleScroll();
+        }
+        return () => {
+            if (chatArea) {
+                chatArea.removeEventListener("scroll", handleScroll);
+            }
+        };
+    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, messages, setMessageDirection, hasMoreMessages]);
 
     // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
     useEffect(() => {
@@ -1062,6 +1060,51 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         return hasReadByAll;
     };
 
+    // 리액션 선택 핸들러
+    const handleReactionSelect = async (reactionType: string) => {
+        if (!contextMenu.message) return;
+        
+        try {
+            const hasReacted = contextMenu.message.reactions?.[reactionType]?.includes(user?.id || 0);
+            const response = hasReacted
+                ? await messageReactionService.removeReaction(contextMenu.message.id, reactionType)
+                : await messageReactionService.addReaction(contextMenu.message.id, reactionType);
+            
+            setMessages(prevMessages =>
+                prevMessages.map(message =>
+                    message.id === contextMenu.message?.id
+                        ? { ...message, reactions: response.reactions }
+                        : message
+                )
+            );
+            setShowReactionPicker(false);
+            closeContextMenu();
+        } catch (error) {
+            console.error('리액션 처리 중 오류 발생:', error);
+        }
+    };
+
+    // 반응 추가 버튼 클릭 핸들러
+    const handleShowReactionPicker = (e: React.MouseEvent) => {
+        e.stopPropagation(); // 이벤트 버블링 방지
+        setShowReactionPicker(true);
+    };
+
+    // 클릭 이벤트 핸들러 (리액션 피커 외부 클릭 시 닫기)
+    useEffect(() => {
+        const handleClickOutside = () => {
+            setShowReactionPicker(false);
+        };
+
+        if (showReactionPicker) {
+            document.addEventListener('click', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, [showReactionPicker]);
+
     return (
         <ChatWrapper>
             <ChatContainer>
@@ -1195,20 +1238,61 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
                 {contextMenu.visible && (
                     <ContextMenu id="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-                        <ContextMenuItem onClick={handleForwardClick}>
-                            <ForwardIcon /> 메시지 전달
-                        </ContextMenuItem>
-                        {contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id) ? (
-                            <ContextMenuItem onClick={() => {
-                                if (contextMenu.message) handleUnpinMessage(contextMenu.message.id);
-                                setContextMenu({ ...contextMenu, visible: false });
-                            }}>
-                                <PinIcon /> 공지사항 해제
-                            </ContextMenuItem>
+                        {!showReactionPicker ? (
+                            <>
+                                <ContextMenuItem onClick={handleShowReactionPicker}>
+                                    <SmileOutlined /> 반응 추가
+                                </ContextMenuItem>
+                                <ContextMenuItem onClick={handleForwardClick}>
+                                    <ForwardIcon /> 메시지 전달
+                                </ContextMenuItem>
+                                {contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id) ? (
+                                    <ContextMenuItem onClick={() => {
+                                        if (contextMenu.message) handleUnpinMessage(contextMenu.message.id);
+                                        setContextMenu({ ...contextMenu, visible: false });
+                                    }}>
+                                        <PinIcon /> 공지사항 해제
+                                    </ContextMenuItem>
+                                ) : (
+                                    <ContextMenuItem onClick={handlePinMessage}>
+                                        <PinIcon /> 공지사항 등록
+                                    </ContextMenuItem>
+                                )}
+                            </>
                         ) : (
-                            <ContextMenuItem onClick={handlePinMessage}>
-                                <PinIcon /> 공지사항 등록
-                            </ContextMenuItem>
+                            <>
+                                <div style={{ 
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(4, 1fr)',
+                                    gap: '4px',
+                                    padding: '8px',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    marginBottom: '4px'
+                                }}>
+                                    {reactionTypes.map((type) => (
+                                        <Button
+                                            key={type.code}
+                                            type="text"
+                                            onClick={() => handleReactionSelect(type.code)}
+                                            style={{
+                                                fontSize: '20px',
+                                                padding: '4px',
+                                                height: '32px',
+                                                width: '32px',
+                                                minWidth: '32px',
+                                                backgroundColor: contextMenu.message?.reactions?.[type.code]?.includes(user?.id || 0) 
+                                                    ? '#e6f7ff' 
+                                                    : 'transparent',
+                                            }}
+                                        >
+                                            {type.emoji}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <ContextMenuItem onClick={() => setShowReactionPicker(false)}>
+                                    <SmileOutlined /> 다른 반응
+                                </ContextMenuItem>
+                            </>
                         )}
                     </ContextMenu>
                 )}

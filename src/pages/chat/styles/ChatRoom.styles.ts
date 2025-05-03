@@ -80,12 +80,13 @@ export const ChatArea = styled.div`
     padding: 10px;
     padding-bottom: 0px;
     background: #f8f9fa;
-    overflow-y: auto;
+    overflow-y: scroll;
     scrollbar-width: thin;
     scrollbar-color: #ddd transparent;
     display: flex;
     flex-direction: column;
     position: relative;
+    height: 100%;
     
     &::-webkit-scrollbar {
         width: 5px;

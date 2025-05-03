@@ -26,13 +26,6 @@ export const useMessageHandlers = ({
     messageStatuses
 }: UseMessageHandlersProps) => {
     const handleMessage = useCallback((msg: ChatMessageItem) => {
-        console.log("웹소켓 메시지 수신:", {
-            id: msg.id,
-            tempId: msg.tempId,
-            text: msg.content.text,
-            source: "websocket"
-        });
-        
         updateMessages(msg);
         
         if (
