@@ -5,18 +5,18 @@ import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicato
 
 const ReactionEmoji = styled.div<{ $isOwnMessage: boolean }>`
   position: absolute;
-  left: -8px;
-  bottom: -8px;
-  font-size: 16px;
+  right: -8px;
+  top: -8px;
+  font-size: 12px;
   z-index: 1;
   background: white;
-  padding: 2px 6px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1px 4px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   display: flex;
-  gap: 2px;
-  min-width: 24px;
-  min-height: 24px;
+  gap: 1px;
+  min-width: 16px;
+  min-height: 16px;
   align-items: center;
   justify-content: center;
   border: 1px solid #eee;
@@ -24,7 +24,7 @@ const ReactionEmoji = styled.div<{ $isOwnMessage: boolean }>`
 
 const EmojiSpan = styled.span`
   display: inline-block;
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1;
 `;
 
