@@ -80,8 +80,12 @@ export const MessageRow: React.FC<MessageRowProps> = ({
     const showUnreadIndicator = shouldShowReadIndicator();
 
     const renderReactions = () => {
-        if (!message.reactions || !Array.isArray(message.reactions)) return null;
+        if (!message.reactions || !Array.isArray(message.reactions)) {
+            console.log('Message reactions is not an array:', message.reactions);
+            return null;
+        }
         
+        console.log('Message:', message);
         console.log('Message reactions:', message.reactions);
         console.log('Current userId:', userId);
         
@@ -92,7 +96,7 @@ export const MessageRow: React.FC<MessageRowProps> = ({
             console.log('UserIds type:', typeof reaction.userIds);
             console.log('Is array:', Array.isArray(reaction.userIds));
             
-            if (!Array.isArray(reaction.userIds)) {
+            if (!reaction.userIds || !Array.isArray(reaction.userIds)) {
                 console.log('userIds is not an array');
                 return false;
             }
@@ -111,7 +115,7 @@ export const MessageRow: React.FC<MessageRowProps> = ({
     };
 
     const hasReactions = message.reactions && Array.isArray(message.reactions) && message.reactions.length > 0;
-    console.log('Has reactions:', hasReactions);
+    console.log('Has reactions:', hasReactions, 'Reactions:', message.reactions);
 
     return (
         <StyledMessageRow id={`msg-${message.id}`} $isOwnMessage={isOwn}>

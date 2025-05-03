@@ -554,7 +554,16 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     console.log("동기화 응답 수신:", {
                         direction: syncResponse.direction,
                         messageCount: syncResponse.messages.length,
-                        source: "sync"
+                        source: "sync",
+                        messages: syncResponse.messages.map(msg => ({
+                            id: msg.id,
+                            reactions: msg.reactions,
+                            content: msg.content,
+                            senderId: msg.senderId,
+                            timestamp: msg.timestamp,
+                            status: msg.status,
+                            readBy: msg.readBy
+                        }))
                     });
                     
                     if (syncResponse.direction === "BEFORE" && syncResponse.messages.length > 0) {
@@ -578,6 +587,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 createdAt: msg.timestamp,
                                 status: msg.status || "SAVED",
                                 readBy: msg.readBy || {},
+                                reactions: msg.reactions || [],
                                 metadata: {
                                     tempId: msg.tempId,
                                     needsUrlPreview: true,
@@ -634,6 +644,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                                 createdAt: msg.timestamp,
                                 status: msg.status || "SAVED",
                                 readBy: msg.readBy || {},
+                                reactions: msg.reactions || [],
                                 metadata: {
                                     tempId: msg.tempId,
                                     needsUrlPreview: true,
