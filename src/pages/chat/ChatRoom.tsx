@@ -1062,6 +1062,16 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         return hasReadByAll;
     };
 
+    const handleReactionUpdate = (messageId: string, newReactions: Record<string, number[]>) => {
+        setMessages(prevMessages =>
+            prevMessages.map(message =>
+                message.id === messageId
+                    ? { ...message, reactions: newReactions }
+                    : message
+            )
+        );
+    };
+
     return (
         <ChatWrapper>
             <ChatContainer>
