@@ -132,6 +132,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         { code: 'curious', emoji: '🤔', description: '궁금해요' },
         { code: 'surprised', emoji: '😮', description: '놀라워요' }
     ]);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -559,6 +560,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                         if (syncResponse.messages.length === 0) {
                             console.log("더 이상 이전 메시지가 없습니다.");
                             isPreviousMessagesLoadingRef.current = false;
+                            setHasMoreMessages(false);
                             return;
                         }
 
@@ -767,16 +769,9 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             if (!chatAreaRef.current) return;
 
             const { scrollTop } = chatAreaRef.current;
-            // console.log("스크롤 이벤트 발생:", { 
-            //     scrollTop, 
-            //     scrollHeight, 
-            //     clientHeight,
-            //     isPreviousMessagesLoading: isPreviousMessagesLoadingRef.current,
-            //     messagesCount: messages.length
-            // });
             
             // 스크롤이 맨 위에 가까워졌을 때만 이전 메시지 로드
-            if (scrollTop < 50 && !isPreviousMessagesLoadingRef.current && messages.length > 0) {
+            if (scrollTop < 50 && !isPreviousMessagesLoadingRef.current && messages.length > 0 && hasMoreMessages) {
                 // 이미 첫 번째 메시지에 도달했는지 확인
                 const firstMessage = messages[0];
                 if (firstMessage) {
@@ -791,18 +786,15 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
         const chatArea = chatAreaRef.current;
         if (chatArea) {
-            // console.log("스크롤 이벤트 리스너 등록");
             chatArea.addEventListener("scroll", handleScroll);
-            // 초기 스크롤 위치 설정
             handleScroll();
         }
         return () => {
             if (chatArea) {
-                // console.log("스크롤 이벤트 리스너 제거");
                 chatArea.removeEventListener("scroll", handleScroll);
             }
         };
-    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, messages, setMessageDirection]);
+    }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, messages, setMessageDirection, hasMoreMessages]);
 
     // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
     useEffect(() => {
