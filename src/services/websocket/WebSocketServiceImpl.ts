@@ -7,13 +7,21 @@ export class WebSocketServiceImpl implements WebSocketService {
     private client: Client | null = null;
     private roomId: number | null = null;
     private userId: number | null = null;
+    // 메시지 수신 콜백 목록
     private messageCallbacks: ((message: ChatMessageItem) => void)[] = [];
+    // 타이핑 상태 변경 콜백 목록
     private typingIndicatorCallbacks: ((message: TypingIndicatorMessage) => void)[] = [];
+    // 메시지 상태 변경 콜백 목록 (전송 중, 전송 완료 등)
     private messageStatusCallbacks: ((update: MessageStatusUpdate) => void)[] = [];
+    // 메시지 업데이트 콜백 목록 (수정, 삭제 등)
     private messageUpdateCallbacks: ((message: ChatMessageItem) => void)[] = [];
+    // 여러 메시지 읽음 처리 콜백 목록
     private readBulkCallbacks: ((data: { messageIds: string[], userId: number }) => void)[] = [];
+    // 개별 메시지 읽음 처리 콜백 목록
     private readCallbacks: ((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void)[] = [];
+    // 메시지 고정 상태 변경 콜백 목록
     private pinUpdateCallbacks: (() => void)[] = [];
+    // 메시지 동기화 콜백 목록
     private syncCallbacks: ((data: { roomId: number, direction?: string, messages: any[] }) => void)[] = [];
     private activeStatusDebounceTimeout: NodeJS.Timeout | null = null;
     private lastActiveStatus: boolean | null = null;
@@ -70,7 +78,7 @@ export class WebSocketServiceImpl implements WebSocketService {
             return;
         }
 
-        // Message subscription
+        // 일반 메시지 수신 구독 (새로운 메시지가 올 때마다 호출)
         this.client.subscribe(`/topic/messages/${this.roomId}`, (message) => {
             try {
                 const msg: ChatMessageItem = JSON.parse(message.body);
@@ -80,13 +88,13 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
-        // Typing indicator subscription
+        // 타이핑 상태 변경 구독 (누군가 타이핑을 시작/종료할 때 호출)
         this.client.subscribe(`/topic/typing/${this.roomId}`, (message) => {
             const typingMsg: TypingIndicatorMessage = JSON.parse(message.body);
             this.typingIndicatorCallbacks.forEach(callback => callback(typingMsg));
         });
 
-        // Message status subscription
+        // 메시지 상태 변경 구독 (전송 중, 전송 완료, 실패 등 상태 변경 시 호출)
         this.client.subscribe(`/topic/message/status/${this.roomId}`, (message) => {
             try {
                 const statusUpdate = JSON.parse(message.body);
@@ -96,13 +104,13 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
-        // Message update subscription
+        // 메시지 업데이트 구독 (메시지 수정, 삭제 등 변경 시 호출)
         this.client.subscribe(`/topic/message/update/${this.roomId}`, (message) => {
             const updatedMessage = JSON.parse(message.body);
             this.messageUpdateCallbacks.forEach(callback => callback(updatedMessage));
         });
 
-        // Bulk read status subscription
+        // 여러 메시지 읽음 처리 구독 (여러 메시지를 한 번에 읽음 처리할 때 호출)
         this.client.subscribe(`/topic/read-bulk/${this.roomId}`, (message) => {
             try {
                 const data = JSON.parse(message.body);
@@ -112,7 +120,7 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
-        // Read status update subscription
+        // 개별 메시지 읽음 처리 구독 (한 메시지를 읽음 처리할 때 호출)
         this.client.subscribe(`/topic/read-status/${this.roomId}`, (message) => {
             try {
                 const data = JSON.parse(message.body);
@@ -127,12 +135,12 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
-        // Pin status subscription
+        // 메시지 고정 상태 변경 구독 (메시지를 고정하거나 해제할 때 호출)
         this.client.subscribe(`/topic/pin/${this.roomId}`, () => {
             this.pinUpdateCallbacks.forEach(callback => callback());
         });
 
-        // Sync subscription
+        // 메시지 동기화 구독 (초기 로드, 이전 메시지 로드, 새 메시지 동기화 시 호출) -> 이걸로 모든 메시지를 받아옴 (api 호출 없이)
         this.client.subscribe(`/user/queue/sync`, (message) => {
             const syncData = JSON.parse(message.body);
             this.syncCallbacks.forEach(callback => callback(syncData));
@@ -269,6 +277,7 @@ export class WebSocketServiceImpl implements WebSocketService {
         }
     }
 
+    // 메시지를 받아오기 위해 호출 (초기 로드, 이전 메시지 로드, 새 메시지 동기화 시 호출)
     requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL"): void {
         if (!this.client?.connected || !this.roomId || !this.userId) return;
 
