@@ -42,7 +42,6 @@ export class WebSocketServiceImpl implements WebSocketService {
             reconnectDelay: 5000,
             debug: () => {},
             onConnect: () => {
-                console.log("WebSocket connected successfully");
                 this.setupSubscriptions();
                 // Send active status immediately on connect
                 this.sendActiveStatus(true);
@@ -202,8 +201,6 @@ export class WebSocketServiceImpl implements WebSocketService {
                 active 
             });
             
-            console.log("Sending active status:", payload);
-            
             this.client.publish({
                 destination: "/app/active",
                 body: payload
@@ -231,8 +228,6 @@ export class WebSocketServiceImpl implements WebSocketService {
             roomId: this.roomId
         };
         
-        console.log("Sending read status via WebSocket:", payload);
-        
         try {
             this.client.publish({
                 destination: "/app/read",
@@ -241,7 +236,6 @@ export class WebSocketServiceImpl implements WebSocketService {
                     'content-type': 'application/json'
                 }
             });
-            console.log("Read status sent successfully");
         } catch (error) {
             console.error("Error sending read status:", error);
         }
