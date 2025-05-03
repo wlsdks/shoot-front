@@ -127,21 +127,11 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [showReactionPicker, setShowReactionPicker] = useState(false);
     const [reactionTypes] = useState<ReactionType[]>([
         { code: 'like', emoji: '👍', description: '좋아요' },
-        { code: 'heart', emoji: '❤️', description: '하트' },
-        { code: 'laugh', emoji: '😂', description: '웃음' },
-        { code: 'wow', emoji: '😮', description: '놀람' },
-        { code: 'sad', emoji: '😢', description: '슬픔' },
-        { code: 'angry', emoji: '😠', description: '화남' },
-        { code: 'thumbsup', emoji: '👍', description: '좋아요' },
-        { code: 'thumbsdown', emoji: '👎', description: '싫어요' },
-        { code: 'clap', emoji: '👏', description: '박수' },
-        { code: 'pray', emoji: '🙏', description: '기도' },
-        { code: 'rocket', emoji: '🚀', description: '로켓' },
-        { code: 'eyes', emoji: '👀', description: '눈' },
-        { code: 'fire', emoji: '🔥', description: '불' },
-        { code: 'star', emoji: '⭐', description: '별' },
-        { code: 'check', emoji: '✅', description: '체크' },
-        { code: 'cross', emoji: '❌', description: '취소' }
+        { code: 'sad', emoji: '😢', description: '슬퍼요' },
+        { code: 'dislike', emoji: '👎', description: '싫어요' },
+        { code: 'angry', emoji: '😡', description: '화나요' },
+        { code: 'curious', emoji: '🤔', description: '궁금해요' },
+        { code: 'surprised', emoji: '😮', description: '놀라워요' }
     ]);
     const [reactionPickerPosition, setReactionPickerPosition] = useState({ x: 0, y: 0 });
 
