@@ -6,6 +6,9 @@ import { markAllMessagesAsRead } from "../../services/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
 import { throttle } from "lodash";
 import { MessageStatusUpdate } from "../../services/websocket/types";
+import { SmileOutlined } from '@ant-design/icons';
+import { messageReactionService, ReactionType } from '../../services/messageReaction';
+import { Button } from 'antd';
 
 // 스타일 임포트
 import {
@@ -121,6 +124,26 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const lastItemRef = useRef<string | null>(null);
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
+    const [reactionTypes] = useState<ReactionType[]>([
+        { code: 'like', emoji: '👍', description: '좋아요' },
+        { code: 'heart', emoji: '❤️', description: '하트' },
+        { code: 'laugh', emoji: '😂', description: '웃음' },
+        { code: 'wow', emoji: '😮', description: '놀람' },
+        { code: 'sad', emoji: '😢', description: '슬픔' },
+        { code: 'angry', emoji: '😠', description: '화남' },
+        { code: 'thumbsup', emoji: '👍', description: '좋아요' },
+        { code: 'thumbsdown', emoji: '👎', description: '싫어요' },
+        { code: 'clap', emoji: '👏', description: '박수' },
+        { code: 'pray', emoji: '🙏', description: '기도' },
+        { code: 'rocket', emoji: '🚀', description: '로켓' },
+        { code: 'eyes', emoji: '👀', description: '눈' },
+        { code: 'fire', emoji: '🔥', description: '불' },
+        { code: 'star', emoji: '⭐', description: '별' },
+        { code: 'check', emoji: '✅', description: '체크' },
+        { code: 'cross', emoji: '❌', description: '취소' }
+    ]);
+    const [reactionPickerPosition, setReactionPickerPosition] = useState({ x: 0, y: 0 });
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -1072,6 +1095,51 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
         );
     };
 
+    // 리액션 선택 핸들러
+    const handleReactionSelect = async (reactionType: string) => {
+        if (!contextMenu.message) return;
+        
+        try {
+            const hasReacted = contextMenu.message.reactions?.[reactionType]?.includes(user?.id || 0);
+            const response = hasReacted
+                ? await messageReactionService.removeReaction(contextMenu.message.id, reactionType)
+                : await messageReactionService.addReaction(contextMenu.message.id, reactionType);
+            
+            setMessages(prevMessages =>
+                prevMessages.map(message =>
+                    message.id === contextMenu.message?.id
+                        ? { ...message, reactions: response.reactions }
+                        : message
+                )
+            );
+            setShowReactionPicker(false);
+            closeContextMenu();
+        } catch (error) {
+            console.error('리액션 처리 중 오류 발생:', error);
+        }
+    };
+
+    // 반응 추가 버튼 클릭 핸들러
+    const handleShowReactionPicker = (e: React.MouseEvent) => {
+        e.stopPropagation(); // 이벤트 버블링 방지
+        setShowReactionPicker(true);
+    };
+
+    // 클릭 이벤트 핸들러 (리액션 피커 외부 클릭 시 닫기)
+    useEffect(() => {
+        const handleClickOutside = () => {
+            setShowReactionPicker(false);
+        };
+
+        if (showReactionPicker) {
+            document.addEventListener('click', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, [showReactionPicker]);
+
     return (
         <ChatWrapper>
             <ChatContainer>
@@ -1205,20 +1273,61 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
                 {contextMenu.visible && (
                     <ContextMenu id="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-                        <ContextMenuItem onClick={handleForwardClick}>
-                            <ForwardIcon /> 메시지 전달
-                        </ContextMenuItem>
-                        {contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id) ? (
-                            <ContextMenuItem onClick={() => {
-                                if (contextMenu.message) handleUnpinMessage(contextMenu.message.id);
-                                setContextMenu({ ...contextMenu, visible: false });
-                            }}>
-                                <PinIcon /> 공지사항 해제
-                            </ContextMenuItem>
+                        {!showReactionPicker ? (
+                            <>
+                                <ContextMenuItem onClick={handleShowReactionPicker}>
+                                    <SmileOutlined /> 반응 추가
+                                </ContextMenuItem>
+                                <ContextMenuItem onClick={handleForwardClick}>
+                                    <ForwardIcon /> 메시지 전달
+                                </ContextMenuItem>
+                                {contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id) ? (
+                                    <ContextMenuItem onClick={() => {
+                                        if (contextMenu.message) handleUnpinMessage(contextMenu.message.id);
+                                        setContextMenu({ ...contextMenu, visible: false });
+                                    }}>
+                                        <PinIcon /> 공지사항 해제
+                                    </ContextMenuItem>
+                                ) : (
+                                    <ContextMenuItem onClick={handlePinMessage}>
+                                        <PinIcon /> 공지사항 등록
+                                    </ContextMenuItem>
+                                )}
+                            </>
                         ) : (
-                            <ContextMenuItem onClick={handlePinMessage}>
-                                <PinIcon /> 공지사항 등록
-                            </ContextMenuItem>
+                            <>
+                                <div style={{ 
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(4, 1fr)',
+                                    gap: '4px',
+                                    padding: '8px',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    marginBottom: '4px'
+                                }}>
+                                    {reactionTypes.map((type) => (
+                                        <Button
+                                            key={type.code}
+                                            type="text"
+                                            onClick={() => handleReactionSelect(type.code)}
+                                            style={{
+                                                fontSize: '20px',
+                                                padding: '4px',
+                                                height: '32px',
+                                                width: '32px',
+                                                minWidth: '32px',
+                                                backgroundColor: contextMenu.message?.reactions?.[type.code]?.includes(user?.id || 0) 
+                                                    ? '#e6f7ff' 
+                                                    : 'transparent',
+                                            }}
+                                        >
+                                            {type.emoji}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <ContextMenuItem onClick={() => setShowReactionPicker(false)}>
+                                    <SmileOutlined /> 다른 반응
+                                </ContextMenuItem>
+                            </>
                         )}
                     </ContextMenu>
                 )}
