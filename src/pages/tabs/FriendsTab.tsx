@@ -62,7 +62,7 @@ const FriendsTab: React.FC = () => {
                 username: friend.username,
                 nickname: friend.nickname,
                 status: "온라인", // TODO: 실제 상태 정보로 대체
-                profileImageUrl: friend.profileImageUrl || undefined
+                profileImageUrl: friend.profileImageUrl
             }));
             setFriends(formattedFriends);
         } catch (err) {
@@ -168,7 +168,7 @@ const FriendsTab: React.FC = () => {
                                 username: user.username,
                                 nickname: user.nickname,
                                 status: "나",
-                                profileImageUrl: user.profileImageUrl || undefined
+                                profileImageUrl: user.profileImageUrl
                             }}
                             onChatClick={() => {}}
                             onClick={() => {}}

@@ -23,28 +23,28 @@ const ModalContent = styled.div`
   padding: 20px;
   border-radius: 12px;
   width: 90%;
-  max-width: 400px;
-  max-height: 80vh;
+  max-width: 320px;
+  max-height: 60vh;
   overflow-y: auto;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 `;
 
 const Title = styled.h3`
-  margin: 0 0 20px 0;
-  font-size: 1.2rem;
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
   color: #333;
 `;
 
 const FriendList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 `;
 
 const FriendItem = styled.div`
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 10px;
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -55,16 +55,16 @@ const FriendItem = styled.div`
 `;
 
 const ProfileImage = styled.img`
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  margin-right: 12px;
+  margin-right: 10px;
   object-fit: cover;
 `;
 
 const ProfileInitial = styled.div`
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background-color: #007bff;
   color: white;
@@ -72,8 +72,8 @@ const ProfileInitial = styled.div`
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1.2rem;
-  margin-right: 12px;
+  font-size: 1.1rem;
+  margin-right: 10px;
 `;
 
 const FriendInfo = styled.div`
@@ -83,10 +83,11 @@ const FriendInfo = styled.div`
 const Username = styled.div`
   font-weight: 500;
   color: #333;
+  font-size: 0.9rem;
 `;
 
 const Nickname = styled.div`
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #666;
 `;
 
@@ -154,7 +155,7 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
   };
 
   const renderProfileImage = (friend: Friend) => {
-    if (friend.profileImageUrl) {
+    if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
       return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
     }
     return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;

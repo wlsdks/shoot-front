@@ -177,7 +177,7 @@ interface SocialItemProps {
 
 const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => {
     const renderProfileImage = () => {
-        if (friend.profileImageUrl) {
+        if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
             return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
         }
         return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;

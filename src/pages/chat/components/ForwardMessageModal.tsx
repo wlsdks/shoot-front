@@ -18,7 +18,6 @@ export const ForwardMessageModal: React.FC<ForwardMessageModalProps> = ({
         if (!user) return;
         try {
             await forwardMessage(messageId, roomId, user.id);
-            alert("메시지가 전달되었습니다.");
             onClose();
         } catch (error) {
             console.error("Forward error", error);
