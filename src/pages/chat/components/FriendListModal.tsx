@@ -146,11 +146,10 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
   const handleFriendClick = async (friendId: number) => {
     if (!user) return;
     try {
-      const response = await createDirectChat(user.id, friendId);
-      onSelectFriend(response.data.id);
+      onSelectFriend(friendId);
       onClose();
     } catch (error) {
-      console.error('채팅방 생성에 실패했습니다:', error);
+      console.error('친구 선택에 실패했습니다:', error);
     }
   };
 

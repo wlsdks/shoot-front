@@ -1,6 +1,6 @@
 import React from 'react';
 import { FriendListModal } from './FriendListModal';
-import { forwardMessage } from '../../../services/message';
+import { forwardMessageToUser } from '../../../services/message';
 import { useAuth } from '../../../context/AuthContext';
 
 interface ForwardMessageModalProps {
@@ -14,10 +14,10 @@ export const ForwardMessageModal: React.FC<ForwardMessageModalProps> = ({
 }) => {
     const { user } = useAuth();
 
-    const handleFriendSelect = async (roomId: number) => {
+    const handleFriendSelect = async (friendId: number) => {
         if (!user) return;
         try {
-            await forwardMessage(messageId, roomId, user.id);
+            await forwardMessageToUser(messageId, friendId, user.id);
             onClose();
         } catch (error) {
             console.error("Forward error", error);
