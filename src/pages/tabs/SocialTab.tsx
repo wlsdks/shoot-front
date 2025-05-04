@@ -31,7 +31,7 @@ const convertToFriend = (response: FriendResponse): Friend => ({
     name: response.username,
     username: response.username,
     status: "온라인", // TODO: 실제 상태 정보로 대체
-    profileImage: response.profileImageUrl
+    profileImageUrl: response.profileImageUrl
 });
 
 const SocialTab: React.FC = () => {
@@ -41,7 +41,6 @@ const SocialTab: React.FC = () => {
     const [outgoing, setOutgoing] = useState<Friend[]>([]);
     const [recommended, setRecommended] = useState<Friend[]>([]);
     const [skip, setSkip] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const limit = 10;
@@ -80,7 +79,7 @@ const SocialTab: React.FC = () => {
         try {
             const recData = await getRecommendations(user.id, limit, 2, skip);
             if (recData.length < limit) {
-                setHasMore(false);
+                // setHasMore(false);
             }
             setRecommended(prev => [...prev, ...recData.map(convertToFriend)]);
             setSkip(skip + limit);
@@ -133,20 +132,6 @@ const SocialTab: React.FC = () => {
         } catch (err) {
             console.error(err);
             setError("친구 요청 수락 실패");
-        }
-    };
-
-    // 친구 요청 거절
-    const handleRejectRequest = async (requesterId: number) => {
-        if (!user) return;
-        try {
-            await rejectFriendRequest(user.id, requesterId);
-            
-            // 받은 요청에서 해당 사용자 제거
-            setIncoming(prev => prev.filter(r => r.id !== requesterId));
-        } catch (err) {
-            console.error(err);
-            setError("친구 요청 거절 실패");
         }
     };
 

@@ -44,15 +44,6 @@ const MySection = styled.div`
     border-bottom: 2px solid #e0e0e0;
 `;
 
-const MyLabel = styled.div`
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: ${commonColors.secondary};
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-`;
-
 const FriendsTab: React.FC = () => {
     const { user, loading, subscribeToSse, unsubscribeFromSse } = useAuth();
     const [friends, setFriends] = useState<Friend[]>([]);
@@ -178,7 +169,7 @@ const FriendsTab: React.FC = () => {
                                 username: user.username,
                                 nickname: user.nickname,
                                 status: "나",
-                                profileImage: user.profileImageUrl
+                                profileImageUrl: user.profileImageUrl
                             }}
                             onChatClick={() => {}}
                             onClick={() => {}}

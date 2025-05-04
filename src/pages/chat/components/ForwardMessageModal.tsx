@@ -1,38 +1,35 @@
 import React from 'react';
-import {
-    ModalOverlay,
-    ModalContent,
-    ModalButtons
-} from '../styles/ChatRoom.styles';
+import { FriendListModal } from './FriendListModal';
+import { forwardMessage } from '../../../services/message';
+import { useAuth } from '../../../context/AuthContext';
 
 interface ForwardMessageModalProps {
-    targetRoomId: string;
-    onTargetRoomIdChange: (value: string) => void;
-    onSubmit: () => void;
-    onCancel: () => void;
+    messageId: string;
+    onClose: () => void;
 }
 
 export const ForwardMessageModal: React.FC<ForwardMessageModalProps> = ({
-    targetRoomId,
-    onTargetRoomIdChange,
-    onSubmit,
-    onCancel
+    messageId,
+    onClose
 }) => {
+    const { user } = useAuth();
+
+    const handleFriendSelect = async (roomId: number) => {
+        if (!user) return;
+        try {
+            await forwardMessage(messageId, roomId, user.id);
+            alert("메시지가 전달되었습니다.");
+            onClose();
+        } catch (error) {
+            console.error("Forward error", error);
+            alert("메시지 전달 실패");
+        }
+    };
+
     return (
-        <ModalOverlay>
-            <ModalContent>
-                <h3>메시지 전달</h3>
-                <p>전달할 대상 채팅방 ID를 입력하세요:</p>
-                <input 
-                    value={targetRoomId} 
-                    onChange={(e) => onTargetRoomIdChange(e.target.value)} 
-                    placeholder="대상 채팅방 ID" 
-                />
-                <ModalButtons>
-                    <button onClick={onSubmit}>전달</button>
-                    <button onClick={onCancel}>취소</button>
-                </ModalButtons>
-            </ModalContent>
-        </ModalOverlay>
+        <FriendListModal
+            onClose={onClose}
+            onSelectFriend={handleFriendSelect}
+        />
     );
 }; 
