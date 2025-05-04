@@ -6,6 +6,7 @@ export interface ChatRoom {
     isPinned: boolean;
     timestamp?: string;
     type: 'INDIVIDUAL' | 'GROUP';
+    profileImageUrl?: string;
 }
 
 export interface ChatMessage {

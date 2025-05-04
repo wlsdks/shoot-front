@@ -62,6 +62,20 @@ const ProfileImage = styled.img`
   object-fit: cover;
 `;
 
+const ProfileInitial = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-right: 12px;
+`;
+
 const FriendInfo = styled.div`
   flex: 1;
 `;
@@ -109,14 +123,13 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
     const fetchFriends = async () => {
       if (!user) return;
       try {
-        const friendsData: FriendResponse[] = await getFriends(user.id);
-        const formattedFriends: Friend[] = friendsData.map(friend => ({
+        const friendsData = await getFriends(user.id);
+        const formattedFriends = friendsData.map((friend: FriendResponse) => ({
           id: friend.id,
           name: friend.username,
           username: friend.username,
           nickname: friend.nickname,
-          profileImageUrl: friend.profileImageUrl,
-          status: "온라인" // TODO: 실제 상태 정보로 대체
+          profileImageUrl: friend.profileImageUrl || undefined
         }));
         setFriends(formattedFriends);
       } catch (error) {
@@ -134,9 +147,17 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
     try {
       const response = await createDirectChat(user.id, friendId);
       onSelectFriend(response.data.id);
+      onClose();
     } catch (error) {
       console.error('채팅방 생성에 실패했습니다:', error);
     }
+  };
+
+  const renderProfileImage = (friend: Friend) => {
+    if (friend.profileImageUrl) {
+      return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
+    }
+    return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
   };
 
   return (
@@ -155,10 +176,7 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
                 key={friend.id}
                 onClick={() => handleFriendClick(friend.id)}
               >
-                <ProfileImage
-                  src={friend.profileImageUrl || '/default-profile.png'}
-                  alt={friend.username}
-                />
+                {renderProfileImage(friend)}
                 <FriendInfo>
                   <Username>{friend.username}</Username>
                   {friend.nickname && <Nickname>{friend.nickname}</Nickname>}

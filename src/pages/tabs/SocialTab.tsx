@@ -6,7 +6,6 @@ import {
     getRecommendations,
     sendFriendRequest,
     acceptFriendRequest,
-    rejectFriendRequest,
     cancelFriendRequest,
 } from "../../services/friends";
 import { useAuth } from "../../context/AuthContext";
@@ -30,6 +29,7 @@ const convertToFriend = (response: FriendResponse): Friend => ({
     id: response.id,
     name: response.username,
     username: response.username,
+    nickname: response.nickname,
     status: "온라인", // TODO: 실제 상태 정보로 대체
     profileImageUrl: response.profileImageUrl
 });

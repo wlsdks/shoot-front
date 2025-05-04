@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
+import { pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
 import { markAllMessagesAsRead } from "../../services/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
 import { MessageStatusUpdate } from "../../services/websocket/types";
@@ -117,7 +117,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-    const [targetRoomId, setTargetRoomId] = useState("");
     const [isConnected, setIsConnected] = useState(true);
     const navigate = useNavigate();
     const domReadyRef = useRef(false);

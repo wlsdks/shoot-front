@@ -19,7 +19,6 @@ import {
     TabSectionTitle,
     TabSectionCount,
 } from "../../styles/tabStyles";
-import { commonColors } from "../../styles/commonStyles";
 import styled from "styled-components";
 
 const SearchButton = styled.button`
@@ -63,7 +62,7 @@ const FriendsTab: React.FC = () => {
                 username: friend.username,
                 nickname: friend.nickname,
                 status: "온라인", // TODO: 실제 상태 정보로 대체
-                profileImage: friend.profileImageUrl
+                profileImageUrl: friend.profileImageUrl || undefined
             }));
             setFriends(formattedFriends);
         } catch (err) {
@@ -169,7 +168,7 @@ const FriendsTab: React.FC = () => {
                                 username: user.username,
                                 nickname: user.nickname,
                                 status: "나",
-                                profileImageUrl: user.profileImageUrl
+                                profileImageUrl: user.profileImageUrl || undefined
                             }}
                             onChatClick={() => {}}
                             onClick={() => {}}

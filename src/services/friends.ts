@@ -1,28 +1,23 @@
 import api from "./api";
 import { ApiResponse } from '../services/api';
 import { extractData } from '../utils/apiUtils';
-
-// 친구 인터페이스 정의
-interface Friend {
-    id: number; // string -> number로 변경
-    username: string;
-}
+import { FriendResponse } from '../types/friend.types';
 
 // 친구 목록 가져오기
-export const getFriends = async (userId: number): Promise<Friend[]> => { // userId 타입 변경
-    const response = await api.get<ApiResponse<Friend[]>>(`/friends?userId=${userId}`);
+export const getFriends = async (userId: number): Promise<FriendResponse[]> => { // userId 타입 변경
+    const response = await api.get<ApiResponse<FriendResponse[]>>(`/friends?userId=${userId}`);
     return extractData(response);
 }
 
 // 받은 친구 요청 목록 조회
-export const getIncomingRequests = async (userId: number): Promise<Friend[]> => { // userId 타입 변경
-    const response = await api.get<ApiResponse<Friend[]>>(`/friends/incoming`, { params: { userId } });
+export const getIncomingRequests = async (userId: number): Promise<FriendResponse[]> => { // userId 타입 변경
+    const response = await api.get<ApiResponse<FriendResponse[]>>(`/friends/incoming`, { params: { userId } });
     return extractData(response);
 };
 
 // 보낸 친구 요청 목록 조회
-export const getOutgoingRequests = async (userId: number): Promise<Friend[]> => { // userId 타입 변경
-    const response = await api.get<ApiResponse<Friend[]>>(`/friends/outgoing`, { params: { userId } });
+export const getOutgoingRequests = async (userId: number): Promise<FriendResponse[]> => { // userId 타입 변경
+    const response = await api.get<ApiResponse<FriendResponse[]>>(`/friends/outgoing`, { params: { userId } });
     return extractData(response);
 };
 
@@ -49,9 +44,9 @@ export const rejectFriendRequest = async (userId: number, requesterId: number) =
 };
 
 // 친구 검색 API 함수
-export const searchFriends = async (userId: number, query: string) => { // userId 타입 변경
-    const response = await api.get<ApiResponse<Friend[]>>(`/friends/search`, { params: { userId, query } });
-    return response; // 전체 응답 반환
+export const searchFriends = async (userId: number, query: string): Promise<FriendResponse[]> => { // userId 타입 변경
+    const response = await api.get<ApiResponse<FriendResponse[]>>(`/friends/search`, { params: { userId, query } });
+    return extractData(response);
 };
 
 // BFS 기반 친구 추천 API 호출 (skip 파라미터 추가)
@@ -60,8 +55,8 @@ export const getRecommendations = async (
     limit: number = 10,
     maxDepth: number = 2,
     skip: number = 0
-): Promise<Friend[]> => {
-    const response = await api.get<ApiResponse<Friend[]>>(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth, skip } });
+): Promise<FriendResponse[]> => {
+    const response = await api.get<ApiResponse<FriendResponse[]>>(`/friends/recommend/bfs`, { params: { userId, limit, maxDepth, skip } });
     return extractData(response);
 };
 
