@@ -3,12 +3,8 @@ export interface Friend {
     name: string;
     username: string;
     nickname?: string;
-    status: string;
-    profileImage?: string;
     profileImageUrl?: string;
-    bio?: string;
-    mutualFriends?: number;
-    commonInterests?: string[];
+    status?: string;
 }
 
 export interface FriendRequest {

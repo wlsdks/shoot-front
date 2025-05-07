@@ -103,13 +103,8 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
         setLoading(true);
     
         try {
-            const response = await searchFriends(user.id, query);
-            // 응답 구조 변경: response.data.data에서 데이터 추출
-            if (response.data.success && response.data.data) {
-                setResults(response.data.data);
-            } else {
-                setResults([]);
-            }
+            const results = await searchFriends(user.id, query);
+            setResults(results);
         } catch (error) {
             console.error("검색 실패:", error);
             setResults([]);

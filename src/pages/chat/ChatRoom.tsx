@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { forwardMessage, pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
+import { pinMessage, unpinMessage, getPinnedMessages } from "../../services/message";
 import { markAllMessagesAsRead } from "../../services/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "../../services/websocket/index";
 import { MessageStatusUpdate } from "../../services/websocket/types";
@@ -116,7 +116,7 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [showForwardModal, setShowForwardModal] = useState(false);
-    const [targetRoomId, setTargetRoomId] = useState("");
+    const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
     const [isConnected, setIsConnected] = useState(true);
     const navigate = useNavigate();
     const domReadyRef = useRef(false);
@@ -989,25 +989,19 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     }, []);
 
     // 모달 제출: 대상 채팅방 ID 입력 후 메시지 전달 API 호출
-    const handleModalSubmit = async () => {
-        if (contextMenu.message) {
-            try {
-                await forwardMessage(contextMenu.message.id, Number(targetRoomId), user!.id);
-                alert("메시지가 전달되었습니다.");
-            } catch (error) {
-                console.error("Forward error", error);
-                alert("메시지 전달 실패");
-            }
-        }
-        setShowForwardModal(false);
-        setTargetRoomId("");
-    };
+    // const handleModalSubmit = () => {
+    //     if (targetRoomId) {
+    //         handleForwardMessage(targetRoomId);
+    //         setShowForwardModal(false);
+    //         setTargetRoomId('');
+    //     }
+    // };
 
     // 모달 취소
-    const handleModalCancel = () => {
-        setShowForwardModal(false);
-        setTargetRoomId("");
-    };
+    // const handleModalCancel = () => {
+    //     setShowForwardModal(false);
+    //     setTargetRoomId('');
+    // };
 
     // 메시지 상태 표시 로직
     const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
@@ -1028,8 +1022,11 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
 
     // 컨텍스트 메뉴에서 "메시지 전달" 선택
     const handleForwardClick = () => {
+        if (contextMenu.message) {
+            setSelectedMessageId(contextMenu.message.id);
+            setShowForwardModal(true);
+        }
         closeContextMenu();
-        setShowForwardModal(true);
     };
 
     // 읽음 상태 계산 로직 개선
@@ -1297,12 +1294,13 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                     </ContextMenu>
                 )}
 
-                {showForwardModal && (
+                {showForwardModal && selectedMessageId && (
                     <ForwardMessageModal
-                        targetRoomId={targetRoomId}
-                        onTargetRoomIdChange={setTargetRoomId}
-                        onSubmit={handleModalSubmit}
-                        onCancel={handleModalCancel}
+                        messageId={selectedMessageId}
+                        onClose={() => {
+                            setShowForwardModal(false);
+                            setSelectedMessageId(null);
+                        }}
                     />
                 )}
             </ChatContainer>

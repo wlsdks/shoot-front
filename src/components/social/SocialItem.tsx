@@ -1,8 +1,7 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import { Friend } from '../../types/friend.types';
-import Icon from '../common/Icon';
-import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
+import { commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
 
 const fadeInUp = keyframes`
     from {
@@ -178,7 +177,7 @@ interface SocialItemProps {
 
 const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => {
     const renderProfileImage = () => {
-        if (friend.profileImageUrl) {
+        if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
             return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
         }
         return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;

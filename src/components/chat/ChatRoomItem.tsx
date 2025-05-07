@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { ChatRoom } from '../../types/chat.types';
-import Icon from '../common/Icon';
 
 interface ChatRoomItemProps {
     room: ChatRoom;
@@ -22,20 +21,6 @@ const RoomItem = styled(Link)`
     &:hover {
         background-color: #f8f9fa;
     }
-`;
-
-const Avatar = styled.div`
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #007bff;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 1.2rem;
-    margin-right: 1rem;
 `;
 
 const RoomDetails = styled.div`
@@ -90,14 +75,42 @@ const UnreadBadge = styled.div`
     font-weight: 600;
 `;
 
+const ProfileImage = styled.img`
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 1rem;
+`;
+
+const ProfileInitial = styled.div`
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #007bff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin-right: 1rem;
+`;
+
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({ room, onContextMenu }) => {
     const displayName = room.title.replace('님과의 대화', '');
+    const firstLetter = displayName.charAt(0).toUpperCase();
+
+    const renderProfileImage = () => {
+        if (room.profileImageUrl) {
+            return <ProfileImage src={room.profileImageUrl} alt={displayName} />;
+        }
+        return <ProfileInitial>{firstLetter}</ProfileInitial>;
+    };
 
     return (
         <RoomItem to={`/chatroom/${room.roomId}`} onContextMenu={onContextMenu}>
-            <Avatar>
-                {room.title.charAt(0).toUpperCase()}
-            </Avatar>
+            {renderProfileImage()}
             <RoomDetails>
                 <LeftContainer>
                     <SenderName>{displayName}</SenderName>

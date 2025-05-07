@@ -8,7 +8,6 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/SignUp';
 import FindId from './pages/auth/FindId';
 import FindPassword from './pages/auth/FindPassword';
-import Navigation from './components/Navigation';
 import BottomNavLayout from './components/layout/BottomNavLayout';
 import PrivateRoute from './components/PrivateRoute';
 import FriendCodePage from './pages/profile/FriendCodePage';

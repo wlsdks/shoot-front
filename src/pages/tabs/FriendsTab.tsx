@@ -19,7 +19,6 @@ import {
     TabSectionTitle,
     TabSectionCount,
 } from "../../styles/tabStyles";
-import { commonColors } from "../../styles/commonStyles";
 import styled from "styled-components";
 
 const SearchButton = styled.button`
@@ -44,15 +43,6 @@ const MySection = styled.div`
     border-bottom: 2px solid #e0e0e0;
 `;
 
-const MyLabel = styled.div`
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: ${commonColors.secondary};
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-`;
-
 const FriendsTab: React.FC = () => {
     const { user, loading, subscribeToSse, unsubscribeFromSse } = useAuth();
     const [friends, setFriends] = useState<Friend[]>([]);
@@ -72,7 +62,7 @@ const FriendsTab: React.FC = () => {
                 username: friend.username,
                 nickname: friend.nickname,
                 status: "온라인", // TODO: 실제 상태 정보로 대체
-                profileImage: friend.profileImageUrl
+                profileImageUrl: friend.profileImageUrl
             }));
             setFriends(formattedFriends);
         } catch (err) {
@@ -178,7 +168,7 @@ const FriendsTab: React.FC = () => {
                                 username: user.username,
                                 nickname: user.nickname,
                                 status: "나",
-                                profileImage: user.profileImageUrl
+                                profileImageUrl: user.profileImageUrl
                             }}
                             onChatClick={() => {}}
                             onClick={() => {}}
