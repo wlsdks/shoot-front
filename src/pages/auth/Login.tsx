@@ -110,12 +110,18 @@ const ErrorIcon = styled.div`
 `;
 
 const Login: React.FC = () => {
-  const { login, isPending, error } = useAuth();
+  const { login, isPending, error, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,10 +129,6 @@ const Login: React.FC = () => {
     
     try {
       await login({ username, password });
-      // 로그인 성공 후 약간의 지연을 두고 라우팅
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 100);
     } catch (err) {
       console.error('로그인 실패:', err);
       setLoginError('로그인에 실패했습니다. 다시 시도해주세요.');

@@ -4,7 +4,7 @@ import { User } from '../services/auth';
 import { useAuth as useAuthContext } from '../context/AuthContext';
 
 export const useAuth = () => {
-    const { login: contextLogin } = useAuthContext();
+    const { login: contextLogin, isAuthenticated } = useAuthContext();
 
     // 로그인
     const loginMutation = useMutation({
@@ -22,10 +22,7 @@ export const useAuth = () => {
                 const user = await loginCheckApi();
                 if (user) {
                     // 상태 업데이트를 동기적으로 처리
-                    await new Promise<void>((resolve) => {
-                        contextLogin(user, data.accessToken, data.refreshToken);
-                        resolve();
-                    });
+                    contextLogin(user, data.accessToken, data.refreshToken);
                 } else {
                     throw new Error("사용자 정보를 가져오는데 실패했습니다.");
                 }
@@ -51,5 +48,6 @@ export const useAuth = () => {
         error: loginMutation.error,
         isSignupLoading: signupMutation.isPending,
         signupError: signupMutation.error,
+        isAuthenticated,
     };
 }; 
