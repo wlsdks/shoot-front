@@ -1,15 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import {
-    getFriends,
-    getIncomingRequests,
-    getOutgoingRequests,
-    getRecommendations,
-    sendFriendRequest,
-    acceptFriendRequest,
-    cancelFriendRequest,
-} from "../../services/friends";
+import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Friend, FriendResponse } from "../../types/friend.types";
+import { useSocialData } from "../../hooks/useSocialData";
 import TabContainer from "../../components/common/TabContainer";
 import TabHeader from "../../components/common/TabHeader";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -24,93 +15,24 @@ import {
     TabSectionCount,
 } from "../../styles/tabStyles";
 
-// API 응답을 Friend 타입으로 변환하는 함수
-const convertToFriend = (response: FriendResponse): Friend => ({
-    id: response.id,
-    name: response.username,
-    username: response.username,
-    nickname: response.nickname,
-    status: "온라인", // TODO: 실제 상태 정보로 대체
-    profileImageUrl: response.profileImageUrl
-});
-
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
-    const [friends, setFriends] = useState<Friend[]>([]);
-    const [incoming, setIncoming] = useState<Friend[]>([]);
-    const [outgoing, setOutgoing] = useState<Friend[]>([]);
-    const [recommended, setRecommended] = useState<Friend[]>([]);
-    const [skip, setSkip] = useState(0);
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const limit = 10;
-    
-    // API 중복 호출 방지를 위한 초기화 플래그
-    const initialized = useRef(false);
 
-    // 기존 소셜 데이터 (친구 목록, 친구 요청) 로드
-    const fetchSocialData = useCallback(async () => {
-        if (!user?.id) return;
-        try {
-            setLoading(true);
-            setError("");
-            // 친구 목록, 받은 요청, 보낸 요청 모두 함께 조회
-            const [friendsData, incData, outData] = await Promise.all([
-                getFriends(user.id),
-                getIncomingRequests(user.id),
-                getOutgoingRequests(user.id),
-            ]);
-            
-            // API 응답을 Friend 타입으로 변환
-            setFriends(friendsData.map(convertToFriend));
-            setIncoming(incData.map(convertToFriend));
-            setOutgoing(outData.map(convertToFriend));
-        } catch (e) {
-            console.error(e);
-            setError("소셜 데이터 로드 실패");
-        } finally {
-            setLoading(false);
-        }
-    }, [user?.id]);
-
-    // 추천 친구 데이터 로드 (무한 스크롤)
-    const fetchRecommended = useCallback(async () => {
-        if (!user) return;
-        try {
-            const recData = await getRecommendations(user.id, limit, 2, skip);
-            if (recData.length < limit) {
-                // setHasMore(false);
-            }
-            setRecommended(prev => [...prev, ...recData.map(convertToFriend)]);
-            setSkip(skip + limit);
-        } catch (e) {
-            console.error(e);
-        }
-    }, [user, skip, limit]);
-
-    // 최초 데이터 로드 (중복 호출 방지)
-    useEffect(() => {
-        if (initialized.current) return;
-        
-        if (user?.id) {
-            initialized.current = true;
-            fetchSocialData();
-            fetchRecommended();
-        }
-    }, [user?.id, fetchSocialData, fetchRecommended]);
+    const {
+        data: socialData,
+        isLoading,
+        sendFriendRequest,
+        acceptRequest,
+        cancelRequest,
+        fetchMoreRecommended
+    } = useSocialData(user?.id || 0);
 
     // 친구 요청 보내기
     const handleSendFriendRequest = async (targetUserId: number) => {
         if (!user) return;
         try {
-            await sendFriendRequest(user.id, targetUserId);
-            
-            // 추천 목록에서 해당 사용자를 보낸 요청 목록으로 이동
-            const requestedUser = recommended.find(r => r.id === targetUserId);
-            if (requestedUser) {
-                setOutgoing(prev => [...prev, requestedUser]);
-                setRecommended(prev => prev.filter(r => r.id !== targetUserId));
-            }
+            await sendFriendRequest.mutateAsync(targetUserId);
         } catch (err) {
             console.error(err);
             setError("친구 요청 보내기에 실패했습니다.");
@@ -121,14 +43,7 @@ const SocialTab: React.FC = () => {
     const handleAcceptRequest = async (requesterId: number) => {
         if (!user) return;
         try {
-            await acceptFriendRequest(user.id, requesterId);
-            
-            // 받은 요청에서 해당 사용자를 찾아 친구 목록으로 이동
-            const acceptedUser = incoming.find(r => r.id === requesterId);
-            if (acceptedUser) {
-                setFriends(prev => [...prev, acceptedUser]);
-                setIncoming(prev => prev.filter(r => r.id !== requesterId));
-            }
+            await acceptRequest.mutateAsync(requesterId);
         } catch (err) {
             console.error(err);
             setError("친구 요청 수락 실패");
@@ -139,17 +54,14 @@ const SocialTab: React.FC = () => {
     const handleCancelRequest = async (targetUserId: number) => {
         if (!user) return;
         try {
-            await cancelFriendRequest(user.id, targetUserId);
-            
-            // 보낸 요청에서 해당 사용자 제거
-            setOutgoing(prev => prev.filter(r => r.id !== targetUserId));
+            await cancelRequest.mutateAsync(targetUserId);
         } catch (err) {
             console.error(err);
             setError("친구 요청 취소 실패");
         }
     };
 
-    if (loading && (friends.length === 0 && incoming.length === 0 && outgoing.length === 0)) {
+    if (isLoading && (!socialData?.friends || socialData.friends.length === 0)) {
         return (
             <TabContainer>
                 <TabHeader title="소셜" />
@@ -188,10 +100,12 @@ const SocialTab: React.FC = () => {
                 <TabSection>
                     <TabSectionHeader>
                         <TabSectionTitle>받은 친구 요청</TabSectionTitle>
-                        {incoming.length > 0 && <TabSectionCount>{incoming.length}</TabSectionCount>}
+                        {socialData?.incomingRequests && socialData.incomingRequests.length > 0 && 
+                            <TabSectionCount>{socialData.incomingRequests.length}</TabSectionCount>
+                        }
                     </TabSectionHeader>
 
-                    {incoming.length === 0 ? (
+                    {!socialData?.incomingRequests || socialData.incomingRequests.length === 0 ? (
                         <EmptyState
                             icon={
                                 <Icon>
@@ -204,7 +118,7 @@ const SocialTab: React.FC = () => {
                             text="아직 받은 친구 요청이 없습니다."
                         />
                     ) : (
-                        incoming.map((friend) => (
+                        socialData.incomingRequests.map((friend) => (
                             <SocialItem
                                 key={friend.id}
                                 friend={friend}
@@ -219,10 +133,12 @@ const SocialTab: React.FC = () => {
                 <TabSection>
                     <TabSectionHeader>
                         <TabSectionTitle>보낸 친구 요청</TabSectionTitle>
-                        {outgoing.length > 0 && <TabSectionCount>{outgoing.length}</TabSectionCount>}
+                        {socialData?.outgoingRequests && socialData.outgoingRequests.length > 0 && 
+                            <TabSectionCount>{socialData.outgoingRequests.length}</TabSectionCount>
+                        }
                     </TabSectionHeader>
 
-                    {outgoing.length === 0 ? (
+                    {!socialData?.outgoingRequests || socialData.outgoingRequests.length === 0 ? (
                         <EmptyState
                             icon={
                                 <Icon>
@@ -235,7 +151,7 @@ const SocialTab: React.FC = () => {
                             text="보낸 친구 요청이 없습니다."
                         />
                     ) : (
-                        outgoing.map((friend) => (
+                        socialData.outgoingRequests.map((friend) => (
                             <SocialItem
                                 key={friend.id}
                                 friend={friend}
@@ -250,9 +166,12 @@ const SocialTab: React.FC = () => {
                 <TabSection>
                     <TabSectionHeader>
                         <TabSectionTitle>추천 친구</TabSectionTitle>
+                        {socialData?.recommendedFriends && socialData.recommendedFriends.length > 0 && 
+                            <TabSectionCount>{socialData.recommendedFriends.length}</TabSectionCount>
+                        }
                     </TabSectionHeader>
 
-                    {recommended.length === 0 ? (
+                    {!socialData?.recommendedFriends || socialData.recommendedFriends.length === 0 ? (
                         <EmptyState
                             icon={
                                 <Icon>
@@ -262,10 +181,10 @@ const SocialTab: React.FC = () => {
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                                 </Icon>
                             }
-                            text="현재 추천할 친구가 없습니다."
+                            text="추천 친구가 없습니다."
                         />
                     ) : (
-                        recommended.map((friend) => (
+                        socialData.recommendedFriends.map((friend) => (
                             <SocialItem
                                 key={friend.id}
                                 friend={friend}

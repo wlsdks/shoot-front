@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { getFriends } from "../../services/friends";
+import { useFriends } from "../../hooks/useFriends";
 import FriendSearch from "../../pages/profile/FriendSearch";
 import FriendCodePage from "../../pages/profile/FriendCodePage";
 import { createDirectChat } from "../../services/chatRoom";
 import { useNavigate } from "react-router-dom";
-import { Friend, FriendResponse } from "../../types/friend.types";
 import TabContainer from "../../components/common/TabContainer";
 import TabHeader from "../../components/common/TabHeader";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -44,64 +43,12 @@ const MySection = styled.div`
 `;
 
 const FriendsTab: React.FC = () => {
-    const { user, loading, subscribeToSse, unsubscribeFromSse } = useAuth();
-    const [friends, setFriends] = useState<Friend[]>([]);
+    const { user, loading: authLoading } = useAuth();
     const [showSearch, setShowSearch] = useState<boolean>(false);
     const [showCode, setShowCode] = useState<boolean>(false);
     const navigate = useNavigate();
 
-    // 친구 목록을 가져오는 함수
-    const fetchFriends = useCallback(async () => {
-        if (!user) return;
-        try {
-            const friendsData: FriendResponse[] = await getFriends(user.id);
-            // API 응답을 Friend 타입에 맞게 변환
-            const formattedFriends: Friend[] = friendsData.map(friend => ({
-                id: friend.id,
-                name: friend.username,
-                username: friend.username,
-                nickname: friend.nickname,
-                status: "온라인", // TODO: 실제 상태 정보로 대체
-                profileImageUrl: friend.profileImageUrl
-            }));
-            setFriends(formattedFriends);
-        } catch (err) {
-            console.error("FriendTab: Fetch friends failed:", err);
-        }
-    }, [user]);
-
-    // 초기 로드 시 친구 목록 불러오기
-    useEffect(() => {
-        if (!user?.id) return;
-        console.log("FriendTab: Initializing friends...");
-        fetchFriends();
-    }, [user?.id, fetchFriends]);
-
-    // friendAdded 이벤트는 너무 자주 호출될 수 있으므로 throttle 적용
-    const friendAddedThrottleRef = useRef<NodeJS.Timeout | null>(null);
-    const handleFriendAdded = useCallback((event: MessageEvent) => {
-        if (friendAddedThrottleRef.current) return;
-        friendAddedThrottleRef.current = setTimeout(() => {
-            console.log("FriendTab: Throttled friendAdded event, fetching friends...");
-            fetchFriends();
-            friendAddedThrottleRef.current = null;
-        }, 1000); // 1초 간격
-    }, [fetchFriends]);
-
-    const handleHeartbeat = useCallback((event: MessageEvent) => {
-        console.log("FriendTab: Heartbeat received:", event);
-    }, []);
-
-    useEffect(() => {
-        if (!user?.id) return;
-        subscribeToSse("friendAdded", handleFriendAdded);
-        subscribeToSse("heartbeat", handleHeartbeat);
-
-        return () => {
-            unsubscribeFromSse("friendAdded", handleFriendAdded);
-            unsubscribeFromSse("heartbeat", handleHeartbeat);
-        };
-    }, [user?.id, subscribeToSse, unsubscribeFromSse, handleFriendAdded, handleHeartbeat]);
+    const { data: friends, isLoading: friendsLoading } = useFriends(user?.id || 0);
 
     // 채팅방 생성: 친구 클릭 시 direct chat 생성 후 이동
     const handleFriendClick = useCallback(async (friendId: number) => {
@@ -117,7 +64,7 @@ const FriendsTab: React.FC = () => {
         }
     }, [user, navigate]);
 
-    if (loading) {
+    if (authLoading || friendsLoading) {
         return (
             <TabContainer>
                 <TabHeader title="내 친구 목록" />
@@ -179,11 +126,11 @@ const FriendsTab: React.FC = () => {
                 {/* 친구 섹션 헤더 */}
                 <TabSectionHeader>
                     <TabSectionTitle>친구</TabSectionTitle>
-                    <TabSectionCount>{friends.length}</TabSectionCount>
+                    <TabSectionCount>{friends?.length || 0}</TabSectionCount>
                 </TabSectionHeader>
                 
                 {/* 친구 목록 */}
-                {friends.length === 0 ? (
+                {!friends || friends.length === 0 ? (
                     <EmptyState
                         icon={
                             <Icon>

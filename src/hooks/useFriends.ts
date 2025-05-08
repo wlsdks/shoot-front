@@ -1,30 +1,30 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getFriends, acceptFriendRequest } from '../services/friends';
-import { FriendResponse } from '../types/friend.types';
+import { useQuery } from '@tanstack/react-query';
+import { getFriends } from '../services/friends';
+import { Friend, FriendResponse } from '../types/friend.types';
+
+// API 응답을 Friend 타입으로 변환하는 함수
+const convertToFriend = (response: FriendResponse): Friend => ({
+    id: response.id,
+    name: response.username,
+    username: response.username,
+    nickname: response.nickname,
+    status: "온라인", // TODO: 실제 상태 정보로 대체
+    profileImageUrl: response.profileImageUrl
+});
 
 export const useFriends = (userId: number) => {
-    const queryClient = useQueryClient();
-
-    // 친구 목록 조회
-    const { data: friends, isLoading, error } = useQuery<FriendResponse[]>({
+    const { data, isLoading, error } = useQuery<Friend[]>({
         queryKey: ['friends', userId],
-        queryFn: () => getFriends(userId),
-    });
-
-    // 친구 요청 수락
-    const acceptRequest = useMutation({
-        mutationFn: ({ requesterId }: { requesterId: number }) => 
-        acceptFriendRequest(userId, requesterId),
-        onSuccess: () => {
-        // 친구 목록 새로고침
-        queryClient.invalidateQueries({ queryKey: ['friends', userId] });
+        queryFn: async () => {
+            const friendsData = await getFriends(userId);
+            return friendsData.map(convertToFriend);
         },
+        enabled: !!userId,
     });
 
     return {
-        friends,
+        data,
         isLoading,
         error,
-        acceptRequest,
     };
 }; 
