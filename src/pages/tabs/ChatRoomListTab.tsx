@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from "react-router-dom";
-import { getChatRooms, updateChatRoomFavorite } from '../../services/chatRoom';
 import { useAuth } from '../../context/AuthContext';
+import { useChatRooms } from '../../hooks/useChatRooms';
 import { ChatRoom } from '../../types/chat.types';
 import TabContainer from '../../components/common/TabContainer';
 import TabHeader from '../../components/common/TabHeader';
@@ -19,156 +19,24 @@ import {
 import styled from 'styled-components';
 
 const ChatRoomList: React.FC = () => {
-    const { user, subscribeToSse, unsubscribeFromSse, reconnectSse } = useAuth();
-    const [rooms, setRooms] = useState<ChatRoom[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const { user } = useAuth();
     const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; room: ChatRoom | null }>({
         visible: false,
         x: 0,
         y: 0,
         room: null
     });
-    const updatesReceivedRef = useRef(false);
     const location = useLocation();
     const navigate = useNavigate();
 
-    // 채팅방 목록 조회 함수
-    const fetchRooms = useCallback(async () => {
-        if (!user) return;
-        setLoading(true);
-        try {
-            console.log("ChatRoomList: Fetching rooms for user:", user.id);
-            const response = await getChatRooms(user.id);
-            const roomsData = response.data;
-            console.log("ChatRoomList: Received rooms:", roomsData);
-            setRooms(roomsData);
-            updatesReceivedRef.current = false;
-        } catch (err) {
-            console.error("ChatRoomList: Failed to fetch rooms:", err);
-            setError("채팅방 목록 로드 실패");
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
+    const { chatRooms, isLoading, error, updateFavorite } = useChatRooms(user?.id || 0);
 
-    // 뒤로 가기로 채팅방 목록에 들어올 때 자동 새로고침 및 SSE 재연결
-    useEffect(() => {
+    // 뒤로 가기로 채팅방 목록에 들어올 때 자동 새로고침
+    React.useEffect(() => {
         if (location.state?.refresh) {
-            console.log("뒤로 가기 감지됨, 채팅방 목록 새로고침");
-            fetchRooms();
             navigate(".", { replace: true, state: {} });
         }
-        reconnectSse();
-    }, [location, fetchRooms, navigate, reconnectSse]);
-
-    // SSE 이벤트를 통해 채팅방 목록을 실시간으로 업데이트
-    useEffect(() => {
-        if (!user?.id) {
-            console.log("ChatRoomList: No user ID, skipping fetchRooms");
-            setRooms([]);
-            return;
-        }
-        
-        fetchRooms();
-
-        const handleMessage = (event: MessageEvent) => {
-            try {
-                console.log("ChatRoomList: Raw message event received:", event.data);
-                
-                let data;
-                if (typeof event.data === 'string') {
-                    try {
-                        data = JSON.parse(event.data);
-                    } catch (e) {
-                        console.error("ChatRoomList: Failed to parse message data:", e);
-                        return;
-                    }
-                } else {
-                    data = event.data;
-                }
-                
-                console.log("ChatRoomList: Parsed message data:", data);
-                
-                if (!data.roomId) {
-                    console.warn("ChatRoomList: Missing roomId in SSE data:", data);
-                    return;
-                }
-                
-                const { roomId, unreadCount, lastMessage } = data;
-                console.log("ChatRoomList: Message received:", { roomId, unreadCount, lastMessage });
-
-                if (lastMessage === null || lastMessage === undefined || lastMessage === "") {
-                    console.log(`ChatRoomList: 메시지 없음 (null/empty) - roomId: ${roomId}`);
-                    
-                    if (unreadCount !== undefined) {
-                        setRooms((prev) => 
-                            prev.map((room) =>
-                                room.roomId === roomId 
-                                ? { ...room, unreadMessages: unreadCount } 
-                                : room
-                            )
-                        );
-                    }
-                    return;
-                }
-
-                setRooms((prev) => {
-                    const roomIndex = prev.findIndex(r => r.roomId === roomId);
-                    if (roomIndex === -1) return prev;
-                    
-                    const newRooms = [...prev];
-                    newRooms[roomIndex] = {
-                        ...newRooms[roomIndex],
-                        unreadMessages: unreadCount !== undefined ? unreadCount : newRooms[roomIndex].unreadMessages,
-                        lastMessage
-                    };
-                    
-                    return newRooms;
-                });
-            } catch (error) {
-                console.error("ChatRoomList: Error processing message event:", error);
-            }
-        };
-
-        const handleChatRoomCreated = (event: MessageEvent) => {
-            console.log("ChatRoomList: Chat room created event received:", event);
-            fetchRooms();
-        };
-
-        const handleHeartbeat = (event: MessageEvent) => {
-            console.log("ChatRoomList: Heartbeat received:", event);
-        };
-
-        const refreshInterval = setInterval(() => {
-            if (!updatesReceivedRef.current) {
-                console.log("ChatRoomList: Periodic refresh (no updates received)");
-                fetchRooms();
-            }
-        }, 30000);
-
-        subscribeToSse("message", handleMessage);
-        subscribeToSse("chatRoomCreated", handleChatRoomCreated);
-        subscribeToSse("heartbeat", handleHeartbeat);
-
-        return () => {
-            clearInterval(refreshInterval);
-            unsubscribeFromSse("message", handleMessage);
-            unsubscribeFromSse("chatRoomCreated", handleChatRoomCreated);
-            unsubscribeFromSse("heartbeat", handleHeartbeat);
-        };
-    }, [user?.id, fetchRooms, subscribeToSse, unsubscribeFromSse]);
-
-    // 즐겨찾기 토글 함수
-    const toggleFavorite = async (roomId: number, currentFavorite: boolean) => {
-        try {
-            await updateChatRoomFavorite(roomId, user!.id, !currentFavorite);
-            fetchRooms();
-        } catch (err) {
-            console.error("즐겨찾기 업데이트 실패", err);
-            setError("즐겨찾기 업데이트 실패");
-        }
-    };
+    }, [location, navigate]);
 
     // 우클릭 메뉴 처리
     const handleContextMenu = (e: React.MouseEvent, room: ChatRoom) => {
@@ -187,18 +55,14 @@ const ChatRoomList: React.FC = () => {
     };
 
     // 우클릭 메뉴 이벤트 리스너 등록
-    useEffect(() => {
+    React.useEffect(() => {
         document.addEventListener('click', handleClickOutside);
         return () => {
             document.removeEventListener('click', handleClickOutside);
         };
     }, []);
 
-    // 즐겨찾기된 채팅방과 일반 채팅방으로 분류
-    const pinnedRooms = rooms.filter(room => room.isPinned);
-    const normalRooms = rooms.filter(room => !room.isPinned);
-
-    if (loading && rooms.length === 0) {
+    if (isLoading) {
         return (
             <TabContainer>
                 <TabHeader title="채팅방" />
@@ -206,6 +70,10 @@ const ChatRoomList: React.FC = () => {
             </TabContainer>
         );
     }
+
+    // 즐겨찾기된 채팅방과 일반 채팅방으로 분류
+    const pinnedRooms = chatRooms?.data?.filter((room: ChatRoom) => room.isPinned) || [];
+    const normalRooms = chatRooms?.data?.filter((room: ChatRoom) => !room.isPinned) || [];
 
     return (
         <TabContainer>
@@ -218,11 +86,11 @@ const ChatRoomList: React.FC = () => {
                             <line x1="12" y1="8" x2="12" y2="12" />
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </Icon>
-                        {error}
+                        {error.message}
                     </div>
                 )}
 
-                {rooms.length === 0 ? (
+                {(!chatRooms?.data || chatRooms.data.length === 0) ? (
                     <EmptyState
                         icon={
                             <Icon>
@@ -240,7 +108,7 @@ const ChatRoomList: React.FC = () => {
                                     <TabSectionCount>{pinnedRooms.length}</TabSectionCount>
                                 </TabSectionHeader>
                                 
-                                {pinnedRooms.map((room) => (
+                                {pinnedRooms.map((room: ChatRoom) => (
                                     <ChatRoomItem
                                         key={`pinned-${room.roomId}`}
                                         room={room}
@@ -257,7 +125,7 @@ const ChatRoomList: React.FC = () => {
                                     <TabSectionCount>{normalRooms.length}</TabSectionCount>
                                 </TabSectionHeader>
                                 
-                                {normalRooms.map((room) => (
+                                {normalRooms.map((room: ChatRoom) => (
                                     <ChatRoomItem
                                         key={`normal-${room.roomId}`}
                                         room={room}
@@ -272,7 +140,10 @@ const ChatRoomList: React.FC = () => {
                 {contextMenu.visible && contextMenu.room && (
                     <ContextMenu style={{ top: contextMenu.y, left: contextMenu.x }}>
                         <ContextMenuItem onClick={() => {
-                            toggleFavorite(contextMenu.room!.roomId, contextMenu.room!.isPinned);
+                            updateFavorite.mutate({ 
+                                roomId: contextMenu.room!.roomId, 
+                                isFavorite: !contextMenu.room!.isPinned 
+                            });
                             setContextMenu({ visible: false, x: 0, y: 0, room: null });
                         }}>
                             <Icon>

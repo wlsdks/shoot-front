@@ -2,9 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import axios from "axios";
 import api from "../services/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { refreshTokenApi, fetchUserInfo } from "../services/auth";
+import { refreshTokenApi, loginCheckApi } from "../services/auth";
 import { updateUserStatus } from '../services/profile';
-import { extractData } from '../utils/apiUtils';
 
 interface User {
     id: number;
@@ -63,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!token) return undefined;
         
         try {
-            const userData = await fetchUserInfo();
+            const userData = await loginCheckApi();
             setUser(userData);
             if (!isAuthenticated) {
                 setIsAuthenticated(true);
@@ -253,7 +252,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
             setLoading(false);
         }
-    }, [fetchCurrentUser]);
+    }, []);
 
     useEffect(() => {
         const interceptor = api.interceptors.response.use(

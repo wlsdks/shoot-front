@@ -14,6 +14,9 @@ export interface ApiResponse<T> {
 // 백엔드의 기본 URL (포트 등은 백엔드 설정에 맞춤)
 const api = axios.create({
     baseURL: 'http://localhost:8100/api/v1',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
 // 요청 인터셉터를 통해 JWT 토큰을 헤더에 추가합니다.
@@ -45,5 +48,10 @@ api.interceptors.response.use(
         return Promise.reject(handleApiError(error));
     }
 );
+
+export const fetchData = async () => {
+    const response = await api.get('/api/data');
+    return response.data;
+};
 
 export default api;

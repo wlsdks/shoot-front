@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
-import { login as loginApi, fetchUserInfo } from '../../services/auth';
-import axios from 'axios';
 import {
   PageWrapper,
   MobileContainer,
@@ -11,9 +9,7 @@ import {
   Label,
   Input,
   Button,
-  ErrorMessage,
-  LinkContainer,
-  StyledLink
+  ErrorMessage
 } from '../../styles/auth/common';
 import styled from 'styled-components';
 
@@ -114,47 +110,26 @@ const ErrorIcon = styled.div`
 `;
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, isPending, error } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    localStorage.clear();
-
+    setLoginError(null);
+    
     try {
-      const loginResponse = await loginApi(username, password);
-      const { accessToken, refreshToken } = loginResponse;
-      localStorage.setItem("accessToken", accessToken);
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-      }
-      
-      axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-      
-      try {
-        const userData = await fetchUserInfo();
-        login(userData, accessToken, refreshToken);
-        navigate('/');
-      } catch (userError) {
-        console.error("Failed to fetch user data:", userError);
-        setError('사용자 정보를 가져오는데 실패했습니다.');
-      }
+      await login({ username, password });
+      // 로그인 성공 후 약간의 지연을 두고 라우팅
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 100);
     } catch (err) {
-      console.error("Login failed:", err);
-      if (err instanceof Error) {
-        setError(err.message || '아이디 또는 비밀번호가 올바르지 않습니다.');
-      } else {
-        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
-      }
-    } finally {
-      setIsLoading(false);
+      console.error('로그인 실패:', err);
+      setLoginError('로그인에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -176,7 +151,7 @@ const Login: React.FC = () => {
                 placeholder="아이디를 입력하세요"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading}
+                disabled={isPending}
                 autoComplete="username"
               />
             </InputGroup>
@@ -189,7 +164,7 @@ const Login: React.FC = () => {
                 placeholder="비밀번호를 입력하세요"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
+                disabled={isPending}
                 autoComplete="current-password"
               />
             </InputGroup>
@@ -199,18 +174,18 @@ const Login: React.FC = () => {
                 <Checkbox 
                   checked={rememberMe}
                   onChange={() => setRememberMe(!rememberMe)}
-                  disabled={isLoading}
+                  disabled={isPending}
                 />
                 자동 로그인
               </RememberMeLabel>
             </RememberContainer>
             
-            <Button type="submit" disabled={isLoading || !username || !password}>
-              {isLoading ? '로그인 중...' : '로그인'}
+            <Button type="submit" disabled={isPending || !username || !password}>
+              {isPending ? '로그인 중...' : '로그인'}
             </Button>
           </Form>
           
-          {error && (
+          {(error || loginError) && (
             <ErrorMessage>
               <ErrorIcon>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -219,7 +194,7 @@ const Login: React.FC = () => {
                   <line x1="12" y1="16" x2="12.01" y2="16"></line>
                 </svg>
               </ErrorIcon>
-              {error}
+              {loginError || error?.message}
             </ErrorMessage>
           )}
           

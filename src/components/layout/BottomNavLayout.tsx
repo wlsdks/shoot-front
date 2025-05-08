@@ -67,11 +67,8 @@ const ButtonLabel = styled.span`
 `;
 
 const BottomNavLayout: React.FC = () => {
-    // 초기 activeTab을 로컬 스토리지에서 불러오거나 기본값 0으로 설정
-    const [activeTab, setActiveTab] = useState<number>(() => {
-        const storedTab = localStorage.getItem("activeTab");
-        return storedTab ? Number(storedTab) : 0;
-    });
+    // 초기 activeTab을 0(친구 탭)으로 설정
+    const [activeTab, setActiveTab] = useState<number>(0);
 
     // activeTab이 변경될 때마다 로컬 스토리지에 저장
     useEffect(() => {
