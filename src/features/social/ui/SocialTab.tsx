@@ -6,7 +6,7 @@ import TabHeader from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Icon from "../../../shared/ui/Icon";
-import SocialItem from "../../../widgets/social/SocialItem";
+import SocialItem from "../ui/SocialItem";
 import {
     TabContent,
     TabSection,

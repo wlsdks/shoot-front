@@ -8,7 +8,7 @@ import TabHeader from '../../../shared/ui/TabHeader';
 import LoadingSpinner from '../../../shared/ui/LoadingSpinner';
 import EmptyState from '../../../shared/ui/EmptyState';
 import Icon from '../../../shared/ui/Icon';
-import ChatRoomItem from '../../../widgets/chat/ChatRoomItem';
+import ChatRoomItem from './ChatRoomItem';
 import {
     TabContent,
     TabSection,
