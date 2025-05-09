@@ -5,7 +5,6 @@ import {
     getOutgoingRequests,
     getRecommendations,
     sendFriendRequest,
-    rejectFriendRequest,
     acceptFriendRequest,
     cancelFriendRequest,
 } from '../../api/friends';

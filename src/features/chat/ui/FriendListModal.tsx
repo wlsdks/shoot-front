@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import { getFriends } from '../../../features/social/api/friends';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
 import { Friend, FriendResponse } from '../../../features/social/model/types/friend.types';
-import { createDirectChat } from '../api/chatRoom';
 
 const ModalOverlay = styled.div`
   position: fixed;

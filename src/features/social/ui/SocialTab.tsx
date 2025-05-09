@@ -1,19 +1,19 @@
 import React, { useState } from "react";
-import { useAuth } from "../../shared/lib/context/AuthContext";
-import { useSocialData } from "../../features/social/model/hooks/useSocialData";
-import TabContainer from "../../shared/ui/TabContainer";
-import TabHeader from "../../shared/ui/TabHeader";
-import LoadingSpinner from "../../shared/ui/LoadingSpinner";
-import EmptyState from "../../shared/ui/EmptyState";
-import Icon from "../../shared/ui/Icon";
-import SocialItem from "../../widgets/social/SocialItem";
+import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useSocialData } from "../model/hooks/useSocialData";
+import TabContainer from "../../../shared/ui/TabContainer";
+import TabHeader from "../../../shared/ui/TabHeader";
+import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
+import EmptyState from "../../../shared/ui/EmptyState";
+import Icon from "../../../shared/ui/Icon";
+import SocialItem from "../../../widgets/social/SocialItem";
 import {
     TabContent,
     TabSection,
     TabSectionHeader,
     TabSectionTitle,
     TabSectionCount,
-} from "../../app/styles/tabStyles";
+} from "../../../shared/ui/tabStyles";
 
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
@@ -24,8 +24,7 @@ const SocialTab: React.FC = () => {
         isLoading,
         sendFriendRequest,
         acceptRequest,
-        cancelRequest,
-        fetchMoreRecommended
+        cancelRequest
     } = useSocialData(user?.id || 0);
 
     // 친구 요청 보내기

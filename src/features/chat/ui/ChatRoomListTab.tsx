@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from '../../shared/lib/context/AuthContext';
-import { useChatRooms } from '../../features/chat/model/hooks/useChatRooms';
-import { ChatRoom } from '../../features/chat/model/types/ChatRoom.types';
-import TabContainer from '../../shared/ui/TabContainer';
-import TabHeader from '../../shared/ui/TabHeader';
-import LoadingSpinner from '../../shared/ui/LoadingSpinner';
-import EmptyState from '../../shared/ui/EmptyState';
-import Icon from '../../shared/ui/Icon';
-import ChatRoomItem from '../../widgets/chat/ChatRoomItem';
+import { useAuth } from '../../../shared/lib/context/AuthContext';
+import { useChatRooms } from '../model/hooks/useChatRooms';
+import { ChatRoom } from '../model/types/ChatRoom.types';
+import TabContainer from '../../../shared/ui/TabContainer';
+import TabHeader from '../../../shared/ui/TabHeader';
+import LoadingSpinner from '../../../shared/ui/LoadingSpinner';
+import EmptyState from '../../../shared/ui/EmptyState';
+import Icon from '../../../shared/ui/Icon';
+import ChatRoomItem from '../../../widgets/chat/ChatRoomItem';
 import {
     TabContent,
     TabSection,
     TabSectionHeader,
     TabSectionTitle,
     TabSectionCount,
-} from '../../app/styles/tabStyles';
+} from '../../../shared/ui/tabStyles';
 import styled from 'styled-components';
 
 const ChatRoomList: React.FC = () => {

@@ -1,23 +1,23 @@
 import React, { useState, useCallback } from "react";
-import { useAuth } from "../../shared/lib/context/AuthContext";
-import { useFriends } from "../../features/social/model/hooks/useFriends";
-import FriendSearch from "../../features/profile/FriendSearch";
-import FriendCodePage from "../../features/profile/FriendCodePage";
-import { createDirectChat } from "../../features/chat/api/chatRoom";
+import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useFriends } from "../model/hooks/useFriends";
+import FriendSearch from "../../profile/FriendSearch";
+import FriendCodePage from "../../profile/FriendCodePage";
+import { createDirectChat } from "../../chat/api/chatRoom";
 import { useNavigate } from "react-router-dom";
-import TabContainer from "../../shared/ui/TabContainer";
-import TabHeader from "../../shared/ui/TabHeader";
-import LoadingSpinner from "../../shared/ui/LoadingSpinner";
-import EmptyState from "../../shared/ui/EmptyState";
-import Icon from "../../shared/ui/Icon";
-import { FriendItem } from "../../entities/friend/FriendItem";
+import TabContainer from "../../../shared/ui/TabContainer";
+import TabHeader from "../../../shared/ui/TabHeader";
+import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
+import EmptyState from "../../../shared/ui/EmptyState";
+import Icon from "../../../shared/ui/Icon";
+import { FriendItem } from "../../../entities/friend/FriendItem";
 import {
     TabContent,
     TabSection,
     TabSectionHeader,
     TabSectionTitle,
     TabSectionCount,
-} from "../../app/styles/tabStyles";
+} from "../../../shared/ui/tabStyles";
 import styled from "styled-components";
 
 const SearchButton = styled.button`

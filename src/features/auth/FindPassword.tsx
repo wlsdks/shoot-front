@@ -1,152 +1,145 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
-  PageWrapper,
-  MobileContainer,
-  AuthHeader as Header,
-  BackButton,
-  AuthTitle as Title,
-  Form,
-  InputGroup,
-  Label,
-  Input,
-  Button,
-  ErrorMessage,
-  AuthSuccessMessage as SuccessMessage,
-  AuthLinkContainer as LinkContainer,
-  AuthLink as StyledLink,
-  fadeIn
+    PageWrapper,
+    MobileContainer,
+    AuthHeader as Header,
+    BackButton,
+    AuthTitle as Title,
+    Form,
+    InputGroup,
+    Label,
+    Input,
+    Button,
+    ErrorMessage,
+    AuthSuccessMessage as SuccessMessage,
+    AuthLinkContainer as LinkContainer,
+    AuthLink as StyledLink,
 } from './ui/common';
 import styled from 'styled-components';
 
 const Content = styled.div`
-  flex: 1;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
 `;
 
 const Description = styled.p`
-  color: #666;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  margin-bottom: 24px;
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 24px;
 `;
 
 const StepIndicator = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 32px;
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: #e9ecef;
-    z-index: 0;
-  }
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    position: relative;
+    
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #e9ecef;
+        z-index: 0;
+    }
 `;
 
 const Step = styled.div<{ active?: boolean; completed?: boolean }>`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: ${props => props.completed ? '#007bff' : props.active ? '#fff' : '#e9ecef'};
-  border: 2px solid ${props => props.completed || props.active ? '#007bff' : '#e9ecef'};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${props => props.completed ? '#fff' : props.active ? '#007bff' : '#adb5bd'};
-  font-weight: 600;
-  position: relative;
-  z-index: 1;
-`;
-
-const StepContainer = styled.div`
-  text-align: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: ${props => props.completed ? '#007bff' : props.active ? '#fff' : '#e9ecef'};
+    border: 2px solid ${props => props.completed || props.active ? '#007bff' : '#e9ecef'};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${props => props.completed ? '#fff' : props.active ? '#007bff' : '#adb5bd'};
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
 `;
 
 const ButtonGroup = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
 `;
 
 const SecondaryButton = styled(Button)`
-  background: #e9ecef;
-  color: #495057;
-  
-  &:hover {
-    background: #dee2e6;
-  }
+    background: #e9ecef;
+    color: #495057;
+    
+    &:hover {
+        background: #dee2e6;
+    }
 `;
 
 const VerificationCodeInput = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
 `;
 
 const CodeInput = styled(Input)`
-  width: 48px;
-  text-align: center;
-  padding: 12px 0;
-  font-size: 1.2rem;
-  
-  &::-webkit-inner-spin-button,
-  &::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
+    width: 48px;
+    text-align: center;
+    padding: 12px 0;
+    font-size: 1.2rem;
+    
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 `;
 
 const ResendButton = styled.button`
-  background: none;
-  border: none;
-  color: #007bff;
-  font-size: 0.9rem;
-  text-decoration: underline;
-  cursor: pointer;
-  margin-top: 8px;
-  
-  &:disabled {
-    color: #adb5bd;
-    cursor: not-allowed;
-  }
+    background: none;
+    border: none;
+    color: #007bff;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-top: 8px;
+    
+    &:disabled {
+        color: #adb5bd;
+        cursor: not-allowed;
+    }
 `;
 
 const RadioContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
 `;
 
 const RadioOption = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 `;
 
 const RadioInput = styled.input`
-  width: 20px;
-  height: 20px;
-  margin: 0;
+    width: 20px;
+    height: 20px;
+    margin: 0;
 `;
 
 const RadioLabel = styled.label`
-  font-size: 1rem;
-  color: #495057;
+    font-size: 1rem;
+    color: #495057;
 `;
 
 const FindPassword: React.FC = () => {
     const [step, setStep] = useState(1);
     const [userId, setUserId] = useState('');
-    const [email, setEmail] = useState('');
     const [verificationMethod, setVerificationMethod] = useState<'email' | 'phone'>('email');
     const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
     const [isLoading, setIsLoading] = useState(false);

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../shared/lib/context/AuthContext';
-import EditProfile from '../../features/profile/EditProfile';
-import UserCodeSettings from '../../features/profile/UserCodeSettings';
+import { useAuth } from '../../../shared/lib/context/AuthContext';
+import EditProfile from '../../profile/EditProfile';
+import UserCodeSettings from '../../profile/UserCodeSettings';
 import {
     TabContainer,
     Header,
@@ -21,7 +21,7 @@ import {
     ModalText,
     ModalButtonGroup,
     ModalButton
-} from '../../shared/ui/commonStyles';
+} from '../../../shared/ui/commonStyles';
 
 // 아이콘 SVG 컴포넌트
 const IconSVG = ({ children }: { children: React.ReactNode }) => (
