@@ -13,6 +13,24 @@ export const getChatRooms = async (userId: number) => { // userId 타입 변경
 };
 
 /**
+ * 채팅방 즐겨찾기(핀) 상태 업데이트 API
+ */
+export const updateChatRoomFavorite = async (
+    roomId: number,
+    userId: number,
+    isFavorite: boolean
+) => {
+    const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, {
+        params: {
+            roomId,
+            userId,
+            isFavorite
+        }
+    });
+    return extractData(response);
+};
+
+/**
  * 특정 채팅방 내 모든 메시지를 읽음 처리하는 API
  * @param roomId 채팅방 ID
  * @param userId 사용자 ID
@@ -58,14 +76,4 @@ export const createDirectChat = async (
     return {
         data: extractData(response)
     };
-};
-
-/**
- * 채팅방 즐겨찾기 상태 업데이트 API
- */
-export const updateFavorite = async (roomId: number, isFavorite: boolean) => {
-    const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, {
-        params: { roomId, isFavorite }
-    });
-    return extractData(response);
 };

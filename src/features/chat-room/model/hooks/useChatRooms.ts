@@ -1,27 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChatRoom } from '../../../message/model/types/ChatRoom.types';
-import { getChatRooms, updateFavorite } from '../../api/chatRoom';
+import { getChatRooms, updateChatRoomFavorite } from '../../api/chatRoom';
 
 export const useChatRooms = (userId: number) => {
     const queryClient = useQueryClient();
 
-    const chatRooms = useQuery({
+    // 채팅방 목록 조회
+    const { data: chatRooms, isLoading, error } = useQuery({
         queryKey: ['chatRooms', userId],
-        queryFn: () => getChatRooms(userId)
+        queryFn: () => getChatRooms(userId),
     });
 
-    const updateFavoriteMutation = useMutation({
+    // 채팅방 즐겨찾기 상태 업데이트
+    const updateFavorite = useMutation({
         mutationFn: ({ roomId, isFavorite }: { roomId: number; isFavorite: boolean }) =>
-            updateFavorite(roomId, isFavorite),
-        onSuccess: () => {
+            updateChatRoomFavorite(roomId, userId, isFavorite),
+            onSuccess: () => {
+            // 채팅방 목록 새로고침
             queryClient.invalidateQueries({ queryKey: ['chatRooms', userId] });
-        }
+        },
     });
 
     return {
-        chatRooms: chatRooms.data,
-        isLoading: chatRooms.isLoading,
-        error: chatRooms.error,
-        updateFavorite: updateFavoriteMutation
+        chatRooms,
+        isLoading,
+        error,
+        updateFavorite,
     };
 }; 
