@@ -65,7 +65,7 @@ export interface MessageStatusUpdate {
 }
 
 export interface ChatRoomProps {
-    socket?: any;
+    roomId: string;
 }
 
 export interface MessageStatusInfo {

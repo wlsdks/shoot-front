@@ -61,14 +61,17 @@ import {
 // 유틸리티 임포트
 import { formatTime } from './lib/timeUtils';
 
-const ChatRoom = ({ socket }: ChatRoomProps) => {
+const ChatRoom = ({ roomId }: { roomId: string }) => {
     const { user } = useAuth();
-    const { roomId } = useParams<{ roomId: string }>();
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const webSocketService = useRef(createWebSocketService());
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const reconnectAttemptRef = useRef(0);
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000;
 
     const {
         messages,
@@ -402,11 +405,19 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
     useEffect(() => {
         if (!roomId || !user) return;
 
+        // roomId 유효성 검사
+        const numericRoomId = Number(roomId);
+        if (isNaN(numericRoomId)) {
+            setConnectionError("유효하지 않은 채팅방 ID입니다.");
+            return;
+        }
+
         const connectWebSocket = async () => {
             try {
-                await webSocketService.current.connect(Number(roomId), user.id);
+                await webSocketService.current.connect(numericRoomId, user.id);
                 setConnectionError(null);
                 setIsConnected(true);
+                reconnectAttemptRef.current = 0;
 
                 // 타이핑 인디케이터 핸들러를 먼저 설정
                 webSocketService.current.onTypingIndicator((typingMsg: TypingIndicatorMessage) => {
@@ -698,22 +709,69 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
                 }, 100);
 
             } catch (error) {
-                console.error("WebSocket 연결 실패:", error);
-                setConnectionError("연결 실패, 재시도 중...");
+                console.error("WebSocket connection failed:", error);
+                setConnectionError("연결 실패: 재연결을 시도합니다...");
                 setIsConnected(false);
+
+                // 재연결 시도
+                if (reconnectAttemptRef.current < maxReconnectAttempts) {
+                    reconnectAttemptRef.current++;
+                    if (reconnectTimeoutRef.current) {
+                        clearTimeout(reconnectTimeoutRef.current);
+                    }
+                    reconnectTimeoutRef.current = setTimeout(connectWebSocket, reconnectDelay);
+                } else {
+                    setConnectionError("연결 실패: 새로고침 후 다시 시도해주세요.");
+                }
             }
         };
 
         connectWebSocket();
 
-        const currentWebSocketService = webSocketService.current;
-
         return () => {
-            if (heartbeatRef.current) {
-                clearInterval(heartbeatRef.current);
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
             }
-            currentWebSocketService.disconnect();
-            resetWebSocketService();
+            webSocketService.current.disconnect();
+        };
+    }, [roomId, user]);
+
+    useEffect(() => {
+        const handleOnline = () => {
+            console.log("네트워크 연결됨, 재연결 시도...");
+            if (!webSocketService.current.isConnected()) {
+                setConnectionError("재연결 시도 중...");
+                reconnectAttemptRef.current = 0;
+                
+                // roomId 유효성 검사
+                const numericRoomId = Number(roomId);
+                if (!isNaN(numericRoomId) && user) {
+                    webSocketService.current.connect(numericRoomId, user.id)
+                        .then(() => {
+                            setConnectionError(null);
+                            setIsConnected(true);
+                        })
+                        .catch((error) => {
+                            console.error("Reconnection failed:", error);
+                            setConnectionError("재연결 실패: 새로고침 후 다시 시도해주세요.");
+                            setIsConnected(false);
+                        });
+                }
+            }
+        };
+    
+        const handleOffline = () => {
+            console.log("네트워크 연결 끊김");
+            setConnectionError("네트워크 연결이 끊어졌습니다. 자동 재연결 대기 중...");
+            setIsConnected(false);
+        };
+    
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+    
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
         };
     }, [roomId, user]);
 
@@ -795,71 +853,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             }
         };
     }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, messages, setMessageDirection, hasMoreMessages]);
-
-    // Window focus 이벤트: 창이 포커스 될 때 읽음 처리 (이전 API 새로고침 호출 제거됨)
-    useEffect(() => {
-        const handleFocus = () => {
-            if (user && roomId) {
-                // 연결 상태 확인
-                if (!isConnected || !webSocketService.current.isConnected()) {
-                    console.log("ChatRoom: Connection lost, attempting to reconnect...");
-                    setConnectionError("연결이 끊어졌습니다. 재연결 시도 중...");
-                    
-                    // 기존 연결 종료
-                    webSocketService.current.disconnect();
-                    
-                    // 페이지 재로드
-                    setTimeout(() => {
-                        if (window.location.pathname.includes(`/chatroom/${roomId}`)) {
-                            window.location.reload();
-                        }
-                    }, 1000);
-                } else {
-                    // 정상 연결 상태에서는 읽음 처리
-                    markAllRead();
-                }
-            }
-        };
-
-        // 채팅방 컨테이너 클릭 이벤트 핸들러
-        const handleContainerClick = () => {
-            if (user && roomId && isConnected && webSocketService.current.isConnected()) {
-                console.log("ChatRoom: Container clicked, marking messages as read");
-                markAllRead();
-            }
-        };
-
-        // 채팅 영역 클릭 이벤트 핸들러
-        const handleChatAreaClick = () => {
-            if (user && roomId && isConnected && webSocketService.current.isConnected()) {
-                console.log("ChatRoom: Chat area clicked, marking messages as read");
-                markAllRead();
-            }
-        };
-
-        window.addEventListener("focus", handleFocus);
-        
-        // 채팅방 컨테이너와 채팅 영역에 클릭 이벤트 리스너 추가
-        const chatContainer = document.querySelector('.chat-container');
-        const chatArea = chatAreaRef.current;
-        
-        if (chatContainer) {
-            chatContainer.addEventListener('click', handleContainerClick);
-        }
-        if (chatArea) {
-            chatArea.addEventListener('click', handleChatAreaClick);
-        }
-
-        return () => {
-            window.removeEventListener("focus", handleFocus);
-            if (chatContainer) {
-                chatContainer.removeEventListener('click', handleContainerClick);
-            }
-            if (chatArea) {
-                chatArea.removeEventListener('click', handleChatAreaClick);
-            }
-        };
-    }, [chatAreaRef, markAllRead, roomId, user, isConnected]);
 
     // 메시지 전송
     const sendMessage = () => {
@@ -961,32 +954,6 @@ const ChatRoom = ({ socket }: ChatRoomProps) => {
             setContextMenu({ visible: true, x, y, message });
         }
     };
-
-    useEffect(() => {
-        const handleOnline = () => {
-            console.log("네트워크 연결됨, 재연결 시도...");
-            if (!webSocketService.current.isConnected()) {
-                setConnectionError("재연결 시도 중...");
-                
-                // 페이지 새로고침으로 완전 재연결
-                window.location.reload();
-            }
-        };
-    
-        const handleOffline = () => {
-            console.log("네트워크 연결 끊김");
-            setConnectionError("네트워크 연결이 끊어졌습니다. 자동 재연결 대기 중...");
-            setIsConnected(false);
-        };
-    
-        window.addEventListener("online", handleOnline);
-        window.addEventListener("offline", handleOffline);
-    
-        return () => {
-            window.removeEventListener("online", handleOnline);
-            window.removeEventListener("offline", handleOffline);
-        };
-    }, []);
 
     // 모달 제출: 대상 채팅방 ID 입력 후 메시지 전달 API 호출
     // const handleModalSubmit = () => {
