@@ -1,9 +1,9 @@
 export interface NavigationItem {
-  path: string;
-  label: string;
+    path: string;
+    label: string;
 }
 
 export interface NavigationProps {
-  items: NavigationItem[];
-  onNavigate?: (path: string) => void;
+    items: NavigationItem[];
+    onNavigate?: (path: string) => void;
 } 

@@ -15,9 +15,9 @@ const fadeInUp = keyframes`
 `;
 
 interface FriendItemProps {
-  friend: Friend;
-  onChatClick: () => void;
-  onClick: () => void;
+    friend: Friend;
+    onChatClick: () => void;
+    onClick: () => void;
 }
 
 const FriendItemComponent = styled.div`
@@ -129,24 +129,24 @@ const UserStatus = styled.div`
 `;
 
 export const FriendItem: React.FC<FriendItemProps> = ({ friend, onChatClick, onClick }) => {
-  const renderProfileImage = () => {
-    if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
-      return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
-    }
-    return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
-  };
+    const renderProfileImage = () => {
+        if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
+        return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
+        }
+        return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
+    };
 
-  const displayName = friend.nickname || friend.name;
+    const displayName = friend.nickname || friend.name;
 
-  return (
-    <FriendItemComponent onClick={onClick}>
-      <ProfileImageContainer>
-        {renderProfileImage()}
-      </ProfileImageContainer>
-      <UserInfo>
-        <UserName>{displayName}</UserName>
-        <UserStatus>{friend.status}</UserStatus>
-      </UserInfo>
-    </FriendItemComponent>
-  );
+    return (
+        <FriendItemComponent onClick={onClick}>
+        <ProfileImageContainer>
+            {renderProfileImage()}
+        </ProfileImageContainer>
+        <UserInfo>
+            <UserName>{displayName}</UserName>
+            <UserStatus>{friend.status}</UserStatus>
+        </UserInfo>
+        </FriendItemComponent>
+    );
 }; 
