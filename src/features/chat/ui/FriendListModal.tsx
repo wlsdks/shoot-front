@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { getFriends } from '../../../shared/api/friends';
+import { getFriends } from '../../../features/social/api/friends';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
-import { Friend, FriendResponse } from '../../../shared/types/friend.types';
-import { createDirectChat } from '../../../shared/api/chatRoom';
+import { Friend, FriendResponse } from '../../../features/social/types/friend.types';
+import { createDirectChat } from '../api/chatRoom';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -130,7 +130,8 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
           name: friend.username,
           username: friend.username,
           nickname: friend.nickname,
-          profileImageUrl: friend.profileImageUrl || undefined
+          profileImageUrl: friend.profileImageUrl || "",
+          status: friend.status || "온라인"
         }));
         setFriends(formattedFriends);
       } catch (error) {

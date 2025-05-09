@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { refreshTokenApi } from '../../api/auth';
+import { refreshTokenApi } from '../../../features/auth/api';
 
 export const useToken = () => {
     const refreshToken = useMutation({

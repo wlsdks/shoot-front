@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getChatMessages, forwardMessage, forwardMessageToUser } from '../../api/message';
+import { getChatMessages, forwardMessage, forwardMessageToUser } from '../../../features/chat/api/message';
 
 export const useMessages = (roomId: number) => {
     const queryClient = useQueryClient();

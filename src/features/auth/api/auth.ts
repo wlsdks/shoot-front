@@ -1,7 +1,7 @@
-import api from "./api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
+import api from "../../../shared/api/api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
 import { authApi } from './authApi';
-import { ApiResponse } from './api';
-import { extractData } from '../lib/apiUtils';
+import { ApiResponse } from "../../../shared/api/api";
+import { extractData } from '../../../shared/lib/apiUtils';
 
 // User 인터페이스 정의
 export interface User {

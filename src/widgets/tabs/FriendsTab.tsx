@@ -3,7 +3,7 @@ import { useAuth } from "../../shared/lib/context/AuthContext";
 import { useFriends } from "../../shared/lib/hooks/useFriends";
 import FriendSearch from "../../features/profile/FriendSearch";
 import FriendCodePage from "../../features/profile/FriendCodePage";
-import { createDirectChat } from "../../shared/api/chatRoom";
+import { createDirectChat } from "../../features/chat/api/chatRoom";
 import { useNavigate } from "react-router-dom";
 import TabContainer from "../../shared/ui/TabContainer";
 import TabHeader from "../../shared/ui/TabHeader";

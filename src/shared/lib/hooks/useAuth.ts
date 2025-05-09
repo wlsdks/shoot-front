@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { login, signup, loginCheckApi } from '../../api/auth';
-import { User } from '../../api/auth';
+import { login, signup, loginCheckApi, User } from '../../../features/auth/api';
 import { useAuth as useAuthContext } from '../context/AuthContext';
 
 export const useAuth = () => {

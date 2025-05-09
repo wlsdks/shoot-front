@@ -1,6 +1,6 @@
-import api from "./api";
-import { ApiResponse } from './api';
-import { extractData } from '../lib/apiUtils';
+import api from "../../../shared/api/api";
+import { ApiResponse } from '../../../shared/api/api';
+import { extractData } from '../../../shared/lib/apiUtils';
 
 // 내 코드 생성 및 수정
 export const createMyCode = async (userId: number, code: string) => {

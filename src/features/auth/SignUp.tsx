@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { signup } from '../../shared/api/auth';
+import { Link } from 'react-router-dom';
+import { signup } from '../../features/auth/api';
 import {
   PageWrapper,
   MobileContainer,
@@ -12,10 +12,7 @@ import {
   Label,
   Input,
   Button,
-  ErrorMessage,
-  SuccessMessage,
-  LinkContainer,
-  StyledLink
+  ErrorMessage
 } from '../../shared/ui/auth/common';
 import styled from 'styled-components';
 
@@ -228,9 +225,7 @@ const LoginButton = styled(Link)`
   }
 `;
 
-const SignUp: React.FC = () => {
-  const navigate = useNavigate();
-  
+const SignUp: React.FC = () => {  
   const [username, setUsername] = useState('');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');

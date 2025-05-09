@@ -1,6 +1,6 @@
 import React from 'react';
 import { FriendListModal } from './FriendListModal';
-import { forwardMessageToUser } from '../../../shared/api/message';
+import { forwardMessageToUser } from '../api/message';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
 
 interface ForwardMessageModalProps {

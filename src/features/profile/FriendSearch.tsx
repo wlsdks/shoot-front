@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
-import { searchFriends } from "../../shared/api/friends";
+import { searchFriends } from "../../features/social/api/friends";
 import { useAuth } from "../../shared/lib/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 

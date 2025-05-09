@@ -1,6 +1,6 @@
-import api from "./api";
-import { ApiResponse } from './api';
-import { extractData } from '../lib/apiUtils';
+import api from "../../../shared/api/api";
+import { ApiResponse } from '../../../shared/api/api';
+import { extractData } from '../../../shared/lib/apiUtils';
 
 /**
  * 채팅방 목록 조회 API

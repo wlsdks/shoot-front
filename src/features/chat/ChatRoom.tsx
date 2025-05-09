@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/lib/context/AuthContext";
-import { pinMessage, unpinMessage, getPinnedMessages } from "../../shared/api/message";
-import { markAllMessagesAsRead } from "../../shared/api/chatRoom";
-import { createWebSocketService, resetWebSocketService } from "../../shared/api/websocket/index";
-import { MessageStatusUpdate } from "../../shared/api/websocket/types";
+import { pinMessage, unpinMessage, getPinnedMessages } from "./api/message";
+import { markAllMessagesAsRead } from "./api/chatRoom";
+import { createWebSocketService, resetWebSocketService } from "./api/websocket/index";
+import { MessageStatusUpdate } from "./api/websocket/types";
 import { SmileOutlined } from '@ant-design/icons';
-import { messageReactionService, ReactionType } from '../../shared/api/messageReaction';
+import { messageReactionService, ReactionType } from './api/messageReaction';
 import { Button } from 'antd';
 
 // 스타일 임포트

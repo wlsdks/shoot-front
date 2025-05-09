@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getChatRooms, updateChatRoomFavorite } from '../../api/chatRoom';
+import { getChatRooms, updateChatRoomFavorite } from '../../../features/chat/api/chatRoom';
 
 export const useChatRooms = (userId: number) => {
     const queryClient = useQueryClient();

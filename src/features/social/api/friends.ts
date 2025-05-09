@@ -1,6 +1,6 @@
-import api from "./api";
-import { ApiResponse } from './api';
-import { extractData } from '../lib/apiUtils';
+import api from "../../../shared/api/api";
+import { ApiResponse } from '../../../shared/api/api';
+import { extractData } from '../../../shared/lib/apiUtils';
 import { FriendResponse } from '../types/friend.types';
 
 // 친구 목록 가져오기

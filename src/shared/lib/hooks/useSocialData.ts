@@ -5,10 +5,11 @@ import {
     getOutgoingRequests,
     getRecommendations,
     sendFriendRequest,
+    rejectFriendRequest,
     acceptFriendRequest,
     cancelFriendRequest,
-} from '../../api/friends';
-import { Friend, FriendResponse } from '../../types/friend.types';
+} from '../../../features/social/api/friends';
+import { Friend, FriendResponse } from '../../../features/social/types/friend.types';
 
 // API 응답을 Friend 타입으로 변환하는 함수
 const convertToFriend = (response: FriendResponse): Friend => ({

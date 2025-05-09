@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import axios from "axios";
 import api from "../../api/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { refreshTokenApi, loginCheckApi } from "../../api/auth";
-import { updateUserStatus } from '../../api/profile';
+import { refreshTokenApi, loginCheckApi } from "../../../features/auth/api";
+import { updateUserStatus } from '../../../features/profile/api/profile';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface User {

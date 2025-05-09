@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../../shared/lib/context/AuthContext';
-import { createMyCode, deleteMyCode, getMyCode } from '../../shared/api/userCode';
+import { createMyCode, deleteMyCode, getMyCode } from './api/userCode';
 import { commonColors, commonShadows, commonBorderRadius } from '../../shared/ui/commonStyles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 

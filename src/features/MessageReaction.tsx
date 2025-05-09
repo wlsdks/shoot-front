@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Space } from 'antd';
 import { SmileOutlined } from '@ant-design/icons';
-import { ReactionType, messageReactionService } from '../shared/api/messageReaction';
+import { ReactionType, messageReactionService } from '../features/chat/api/messageReaction';
 
 interface MessageReactionProps {
   messageId: string;

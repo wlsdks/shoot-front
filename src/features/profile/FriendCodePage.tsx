@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { createMyCode, sendFriendRequestByCode, findUserByCode } from "../../shared/api/userCode";
+import { createMyCode, sendFriendRequestByCode, findUserByCode } from "./api/userCode";
 import { useAuth } from "../../shared/lib/context/AuthContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
