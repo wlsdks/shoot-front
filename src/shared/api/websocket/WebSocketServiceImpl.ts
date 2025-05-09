@@ -1,7 +1,7 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate } from "./types";
-import { ChatMessageItem, MessageStatus } from "../../../features/chat/types/ChatRoom.types";
+import { ChatMessageItem, MessageStatus } from "../../../features/chat/model/types/ChatRoom.types";
 
 export class WebSocketServiceImpl implements WebSocketService {
     private client: Client | null = null;

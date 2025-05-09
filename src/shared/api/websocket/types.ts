@@ -1,4 +1,4 @@
-import { ChatMessageItem } from "../../../features/chat/types/ChatRoom.types";
+import { ChatMessageItem } from "../../../features/chat/model/types/ChatRoom.types";
 
 // types.ts 파일을 수정합니다
 export interface WebSocketService {

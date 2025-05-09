@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
-import { ChatMessageItem, MessageStatus } from '../types/ChatRoom.types';
-import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../styles/ChatRoom.styles';
+import { ChatMessageItem, MessageStatus } from '../model/types/ChatRoom.types';
+import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../ui/styles/ChatRoom.styles';
 
 const ReactionEmoji = styled.div<{ $isOwnMessage: boolean }>`
   position: absolute;

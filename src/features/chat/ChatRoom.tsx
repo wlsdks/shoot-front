@@ -26,7 +26,7 @@ import {
     ErrorMessage,
     ContextMenu,
     ContextMenuItem
-} from './styles/ChatRoom.styles';
+} from './ui/styles/ChatRoom.styles';
 
 // 타입 임포트
 import {
@@ -34,20 +34,20 @@ import {
     ChatMessageItem,
     TypingIndicatorMessage,
     ChatRoomProps
-} from './types/ChatRoom.types';
+} from './model/types/ChatRoom.types';
 
 // 커스텀 훅 임포트
-import { useMessageState } from './hooks/useMessageState';
-import { useTypingState } from './hooks/useTypingState';
-import { useScrollManager } from './hooks/useScrollManager';
-import { useTypingHandlers } from './hooks/useTypingHandlers';
-import { useContextMenu } from './hooks/useContextMenu';
+import { useMessageState } from './model/useMessageState';
+import { useTypingState } from './model/useTypingState';
+import { useScrollManager } from './model/useScrollManager';
+import { useTypingHandlers } from './model/useTypingHandlers';
+import { useContextMenu } from './model/useContextMenu';
 
 // 컴포넌트 임포트
-import { MessageRow } from './components/MessageRow';
-import { UrlPreview } from './components/UrlPreview';
-import { PinnedMessages } from './components/PinnedMessages';
-import { ForwardMessageModal } from './components/ForwardMessageModal';
+import { MessageRow } from './ui/MessageRow';
+import { UrlPreview } from './ui/UrlPreview';
+import { PinnedMessages } from './ui/PinnedMessages';
+import { ForwardMessageModal } from './ui/ForwardMessageModal';
 
 // 아이콘 컴포넌트 임포트
 import {
@@ -56,10 +56,10 @@ import {
     ForwardIcon,
     ErrorIcon,
     PinIcon
-} from './components/icons';
+} from './ui/icons';
 
 // 유틸리티 임포트
-import { formatTime } from './utils/timeUtils';
+import { formatTime } from './lib/timeUtils';
 
 const ChatRoom = ({ socket }: ChatRoomProps) => {
     const { user } = useAuth();

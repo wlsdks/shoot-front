@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChatMessageItem } from '../types/ChatRoom.types';
+import { ChatMessageItem } from '../model/types/ChatRoom.types';
 import {
     UrlPreviewContainer,
     PreviewImage,
@@ -7,7 +7,7 @@ import {
     PreviewSite,
     PreviewTitle,
     PreviewDescription
-} from '../styles/ChatRoom.styles';
+} from '../ui/styles/ChatRoom.styles';
 
 interface UrlPreviewProps {
     message: ChatMessageItem;

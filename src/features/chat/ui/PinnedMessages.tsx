@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChatMessageItem } from '../types/ChatRoom.types';
+import { ChatMessageItem } from '../model/types/ChatRoom.types';
 import {
     PinnedMessagesContainer,
     PinnedMessagesHeader,
@@ -11,7 +11,7 @@ import {
     PinnedMessageContent,
     PinnedMessageSender,
     UnpinButton
-} from '../styles/ChatRoom.styles';
+} from '../ui/styles/ChatRoom.styles';
 import { PinIcon, ChevronDownIcon } from './icons';
 
 interface PinnedMessagesProps {

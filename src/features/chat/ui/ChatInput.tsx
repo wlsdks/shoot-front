@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatInputContainer, Input, SendButton } from '../styles/ChatRoom.styles';
+import { ChatInputContainer, Input, SendButton } from '../ui/styles/ChatRoom.styles';
 import { SendIcon } from './icons';
 
 interface ChatInputProps {
