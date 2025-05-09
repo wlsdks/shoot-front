@@ -4,15 +4,15 @@ import React from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { AuthProvider } from '../shared/lib/context/AuthContext';
-import Login from '../pages/auth/Login';
-import Signup from '../pages/auth/SignUp';
-import FindId from '../pages/auth/FindId';
-import FindPassword from '../pages/auth/FindPassword';
+import Login from '../features/auth/Login';
+import Signup from '../features/auth/SignUp';
+import FindId from '../features/auth/FindId';
+import FindPassword from '../features/auth/FindPassword';
 import BottomNavLayout from '../widgets/layout/BottomNavLayout';
 import PrivateRoute from '../features/PrivateRoute';
-import FriendCodePage from '../pages/profile/FriendCodePage';
-import ChatRoom from '../pages/chat/ChatRoom';
-import EditProfile from '../pages/profile/EditProfile';
+import FriendCodePage from '../features/profile/FriendCodePage';
+import ChatRoom from '../features/chat/ChatRoom';
+import EditProfile from '../features/profile/EditProfile';
 import { theme } from './styles/theme';
 
 // FriendCodePage를 위한 래퍼 컴포넌트

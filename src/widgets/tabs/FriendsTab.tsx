@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../shared/lib/context/AuthContext";
 import { useFriends } from "../../shared/lib/hooks/useFriends";
-import FriendSearch from "../../pages/profile/FriendSearch";
-import FriendCodePage from "../../pages/profile/FriendCodePage";
+import FriendSearch from "../../features/profile/FriendSearch";
+import FriendCodePage from "../../features/profile/FriendCodePage";
 import { createDirectChat } from "../../shared/api/chatRoom";
 import { useNavigate } from "react-router-dom";
 import TabContainer from "../../shared/ui/TabContainer";

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../shared/lib/context/AuthContext';
-import EditProfile from '../../pages/profile/EditProfile';
-import UserCodeSettings from '../../pages/profile/UserCodeSettings';
+import EditProfile from '../../features/profile/EditProfile';
+import UserCodeSettings from '../../features/profile/UserCodeSettings';
 import {
     TabContainer,
     Header,
