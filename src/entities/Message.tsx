@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageReaction } from '../features/MessageReaction';
+import { MessageReaction } from '../features/message-reaction/ui/MessageReaction';
 
 interface MessageProps {
   id: string;
@@ -27,8 +27,8 @@ export const Message: React.FC<MessageProps> = ({
         <span className="message-time">{new Date(timestamp).toLocaleTimeString()}</span>
         <MessageReaction
           messageId={id}
+          userId={currentUserId}
           reactions={reactions}
-          currentUserId={currentUserId}
           onReactionUpdate={(newReactions) => onReactionUpdate(id, newReactions)}
         />
       </div>
