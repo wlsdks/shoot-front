@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useAuth } from "../../shared/lib/context/AuthContext";
 import { useSocialData } from "../../shared/lib/hooks/useSocialData";
-import TabContainer from "../../components/common/TabContainer";
-import TabHeader from "../../components/common/TabHeader";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
-import EmptyState from "../../components/common/EmptyState";
-import Icon from "../../components/common/Icon";
+import TabContainer from "../../shared/ui/TabContainer";
+import TabHeader from "../../shared/ui/TabHeader";
+import LoadingSpinner from "../../shared/ui/LoadingSpinner";
+import EmptyState from "../../shared/ui/EmptyState";
+import Icon from "../../shared/ui/Icon";
 import SocialItem from "../../widgets/social/SocialItem";
 import {
     TabContent,

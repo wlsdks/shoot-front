@@ -3,11 +3,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from '../../shared/lib/context/AuthContext';
 import { useChatRooms } from '../../shared/lib/hooks/useChatRooms';
 import { ChatRoom } from '../../shared/types/chat.types';
-import TabContainer from '../../components/common/TabContainer';
-import TabHeader from '../../components/common/TabHeader';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import EmptyState from '../../components/common/EmptyState';
-import Icon from '../../components/common/Icon';
+import TabContainer from '../../shared/ui/TabContainer';
+import TabHeader from '../../shared/ui/TabHeader';
+import LoadingSpinner from '../../shared/ui/LoadingSpinner';
+import EmptyState from '../../shared/ui/EmptyState';
+import Icon from '../../shared/ui/Icon';
 import ChatRoomItem from '../../widgets/chat/ChatRoomItem';
 import {
     TabContent,

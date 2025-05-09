@@ -5,11 +5,11 @@ import FriendSearch from "../../pages/profile/FriendSearch";
 import FriendCodePage from "../../pages/profile/FriendCodePage";
 import { createDirectChat } from "../../shared/api/chatRoom";
 import { useNavigate } from "react-router-dom";
-import TabContainer from "../../components/common/TabContainer";
-import TabHeader from "../../components/common/TabHeader";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
-import EmptyState from "../../components/common/EmptyState";
-import Icon from "../../components/common/Icon";
+import TabContainer from "../../shared/ui/TabContainer";
+import TabHeader from "../../shared/ui/TabHeader";
+import LoadingSpinner from "../../shared/ui/LoadingSpinner";
+import EmptyState from "../../shared/ui/EmptyState";
+import Icon from "../../shared/ui/Icon";
 import { FriendItem } from "../../entities/friend/FriendItem";
 import {
     TabContent,
