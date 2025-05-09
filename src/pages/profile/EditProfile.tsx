@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
 import { updateProfile, uploadProfileImage, changePassword } from '../../services/profile';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // 애니메이션 정의
 const fadeIn = keyframes`
@@ -211,6 +212,7 @@ interface EditProfileProps {
 const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
   const { user, fetchCurrentUser } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
   // 프로필 정보 상태
   const [nickname, setNickname] = useState('');
@@ -225,10 +227,57 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // 유효성 검사 및 상태 메시지
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // 프로필 업데이트 mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { nickname: string; bio: string }) => {
+      if (!user) throw new Error('사용자 정보가 없습니다.');
+      return updateProfile(user.id, { nickname: data.nickname, bio: data.bio });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', user?.id] });
+      fetchCurrentUser();
+    },
+    onError: (error: any) => {
+      setError(error.message || '프로필 업데이트에 실패했습니다.');
+    }
+  });
+
+  // 프로필 이미지 업로드 mutation
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!user) throw new Error('사용자 정보가 없습니다.');
+      const formData = new FormData();
+      formData.append('image', file);
+      return uploadProfileImage(formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', user?.id] });
+      fetchCurrentUser();
+    },
+    onError: (error: any) => {
+      setError(error.message || '이미지 업로드에 실패했습니다.');
+    }
+  });
+
+  // 비밀번호 변경 mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      if (!user) throw new Error('사용자 정보가 없습니다.');
+      return changePassword(data.currentPassword, data.newPassword);
+    },
+    onSuccess: () => {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordSection(false);
+    },
+    onError: (error: any) => {
+      setPasswordError(error.message || '비밀번호 변경에 실패했습니다.');
+    }
+  });
   
   // 초기 사용자 정보 로드
   useEffect(() => {
@@ -250,127 +299,57 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
         return;
       }
       
-      // 파일 타입 체크
-      if (!file.type.match('image/*')) {
+      // 이미지 파일 타입 체크
+      if (!file.type.startsWith('image/')) {
         setError('이미지 파일만 업로드 가능합니다.');
         return;
       }
       
-      // 미리보기 URL 생성
+      setImageFile(file);
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && typeof event.target.result === 'string') {
-          setProfileImage(event.target.result);
-        }
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string);
       };
       reader.readAsDataURL(file);
-      
-      setImageFile(file);
-      setError(null);
     }
   };
-  
-  // 비밀번호 유효성 검사
-  const validatePassword = useCallback(() => {
-    if (newPassword !== confirmPassword) {
-      setPasswordError('새 비밀번호가 일치하지 않습니다.');
-      return false;
-    }
-    
-    if (newPassword.length < 8) {
-      setPasswordError('비밀번호는 8자 이상이어야 합니다.');
-      return false;
-    }
-    
-    setPasswordError(null);
-    return true;
-  }, [newPassword, confirmPassword]);
-  
-  // 비밀번호 입력 필드 변경 시 유효성 검사
-  useEffect(() => {
-    if (newPassword || confirmPassword) {
-      validatePassword();
-    }
-  }, [newPassword, confirmPassword, validatePassword]);
   
   // 폼 제출 핸들러
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
-    setLoading(true);
+    
+    if (!user) {
+      setError('사용자 정보가 없습니다.');
+      return;
+    }
     
     try {
-      // 1. 이미지 업로드 (변경된 경우)
-      let imageUrl = user?.profileImageUrl;
-      
+      // 프로필 이미지 업로드
       if (imageFile) {
-        const formData = new FormData();
-        formData.append('image', imageFile);
-        
-        try {
-          const response = await uploadProfileImage(formData);
-          // 응답 구조 변경: response.data.data에서 이미지 URL 추출
-          if (response.data.success && response.data.data) {
-            imageUrl = response.data.data.imageUrl;
-          } else {
-            throw new Error(response.data.message || '이미지 업로드에 실패했습니다.');
-          }
-        } catch (error) {
-          console.error('이미지 업로드 실패', error);
-          setError('이미지 업로드에 실패했습니다.');
-          setLoading(false);
-          return;
-        }
+        await uploadImageMutation.mutateAsync(imageFile);
       }
       
-      // 2. 프로필 정보 업데이트
-      if (user?.id) {
-        await updateProfile(user.id, {
-          nickname,
-          bio,
-          profileImageUrl: imageUrl
+      // 프로필 정보 업데이트
+      await updateProfileMutation.mutateAsync({ nickname, bio });
+      
+      // 비밀번호 변경
+      if (showPasswordSection && newPassword) {
+        if (newPassword !== confirmPassword) {
+          setPasswordError('새 비밀번호가 일치하지 않습니다.');
+          return;
+        }
+        await changePasswordMutation.mutateAsync({
+          currentPassword,
+          newPassword
         });
       }
       
-      // 3. 비밀번호 변경 (입력된 경우)
-      if (showPasswordSection && currentPassword && newPassword) {
-        if (!validatePassword()) {
-          setLoading(false);
-          return;
-        }
-        
-        try {
-          await changePassword(currentPassword, newPassword);
-          
-          // 비밀번호 필드 초기화
-          setCurrentPassword('');
-          setNewPassword('');
-          setConfirmPassword('');
-          setShowPasswordSection(false);
-        } catch (error) {
-          console.error('비밀번호 변경 실패', error);
-          setPasswordError('현재 비밀번호가 올바르지 않습니다.');
-          setLoading(false);
-          return;
-        }
+      if (onClose) {
+        onClose();
       }
-      
-      // 4. 사용자 정보 새로고침
-      await fetchCurrentUser();
-      
-      setSuccess('프로필이 성공적으로 업데이트되었습니다.');
-      setTimeout(() => {
-        setSuccess(null);
-        if (onClose) {
-          onClose(); // 성공 후 선택적으로 프로필 수정 화면 닫기
-        }
-      }, 1500);
-    } catch (error) {
-      console.error('프로필 업데이트 실패', error);
-      setError('프로필 업데이트에 실패했습니다.');
-    } finally {
-      setLoading(false);
+    } catch (err: any) {
+      setError(err.message || '프로필 업데이트에 실패했습니다.');
     }
   };
   
@@ -498,13 +477,10 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
       </PasswordToggle>
       
       {error && <ErrorMessage>{error}</ErrorMessage>}
-      {success && <SuccessMessage>{success}</SuccessMessage>}
       
       <ButtonGroup>
         <Button type="button" onClick={handleCancel}>취소</Button>
-        <Button type="submit" $primary disabled={loading}>
-          {loading ? '저장 중...' : '저장하기'}
-        </Button>
+        <Button type="submit" $primary>저장하기</Button>
       </ButtonGroup>
     </Form>
   );

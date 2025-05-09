@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
 import { searchFriends } from "../../services/friends";
 import { useAuth } from "../../context/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 
 // Friend 인터페이스 정의
 interface Friend {
@@ -90,41 +91,17 @@ const CloseButton = styled.button`
 const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
     const { user } = useAuth();
     const [query, setQuery] = useState("");
-    const [results, setResults] = useState<Friend[]>([]);
-    const [loading, setLoading] = useState(false);
 
-    // 검색
-    const performSearch = useCallback(async () => {
-        if (!user) {
-            console.error("로그인 정보가 없습니다.");
-            return;
-        }
-    
-        setLoading(true);
-    
-        try {
-            const results = await searchFriends(user.id, query);
-            setResults(results);
-        } catch (error) {
-            console.error("검색 실패:", error);
-            setResults([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [user, query]);
-
-    // 디바운스 효과: query가 변경되면 200ms 후에 API 호출
-    useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            if (query.trim() !== "") {
-                performSearch();
-            } else {
-                setResults([]);
-            }
-        }, 100);
-        
-        return () => clearTimeout(delayDebounceFn);
-    }, [query, performSearch]);
+    // 친구 검색 쿼리
+    const { data: results = [], isLoading } = useQuery({
+        queryKey: ['friends', 'search', query],
+        queryFn: async () => {
+            if (!user || !query.trim()) return [];
+            return searchFriends(user.id, query);
+        },
+        enabled: !!user && query.trim() !== "",
+        staleTime: 1000 * 60, // 1분 동안 캐시 유지
+    });
 
     return (
         <SearchContainer>
@@ -135,8 +112,8 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
             />
-            {loading && <LoadingMessage>검색 중...</LoadingMessage>}
-            {query.trim() !== "" && !loading && results.length === 0 && (
+            {isLoading && <LoadingMessage>검색 중...</LoadingMessage>}
+            {query.trim() !== "" && !isLoading && results.length === 0 && (
                 <NoResultsMessage>검색된 유저가 없습니다.</NoResultsMessage>
             )}
             {results.length > 0 && (

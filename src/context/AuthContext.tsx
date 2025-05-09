@@ -2,9 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import axios from "axios";
 import api from "../services/api";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { refreshTokenApi, fetchUserInfo } from "../services/auth";
+import { refreshTokenApi, loginCheckApi } from "../services/auth";
 import { updateUserStatus } from '../services/profile';
-import { extractData } from '../utils/apiUtils';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface User {
     id: number;
@@ -21,12 +21,12 @@ interface AuthContextType {
     loading: boolean;
     login: (user: User, token: string, refreshToken?: string) => void;
     logout: () => void;
-    deleteUser: () => Promise<void>;
-    updateStatus: (status: string) => Promise<void>;
+    deleteUser: () => void;
+    updateStatus: (status: string) => void;
     subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
     reconnectSse: () => void;
-    fetchCurrentUser: () => Promise<User | undefined>;
+    fetchCurrentUser: () => void;
 }
 
 interface AuthProviderProps {
@@ -39,12 +39,12 @@ const AuthContext = createContext<AuthContextType>({
     loading: false,
     login: () => {},
     logout: () => {},
-    deleteUser: async () => {},
-    updateStatus: async () => {},
+    deleteUser: () => {},
+    updateStatus: () => {},
     subscribeToSse: () => {},
     unsubscribeFromSse: () => {},
     reconnectSse: () => {},
-    fetchCurrentUser: async () => undefined,
+    fetchCurrentUser: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -57,25 +57,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
     const connectionAttemptCount = useRef<number>(0);
     const reconnectTimeout = useRef<NodeJS.Timeout>();
+    const queryClient = useQueryClient();
 
-    const fetchCurrentUser = useCallback(async (): Promise<User | undefined> => {
-        const token = localStorage.getItem("accessToken");
-        if (!token) return undefined;
-        
-        try {
-            const userData = await fetchUserInfo();
-            setUser(userData);
-            if (!isAuthenticated) {
-                setIsAuthenticated(true);
+    // 현재 사용자 정보 조회 쿼리
+    const { data: currentUser, isLoading: isLoadingUser } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: async () => {
+            const token = localStorage.getItem("accessToken");
+            if (!token) return undefined;
+            
+            try {
+                const userData = await loginCheckApi();
+                setUser(userData);
+                if (!isAuthenticated) {
+                    setIsAuthenticated(true);
+                }
+                return userData;
+            } catch (error) {
+                if (axios.isAxiosError(error) && error.response?.status !== 401) {
+                    throw error;
+                }
+                return undefined;
             }
-            return userData;
-        } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.status !== 401) {
-                throw error;
-            }
-            return undefined;
-        }
-    }, [isAuthenticated]);
+        },
+        enabled: !!localStorage.getItem("accessToken"),
+    });
+
+    // 사용자 삭제 mutation
+    const deleteUserMutation = useMutation({
+        mutationFn: async () => {
+            await api.delete("/api/v1/users/me");
+        },
+        onSuccess: () => {
+            logout();
+        },
+    });
+
+    // 사용자 상태 업데이트 mutation
+    const updateStatusMutation = useMutation({
+        mutationFn: async (status: string) => {
+            if (!user) throw new Error("사용자 정보가 없습니다.");
+            return updateUserStatus(user.id, status);
+        },
+        onSuccess: (_, status) => {
+            setUser(prev => prev ? { ...prev, status } : null);
+            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+        },
+    });
 
     const establishSseConnection = useCallback((u: User, token: string) => {
         if (sseSource.current) {
@@ -204,31 +232,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsAuthenticated(false);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        localStorage.removeItem("activeTab");
         delete axios.defaults.headers.common["Authorization"];
         listeners.current.clear();
     }, []);
-
-    const deleteUser = async () => {
-        try {
-            await api.delete("/api/v1/users/me");
-            logout();
-        } catch (error) {
-            console.error("Failed to delete user:", error);
-            throw error;
-        }
-    };
-
-    const updateStatus = async (status: string) => {
-        if (!user) return;
-        
-        try {
-            await updateUserStatus(user.id, status);
-            setUser(prev => prev ? { ...prev, status } : null);
-        } catch (error) {
-            console.error("Failed to update status:", error);
-            throw error;
-        }
-    };
 
     const subscribeToSse = (eventName: string, callback: (event: MessageEvent) => void) => {
         const eventListeners = listeners.current.get(eventName) || new Set();
@@ -247,13 +254,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     useEffect(() => {
-        const token = localStorage.getItem("accessToken");
-        if (token) {
-            fetchCurrentUser().finally(() => setLoading(false));
-        } else {
+        if (!isLoadingUser) {
             setLoading(false);
         }
-    }, [fetchCurrentUser]);
+    }, [isLoadingUser]);
 
     useEffect(() => {
         const interceptor = api.interceptors.response.use(
@@ -307,12 +311,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             loading,
             login,
             logout,
-            deleteUser,
-            updateStatus,
+            deleteUser: () => deleteUserMutation.mutate(),
+            updateStatus: (status: string) => updateStatusMutation.mutate(status),
             subscribeToSse,
             unsubscribeFromSse,
             reconnectSse,
-            fetchCurrentUser,
+            fetchCurrentUser: () => queryClient.invalidateQueries({ queryKey: ['currentUser'] }),
         }}>
             {children}
         </AuthContext.Provider>
