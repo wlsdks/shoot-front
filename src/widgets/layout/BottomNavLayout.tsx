@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import FriendTab from "../../features/social/ui/FriendsTab";
 import SocialTab from "../../features/social/ui/SocialTab";
-import ChatTab from "../../features/chat/ui/ChatRoomListTab";
+import ChatTab from "../../features/chat-room/ui/ChatRoomListTab";
 import SettingsTab from "../../features/settings/ui/SettingsTab";
 
 const Container = styled.div`

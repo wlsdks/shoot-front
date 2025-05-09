@@ -1,5 +1,5 @@
 import React from 'react';
-import { FriendListModal } from './FriendListModal';
+import { FriendListModal } from '../../chat-room/ui/FriendListModal';
 import { forwardMessageToUser } from '../api/message';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
 

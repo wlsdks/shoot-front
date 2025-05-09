@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/lib/context/AuthContext";
-import { pinMessage, unpinMessage, getPinnedMessages } from "./api/message";
+import { pinMessage, unpinMessage, getPinnedMessages } from "../message/api/message";
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService, resetWebSocketService } from "./api/websocket/index";
 import { MessageStatusUpdate } from "./api/websocket/types";
 import { SmileOutlined } from '@ant-design/icons';
-import { messageReactionService, ReactionType } from './api/messageReaction';
+import { messageReactionService, ReactionType } from '../message/api/messageReaction';
 import { Button } from 'antd';
 
 // 스타일 임포트
@@ -26,7 +26,7 @@ import {
     ErrorMessage,
     ContextMenu,
     ContextMenuItem
-} from './ui/styles/ChatRoom.styles';
+} from '../message/ui/styles/ChatRoom.styles';
 
 // 타입 임포트
 import {
@@ -34,20 +34,20 @@ import {
     ChatMessageItem,
     TypingIndicatorMessage,
     ChatRoomProps
-} from './model/types/ChatRoom.types';
+} from '../message/model/types/ChatRoom.types';
 
 // 커스텀 훅 임포트
-import { useMessageState } from './model/useMessageState';
-import { useTypingState } from './model/useTypingState';
-import { useScrollManager } from './model/useScrollManager';
-import { useTypingHandlers } from './model/useTypingHandlers';
-import { useContextMenu } from './model/useContextMenu';
+import { useMessageState } from '../message/model/useMessageState';
+import { useTypingState } from '../message/model/useTypingState';
+import { useScrollManager } from '../message/model/useScrollManager';
+import { useTypingHandlers } from '../message/model/useTypingHandlers';
+import { useContextMenu } from '../message/model/useContextMenu';
 
 // 컴포넌트 임포트
-import { MessageRow } from './ui/MessageRow';
-import { UrlPreview } from './ui/UrlPreview';
-import { PinnedMessages } from './ui/PinnedMessages';
-import { ForwardMessageModal } from './ui/ForwardMessageModal';
+import { MessageRow } from '../message/ui/MessageRow';
+import { UrlPreview } from '../message/ui/UrlPreview';
+import { PinnedMessages } from '../message/ui/PinnedMessages';
+import { ForwardMessageModal } from '../message/ui/ForwardMessageModal';
 
 // 아이콘 컴포넌트 임포트
 import {
@@ -56,10 +56,10 @@ import {
     ForwardIcon,
     ErrorIcon,
     PinIcon
-} from './ui/icons';
+} from '../message/ui/icons';
 
 // 유틸리티 임포트
-import { formatTime } from './lib/timeUtils';
+import { formatTime } from '../message/lib/timeUtils';
 
 const ChatRoom = ({ roomId }: { roomId: string }) => {
     const { user } = useAuth();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { ChatRoom } from '../model/types/ChatRoom.types';
+import { ChatRoom } from '../../message/model/types/ChatRoom.types';
 
 interface ChatRoomItemProps {
     room: ChatRoom;

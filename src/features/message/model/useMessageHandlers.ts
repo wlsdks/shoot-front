@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ChatMessageItem, MessageStatus } from './types/ChatRoom.types';
-import { WebSocketService } from '../api/websocket/types';
+import { WebSocketService } from '../../chat-room/api/websocket/types';
 
 interface UseMessageHandlersProps {
     webSocketService: React.MutableRefObject<WebSocketService>;

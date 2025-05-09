@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { WebSocketService } from '../api/websocket/types';
-import { TypingIndicatorMessage } from '../api/websocket/types';
+import { WebSocketService } from '../../chat-room/api/websocket/types';
+import { TypingIndicatorMessage } from '../../chat-room/api/websocket/types';
 
 interface UseTypingHandlersProps {
     webSocketService: React.MutableRefObject<WebSocketService>;
