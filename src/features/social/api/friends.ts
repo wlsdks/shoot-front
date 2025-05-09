@@ -1,7 +1,7 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
-import { FriendResponse } from '../types/friend.types';
+import { FriendResponse } from '../model/types/friend.types';
 
 // 친구 목록 가져오기
 export const getFriends = async (userId: number): Promise<FriendResponse[]> => { // userId 타입 변경
