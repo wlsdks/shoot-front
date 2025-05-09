@@ -232,6 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsAuthenticated(false);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        localStorage.removeItem("activeTab");
         delete axios.defaults.headers.common["Authorization"];
         listeners.current.clear();
     }, []);

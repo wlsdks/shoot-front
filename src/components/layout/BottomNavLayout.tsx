@@ -67,13 +67,31 @@ const ButtonLabel = styled.span`
 `;
 
 const BottomNavLayout: React.FC = () => {
-    // 초기 activeTab을 0(친구 탭)으로 설정
-    const [activeTab, setActiveTab] = useState<number>(0);
+    // 초기 activeTab을 로컬 스토리지에서 가져오거나 기본값 0으로 설정
+    const [activeTab, setActiveTab] = useState<number>(() => {
+        const savedTab = localStorage.getItem("activeTab");
+        return savedTab ? parseInt(savedTab) : 0;
+    });
 
     // activeTab이 변경될 때마다 로컬 스토리지에 저장
     useEffect(() => {
         localStorage.setItem("activeTab", activeTab.toString());
     }, [activeTab]);
+
+    // 브라우저 뒤로가기/앞으로가기 처리
+    useEffect(() => {
+        const handlePopState = () => {
+            const savedTab = localStorage.getItem("activeTab");
+            if (savedTab) {
+                setActiveTab(parseInt(savedTab));
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, []);
 
     return (
         <Container>
