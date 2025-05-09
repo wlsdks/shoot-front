@@ -10,7 +10,7 @@ import {
   Input,
   Button,
   ErrorMessage
-} from '../../shared/ui/auth/common';
+} from './ui/common';
 import styled from 'styled-components';
 
 const LoginContent = styled.div`

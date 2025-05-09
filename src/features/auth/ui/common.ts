@@ -1,18 +1,16 @@
 import styled, { keyframes } from 'styled-components';
 import { Link } from 'react-router-dom';
 
-// 애니메이션 정의
 export const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 `;
 
-export const slideIn = keyframes`
-  from { transform: translateX(50px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-`;
-
-// 페이지 전체를 고정시키는 컨테이너
+// 인증 페이지 전체를 고정시키는 컨테이너
 export const PageWrapper = styled.div`
   position: fixed;
   top: 0;
@@ -42,8 +40,8 @@ export const MobileContainer = styled.div`
   overflow: hidden;
 `;
 
-// 헤더 영역
-export const Header = styled.div`
+// 인증 헤더 영역
+export const AuthHeader = styled.div`
   padding: 16px;
   display: flex;
   align-items: center;
@@ -65,13 +63,59 @@ export const BackButton = styled(Link)`
   }
 `;
 
-export const Title = styled.h1`
+export const AuthTitle = styled.h1`
   font-size: 1.25rem;
   color: #333;
   margin: 0;
   flex: 1;
   text-align: center;
   font-weight: 600;
+`;
+
+// 인증 메시지 관련 스타일
+export const AuthErrorMessage = styled.div`
+  color: #e53935;
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.9rem;
+  background-color: rgba(229, 57, 53, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+export const AuthSuccessMessage = styled.div`
+  color: #28a745;
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.9rem;
+  background-color: rgba(40, 167, 69, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+`;
+
+// 인증 링크 관련 스타일
+export const AuthLinkContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+`;
+
+export const AuthLink = styled(Link)`
+  color: #007bff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 // 폼 관련 스타일
@@ -138,7 +182,6 @@ export const Button = styled.button`
   }
 `;
 
-// 메시지 관련 스타일
 export const ErrorMessage = styled.div`
   color: #e53935;
   text-align: center;
@@ -150,36 +193,4 @@ export const ErrorMessage = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-`;
-
-export const SuccessMessage = styled.div`
-  color: #28a745;
-  text-align: center;
-  margin-top: 16px;
-  font-size: 0.9rem;
-  background-color: rgba(40, 167, 69, 0.1);
-  padding: 12px;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-`;
-
-// 링크 관련 스타일
-export const LinkContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-`;
-
-export const StyledLink = styled(Link)`
-  color: #007bff;
-  text-decoration: none;
-  font-size: 0.9rem;
-  
-  &:hover {
-    text-decoration: underline;
-  }
 `; 

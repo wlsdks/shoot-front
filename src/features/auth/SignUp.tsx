@@ -4,16 +4,16 @@ import { signup } from '../../features/auth/api';
 import {
   PageWrapper,
   MobileContainer,
-  Header,
+  AuthHeader as Header,
   BackButton,
-  Title,
+  AuthTitle as Title,
   Form,
   InputGroup,
   Label,
   Input,
   Button,
   ErrorMessage
-} from '../../shared/ui/auth/common';
+} from './ui/common';
 import styled from 'styled-components';
 
 const ScrollContainer = styled.div`

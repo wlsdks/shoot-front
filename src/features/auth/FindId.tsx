@@ -3,19 +3,19 @@ import { Link } from 'react-router-dom';
 import {
   PageWrapper,
   MobileContainer,
-  Header,
+  AuthHeader as Header,
   BackButton,
-  Title,
+  AuthTitle as Title,
   Form,
   InputGroup,
   Label,
   Input,
   Button,
   ErrorMessage,
-  SuccessMessage,
-  LinkContainer,
-  StyledLink
-} from '../../shared/ui/auth/common';
+  AuthSuccessMessage as SuccessMessage,
+  AuthLinkContainer as LinkContainer,
+  AuthLink as StyledLink
+} from './ui/common';
 import styled from 'styled-components';
 
 const Content = styled.div`
