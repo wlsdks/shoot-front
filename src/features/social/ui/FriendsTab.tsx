@@ -10,7 +10,7 @@ import TabHeader from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Icon from "../../../shared/ui/Icon";
-import { FriendItem } from "../../../entities/friend/FriendItem";
+import { FriendItem } from "./FriendItem";
 import {
     TabContent,
     TabSection,
