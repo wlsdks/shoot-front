@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { getFriends } from '../../../features/social/api/friends';
-import { Friend, FriendResponse } from '../../../features/social/model/types/friend.types';
+import { getFriends } from '../../api/friends';
+import { Friend, FriendResponse } from '../../model/types/friend.types';
 
 // API 응답을 Friend 타입으로 변환하는 함수
 const convertToFriend = (response: FriendResponse): Friend => ({

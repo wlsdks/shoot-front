@@ -2,9 +2,9 @@ export interface Friend {
     id: number;
     name: string;
     username: string;
-    nickname: string;
+    nickname?: string;
     bio?: string;
-    profileImageUrl: string;
+    profileImageUrl?: string;
     status: string;
 }
 

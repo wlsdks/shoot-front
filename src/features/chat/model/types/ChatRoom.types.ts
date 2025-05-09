@@ -6,6 +6,17 @@ export enum MessageStatus {
     FAILED = 'FAILED'
 }
 
+export interface ChatRoom {
+    roomId: number;
+    title: string;
+    lastMessage: string | null;
+    unreadMessages: number;
+    isPinned: boolean;
+    timestamp?: string;
+    type: 'INDIVIDUAL' | 'GROUP';
+    profileImageUrl?: string;
+}
+
 // 채팅 메시지 인터페이스
 export interface ChatMessageItem {
     id: string;

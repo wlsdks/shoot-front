@@ -1,6 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Friend } from '../../shared/types/friend.types';
+import { Friend } from '../../features/social/model/types/friend.types';
 import { commonColors, commonShadows, commonBorderRadius } from '../../shared/ui/commonStyles';
 
 const fadeInUp = keyframes`

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useUserCode } from '../shared/lib/hooks/useUserCode';
+import { useUserCode } from '../features/profile/model/hooks/useUserCode';
 
 interface UserCodeManagerProps {
   userId: number;

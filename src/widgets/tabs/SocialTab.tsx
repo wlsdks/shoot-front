@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../../shared/lib/context/AuthContext";
-import { useSocialData } from "../../shared/lib/hooks/useSocialData";
+import { useSocialData } from "../../features/social/model/hooks/useSocialData";
 import TabContainer from "../../shared/ui/TabContainer";
 import TabHeader from "../../shared/ui/TabHeader";
 import LoadingSpinner from "../../shared/ui/LoadingSpinner";
