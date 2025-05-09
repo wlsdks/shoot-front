@@ -6,7 +6,7 @@ import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
 import { MessageStatusUpdate } from "./api/websocket/types";
 import { SmileOutlined } from '@ant-design/icons';
-import { messageReactionService, ReactionType } from '../message/api/messageReaction';
+import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
 import { Button } from 'antd';
 
 // 스타일 임포트

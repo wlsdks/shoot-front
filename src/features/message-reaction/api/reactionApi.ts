@@ -18,7 +18,7 @@ export interface ReactionListResponse {
   reactions: Record<string, number[]>;
 }
 
-export const reactionApi = {
+export const messageReactionService = {
   addReaction: async (messageId: string, reactionType: string): Promise<ReactionResponse> => {
     const response = await api.put<ApiResponse<ReactionResponse>>(`/messages/${messageId}/reactions`, {
       reactionType

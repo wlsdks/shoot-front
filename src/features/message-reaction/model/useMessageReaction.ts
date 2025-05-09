@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { reactionApi } from '../api/reactionApi';
+import { messageReactionService } from '../api/reactionApi';
 import { MessageReactionProps } from '../types';
 
 export const useMessageReaction = (props: MessageReactionProps) => {
@@ -8,22 +8,22 @@ export const useMessageReaction = (props: MessageReactionProps) => {
     // 리액션 목록 조회
     const { data: reactions, isLoading } = useQuery({
         queryKey: ['reactions', props.messageId],
-        queryFn: () => reactionApi.getReactions(props.messageId)
+        queryFn: () => messageReactionService.getReactions(props.messageId)
     });
 
     // 리액션 타입 조회
     const { data: reactionTypes } = useQuery({
         queryKey: ['reactionTypes'],
-        queryFn: () => reactionApi.getReactionTypes()
+        queryFn: () => messageReactionService.getReactionTypes()
     });
 
     // 리액션 추가/제거 mutation
     const reactionMutation = useMutation({
         mutationFn: async ({ reactionType, isAdding }: { reactionType: string; isAdding: boolean }) => {
         if (isAdding) {
-            return reactionApi.addReaction(props.messageId, reactionType);
+            return messageReactionService.addReaction(props.messageId, reactionType);
         } else {
-            return reactionApi.removeReaction(props.messageId, reactionType);
+            return messageReactionService.removeReaction(props.messageId, reactionType);
         }
         },
         onSuccess: () => {
