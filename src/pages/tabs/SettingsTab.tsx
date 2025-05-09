@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../shared/lib/context/AuthContext';
 import EditProfile from '../../pages/profile/EditProfile';
 import UserCodeSettings from '../../pages/profile/UserCodeSettings';
 import {
@@ -21,7 +21,7 @@ import {
     ModalText,
     ModalButtonGroup,
     ModalButton
-} from '../../styles/commonStyles';
+} from '../../shared/ui/commonStyles';
 
 // 아이콘 SVG 컴포넌트
 const IconSVG = ({ children }: { children: React.ReactNode }) => (

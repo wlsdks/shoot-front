@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from '../../context/AuthContext';
-import { useChatRooms } from '../../hooks/useChatRooms';
-import { ChatRoom } from '../../types/chat.types';
+import { useAuth } from '../../shared/lib/context/AuthContext';
+import { useChatRooms } from '../../shared/lib/hooks/useChatRooms';
+import { ChatRoom } from '../../shared/types/chat.types';
 import TabContainer from '../../components/common/TabContainer';
 import TabHeader from '../../components/common/TabHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import Icon from '../../components/common/Icon';
-import ChatRoomItem from '../../components/chat/ChatRoomItem';
+import ChatRoomItem from '../../widgets/chat/ChatRoomItem';
 import {
     TabContent,
     TabSection,
     TabSectionHeader,
     TabSectionTitle,
     TabSectionCount,
-} from '../../styles/tabStyles';
+} from '../../app/styles/tabStyles';
 import styled from 'styled-components';
 
 const ChatRoomList: React.FC = () => {

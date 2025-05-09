@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useAuth } from '../../context/AuthContext';
-import { createMyCode, deleteMyCode, getMyCode } from '../../services/userCode';
-import { commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
+import { useAuth } from '../../shared/lib/context/AuthContext';
+import { createMyCode, deleteMyCode, getMyCode } from '../../shared/api/userCode';
+import { commonColors, commonShadows, commonBorderRadius } from '../../shared/ui/commonStyles';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const Container = styled.div`

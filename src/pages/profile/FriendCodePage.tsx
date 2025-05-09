@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { createMyCode, sendFriendRequestByCode, findUserByCode } from "../../services/userCode";
-import { useAuth } from "../../context/AuthContext";
+import { createMyCode, sendFriendRequestByCode, findUserByCode } from "../../shared/api/userCode";
+import { useAuth } from "../../shared/lib/context/AuthContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 interface FriendCodePageProps {

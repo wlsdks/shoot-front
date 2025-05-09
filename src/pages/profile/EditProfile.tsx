@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
-import { useAuth } from '../../context/AuthContext';
-import { updateProfile, uploadProfileImage, changePassword } from '../../services/profile';
+import { useAuth } from '../../shared/lib/context/AuthContext';
+import { updateProfile, uploadProfileImage, changePassword } from '../../shared/api/profile';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // 애니메이션 정의

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signup } from '../../services/auth';
+import { signup } from '../../shared/api/auth';
 import {
   PageWrapper,
   MobileContainer,
@@ -16,7 +16,7 @@ import {
   SuccessMessage,
   LinkContainer,
   StyledLink
-} from '../../styles/auth/common';
+} from '../../shared/ui/auth/common';
 import styled from 'styled-components';
 
 const ScrollContainer = styled.div`

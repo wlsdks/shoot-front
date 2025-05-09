@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { getFriends } from '../../../services/friends';
-import { useAuth } from '../../../context/AuthContext';
-import { Friend, FriendResponse } from '../../../types/friend.types';
-import { createDirectChat } from '../../../services/chatRoom';
+import { getFriends } from '../../../shared/api/friends';
+import { useAuth } from '../../../shared/lib/context/AuthContext';
+import { Friend, FriendResponse } from '../../../shared/types/friend.types';
+import { createDirectChat } from '../../../shared/api/chatRoom';
 
 const ModalOverlay = styled.div`
   position: fixed;

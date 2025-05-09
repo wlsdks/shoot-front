@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import Icon from '../common/Icon';
-import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
+import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../shared/ui/commonStyles';
 
 const SettingItem = styled.div`
     display: flex;

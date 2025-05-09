@@ -1,8 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Friend } from '../../types/friend.types';
+import { Friend } from '../../shared/types/friend.types';
 import Icon from '../common/Icon';
-import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../styles/commonStyles';
+import { fadeIn, commonColors, commonShadows, commonBorderRadius } from '../../shared/ui/commonStyles';
 
 const FriendItem = styled.div`
     display: flex;

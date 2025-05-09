@@ -15,7 +15,7 @@ import {
   SuccessMessage,
   LinkContainer,
   StyledLink
-} from '../../styles/auth/common';
+} from '../../shared/ui/auth/common';
 import styled from 'styled-components';
 
 const Content = styled.div`

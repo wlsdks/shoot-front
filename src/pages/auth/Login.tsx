@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../shared/lib/hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   PageWrapper,
@@ -10,7 +10,7 @@ import {
   Input,
   Button,
   ErrorMessage
-} from '../../styles/auth/common';
+} from '../../shared/ui/auth/common';
 import styled from 'styled-components';
 
 const LoginContent = styled.div`

@@ -1,23 +1,23 @@
 import React, { useState, useCallback } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { useFriends } from "../../hooks/useFriends";
+import { useAuth } from "../../shared/lib/context/AuthContext";
+import { useFriends } from "../../shared/lib/hooks/useFriends";
 import FriendSearch from "../../pages/profile/FriendSearch";
 import FriendCodePage from "../../pages/profile/FriendCodePage";
-import { createDirectChat } from "../../services/chatRoom";
+import { createDirectChat } from "../../shared/api/chatRoom";
 import { useNavigate } from "react-router-dom";
 import TabContainer from "../../components/common/TabContainer";
 import TabHeader from "../../components/common/TabHeader";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/Icon";
-import { FriendItem } from "../../components/FriendItem";
+import { FriendItem } from "../../entities/friend/FriendItem";
 import {
     TabContent,
     TabSection,
     TabSectionHeader,
     TabSectionTitle,
     TabSectionCount,
-} from "../../styles/tabStyles";
+} from "../../app/styles/tabStyles";
 import styled from "styled-components";
 
 const SearchButton = styled.button`

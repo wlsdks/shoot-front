@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { WebSocketService } from '../../../services/websocket/types';
+import { WebSocketService } from '../../../shared/api/websocket/types';
 import { TypingIndicatorMessage } from '../types/ChatRoom.types';
 
 interface UseTypingHandlersProps {

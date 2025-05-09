@@ -1,19 +1,19 @@
 import React, { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { useSocialData } from "../../hooks/useSocialData";
+import { useAuth } from "../../shared/lib/context/AuthContext";
+import { useSocialData } from "../../shared/lib/hooks/useSocialData";
 import TabContainer from "../../components/common/TabContainer";
 import TabHeader from "../../components/common/TabHeader";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import EmptyState from "../../components/common/EmptyState";
 import Icon from "../../components/common/Icon";
-import SocialItem from "../../components/social/SocialItem";
+import SocialItem from "../../widgets/social/SocialItem";
 import {
     TabContent,
     TabSection,
     TabSectionHeader,
     TabSectionTitle,
     TabSectionCount,
-} from "../../styles/tabStyles";
+} from "../../app/styles/tabStyles";
 
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
