@@ -42,4 +42,4 @@ export const sendFriendRequestByCode = async (userId: number, targetCode: string
     return {
         data: extractData(response)
     };
-};
+}; 

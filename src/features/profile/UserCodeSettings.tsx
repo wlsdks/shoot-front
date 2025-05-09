@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../../shared/lib/context/AuthContext';
-import { createMyCode, deleteMyCode, getMyCode } from './api/userCode';
-import { commonColors, commonShadows, commonBorderRadius } from '../../shared/ui/commonStyles';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useUserCode } from '../user-code/model/useUserCode';
+import { commonColors, commonShadows, commonBorderRadius } from '../../shared/styles/common';
 
 const Container = styled.div`
     padding: 1.25rem;
@@ -246,56 +245,14 @@ const UserCodeSettings: React.FC = () => {
     const { user } = useAuth();
     const [userCode, setUserCode] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const queryClient = useQueryClient();
-
-    // 현재 코드 조회 쿼리
-    const { data: currentCode, isLoading: isInitialLoading } = useQuery({
-        queryKey: ['userCode', user?.id],
-        queryFn: async () => {
-            if (!user?.id) throw new Error('사용자 정보가 없습니다.');
-            const response = await getMyCode(user.id);
-            return response.userCode || null;
-        },
-        enabled: !!user?.id
-    });
-
-    // 코드 설정/수정 mutation
-    const updateCodeMutation = useMutation({
-        mutationFn: async () => {
-            if (!user?.id) throw new Error('사용자 정보가 없습니다.');
-            if (!userCode.trim()) throw new Error('유저코드를 입력해주세요.');
-            return createMyCode(user.id, userCode);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['userCode', user?.id] });
-            setUserCode('');
-            setMessage({ type: 'success', text: '유저코드가 성공적으로 설정되었습니다.' });
-        },
-        onError: (error: any) => {
-            setMessage({ 
-                type: 'error', 
-                text: error.response?.data?.message || '유저코드 설정에 실패했습니다. 다시 시도해주세요.' 
-            });
-        }
-    });
-
-    // 코드 삭제 mutation
-    const deleteCodeMutation = useMutation({
-        mutationFn: async () => {
-            if (!user?.id) throw new Error('사용자 정보가 없습니다.');
-            return deleteMyCode(user.id);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['userCode', user?.id] });
-            setMessage({ type: 'success', text: '유저코드가 초기화되었습니다.' });
-        },
-        onError: (error: any) => {
-            setMessage({ 
-                type: 'error', 
-                text: error.response?.data?.message || '유저코드 초기화에 실패했습니다. 다시 시도해주세요.' 
-            });
-        }
-    });
+    
+    const {
+        myCode,
+        isLoadingMyCode,
+        createCode,
+        isCreatingCode,
+        createCodeError
+    } = useUserCode(user?.id || 0);
 
     // 메시지 자동 제거
     useEffect(() => {
@@ -314,15 +271,21 @@ const UserCodeSettings: React.FC = () => {
 
     const handleUpdateCode = () => {
         setMessage(null);
-        updateCodeMutation.mutate();
+        createCode(userCode, {
+            onSuccess: () => {
+                setUserCode('');
+                setMessage({ type: 'success', text: '유저코드가 성공적으로 설정되었습니다.' });
+            },
+            onError: (error: any) => {
+                setMessage({ 
+                    type: 'error', 
+                    text: error.response?.data?.message || '유저코드 설정에 실패했습니다. 다시 시도해주세요.' 
+                });
+            }
+        });
     };
 
-    const handleRemoveCode = () => {
-        setMessage(null);
-        deleteCodeMutation.mutate();
-    };
-
-    if (isInitialLoading) {
+    if (isLoadingMyCode) {
         return (
             <Container>
                 <LoadingSpinner />
@@ -336,17 +299,17 @@ const UserCodeSettings: React.FC = () => {
                 내 유저코드
             </Description>
 
-            {currentCode !== null && (
+            {myCode && (
                 <CurrentCodeDisplay>
                     <CodeText>
-                        {currentCode ? `#${currentCode}` : '유저코드가 초기화되었습니다.'}
+                        {myCode.userCode ? `#${myCode.userCode}` : '유저코드가 초기화되었습니다.'}
                     </CodeText>
                 </CurrentCodeDisplay>
             )}
 
             <InputGroup>
                 <Label htmlFor="userCode">
-                    {currentCode ? '새로운 유저코드' : '유저코드'}
+                    {myCode ? '새로운 유저코드' : '유저코드'}
                 </Label>
                 <Input
                     id="userCode"
@@ -356,8 +319,8 @@ const UserCodeSettings: React.FC = () => {
                         setUserCode(e.target.value);
                         setMessage(null);
                     }}
-                    placeholder={currentCode ? "새로운 유저코드를 입력하세요" : "원하는 유저코드를 입력하세요"}
-                    disabled={updateCodeMutation.isPending || deleteCodeMutation.isPending}
+                    placeholder={myCode ? "새로운 유저코드를 입력하세요" : "원하는 유저코드를 입력하세요"}
+                    disabled={isCreatingCode}
                 />
                 <HelpText>
                     <HelpTitle>유저코드 안내</HelpTitle>
@@ -380,28 +343,19 @@ const UserCodeSettings: React.FC = () => {
                 <Button
                     $primary
                     onClick={handleUpdateCode}
-                    disabled={updateCodeMutation.isPending || deleteCodeMutation.isPending}
+                    disabled={isCreatingCode}
                 >
-                    {updateCodeMutation.isPending ? (
+                    {isCreatingCode ? (
                         <>
                             <LoadingSpinner />
                             처리중...
                         </>
-                    ) : currentCode ? (
+                    ) : myCode ? (
                         '코드 재설정'
                     ) : (
                         '코드 설정'
                     )}
                 </Button>
-                {currentCode && (
-                    <Button
-                        $danger
-                        onClick={handleRemoveCode}
-                        disabled={updateCodeMutation.isPending || deleteCodeMutation.isPending}
-                    >
-                        코드 초기화
-                    </Button>
-                )}
             </ButtonGroup>
         </Container>
     );

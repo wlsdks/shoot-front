@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createMyCode, getMyCode, findUserByCode, sendFriendRequestByCode } from '../../api/userCode';
+import { createMyCode, getMyCode, findUserByCode, sendFriendRequestByCode } from '../../../user-code/api/userCodeApi';
 
 export const useUserCode = (userId: number) => {
     const queryClient = useQueryClient();
