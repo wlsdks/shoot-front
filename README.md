@@ -1,102 +1,106 @@
-# Shoot - 채팅 애플리케이션
+# Shoot Frontend
 
-Shoot은 React와 TypeScript로 개발된 실시간 채팅 애플리케이션입니다. 사용자 친구 추가, 실시간 메시지 전송, 채팅방 관리 등 다양한 소셜 기능을 제공합니다.
-
-## 기능
-
-- **사용자 인증**: 회원가입, 로그인, 로그아웃 기능
-- **프로필 관리**: 사용자 프로필 및 이미지 업데이트
-- **친구 관리**: 친구 추가, 친구 요청 수락/거절, 코드로 친구 찾기
-- **실시간 채팅**: WebSocket을 통한 실시간 메시지 전송
-- **채팅방 관리**: 채팅방 생성, 즐겨찾기 기능
-- **알림 시스템**: 타이핑 인디케이터, 읽음 확인 기능
-- **소셜 탭**: 추천 친구 및 친구 요청 관리
+## 프로젝트 소개
+Shoot는 실시간 채팅 애플리케이션입니다. 이 프로젝트는 Feature-Sliced Design (FSD) 아키텍처를 기반으로 구축되었습니다.
 
 ## 기술 스택
-
-- **Frontend**:
-  - React 18
-  - TypeScript
-  - React Router v7
-  - Styled Components
-  - SockJS & STOMP 클라이언트 (WebSocket)
-  - Axios (HTTP 클라이언트)
-
-- **상태 관리**:
-  - Context API (인증, 사용자 상태)
-
-- **기타 라이브러리**:
-  - react-infinite-scroll-component
-  - event-source-polyfill (SSE)
-  - lodash
+- React
+- TypeScript
+- FSD (Feature-Sliced Design) 아키텍처
 
 ## 프로젝트 구조
 
+### 1. 아키텍처 개요
+프로젝트는 Feature-Sliced Design 아키텍처를 따르며, 다음과 같은 레이어로 구성되어 있습니다:
+
 ```
 src/
-├── components/      # 공통 컴포넌트
-├── context/         # Context API
-├── pages/           # 페이지 컴포넌트
-│   └── tabs/        # 탭 페이지 컴포넌트
-├── services/        # API 요청 함수
-├── utils/           # 유틸리티 함수
-└── types/           # 타입 정의
+├── app/          # 전역 설정, 스타일, 프로바이더
+├── pages/        # 라우팅과 페이지 레이아웃
+├── widgets/      # 여러 features를 조합한 복합적인 UI 블록
+├── features/     # 사용자 시나리오와 관련된 기능들
+├── entities/     # 비즈니스 엔티티
+└── shared/       # 공통으로 사용되는 유틸리티, UI 컴포넌트 등
 ```
 
-## 시작하기
+### 2. 레이어별 설명
 
-### 사전 요구사항
+#### app/
+- 전역 설정
+- 스타일 설정
+- 프로바이더 설정
+- 라우팅 설정
 
-- Node.js 14.x 이상
-- npm 또는 yarn
-- 백엔드 서버 실행 (포트: 8100)
+#### pages/
+- 라우팅과 페이지 레이아웃을 담당
+- 각 페이지별 컴포넌트 구성
 
-### 설치 방법
+#### widgets/
+- 여러 features를 조합한 복합적인 UI 블록
+- 페이지의 주요 섹션을 구성하는 컴포넌트들
 
-1. 저장소를 클론합니다:
-```bash
-git clone https://github.com/yourusername/shoot-front.git
-cd shoot-front
+#### features/
+- 사용자 시나리오와 관련된 기능들
+- 주요 기능들:
+  - auth: 인증 관련 기능
+  - chat: 채팅 관련 기능
+  - profile: 프로필 관련 기능
+  - settings: 설정 관련 기능
+  - social: 소셜 기능
+  - navigation: 네비게이션 관련 기능
+  - message-reaction: 메시지 반응 관련 기능
+  - user-code: 사용자 코드 관련 기능
+
+#### entities/
+- 비즈니스 엔티티 정의
+- 주요 엔티티들:
+  - user: 사용자 정보
+  - message: 메시지
+  - chat-room: 채팅방
+  - friend: 친구 관계
+
+#### shared/
+- 공통으로 사용되는 코드
+- 구성:
+  - api: API 관련 설정
+  - assets: 정적 자원
+  - lib: 외부 라이브러리 설정
+  - styles: 스타일 관련 파일
+  - types: 타입 정의
+  - ui: 재사용 가능한 UI 컴포넌트
+  - utils: 유틸리티 함수
+
+### 3. 의존성 규칙
+- 상위 레이어는 하위 레이어에만 의존할 수 있습니다
+- 같은 레이어 내에서는 서로 의존할 수 없습니다
+- 순환 의존성은 허용되지 않습니다
+
+### 4. 모듈 구조
+각 모듈은 다음과 같은 구조를 따릅니다:
+```
+module/
+├── index.ts      # public API
+├── model/        # 비즈니스 로직
+├── ui/          # UI 컴포넌트
+├── lib/         # 유틸리티 함수
+└── types.ts     # 타입 정의
 ```
 
-2. 의존성을 설치합니다:
-```bash
-npm install
-```
+## 개발 가이드라인
 
-3. 개발 서버를 실행합니다:
-```bash
-npm start
-```
+### 1. 컴포넌트 작성
+- 컴포넌트는 가능한 작고 재사용 가능하게 작성
+- props는 명확하게 타입 정의
+- 불필요한 리렌더링 방지
 
-4. 브라우저에서 `http://localhost:3000`으로 접속합니다.
+### 2. 상태 관리
+- 전역 상태는 필요한 경우에만 사용
+- 컴포넌트 내부 상태는 가능한 로컬로 관리
 
-## 빌드 및 배포
+### 3. 스타일링
+- 일관된 스타일 가이드 준수
+- 재사용 가능한 스타일 컴포넌트 활용
 
-프로덕션 빌드를 생성하려면:
-```bash
-npm run build
-```
-
-## API 통신
-
-이 프로젝트는 REST API와 WebSocket을 함께 사용합니다:
-
-- REST API: `http://localhost:8100/api/v1`
-- WebSocket: `http://localhost:8100/ws/chat`
-- SSE(Server-Sent Events): `http://localhost:8100/api/v1/chatrooms/updates/{userId}`
-
-## 주요 화면
-
-- **로그인/회원가입**: 사용자 인증
-- **친구 탭**: 친구 목록, 친구 검색, 코드로 친구 찾기
-- **소셜 탭**: 친구 요청 관리, 추천 친구
-- **채팅 탭**: 채팅방 목록, 즐겨찾기
-- **채팅룸**: 실시간 메시지 전송, 타이핑 인디케이터
-- **설정 탭**: 프로필 관리, 로그아웃
-
-## 주의사항
-
-- 개발 환경에서는 CORS 이슈를 방지하기 위해 백엔드 서버가 적절한 설정으로 실행되어야 합니다.
-- 사용자 인증은 JWT 토큰 방식으로 구현되었습니다.
-- 실시간 채팅은 STOMP 프로토콜을 사용합니다.
+### 4. 테스트
+- 주요 비즈니스 로직에 대한 단위 테스트 작성
+- 컴포넌트 테스트 작성
