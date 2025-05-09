@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { useAuth } from "../../shared/lib/context/AuthContext";
-import { useUserCode } from "../user-code/model/useUserCode";
-import { UserCode } from "../user-code/types";
+import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useUserCode } from "../model/useUserCode";
+import { UserCode } from "../types";
 
 interface FriendCodePageProps {
     onClose: () => void;

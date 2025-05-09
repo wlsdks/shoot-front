@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
 import EditProfile from '../../profile/EditProfile';
-import UserCodeSettings from '../../profile/UserCodeSettings';
+import UserCodeSettings from '../../user-code/ui/UserCodeSettings';
 import {
     TabContainer,
     Header,
@@ -44,7 +44,7 @@ const IconSVG = ({ children }: { children: React.ReactNode }) => (
 const SettingsTab: React.FC = () => {
     const [activeSection, setActiveSection] = useState<string>('main');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
 
     const handleBack = () => {
@@ -262,7 +262,7 @@ const SettingsTab: React.FC = () => {
                     <Title>유저코드 설정</Title>
                 </Header>
                 <ScrollArea>
-                    <UserCodeSettings />
+                    <UserCodeSettings userId={user?.id || 0} />
                 </ScrollArea>
             </TabContainer>
         );

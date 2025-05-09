@@ -8,7 +8,7 @@ import FindId from '../features/auth/FindId';
 import FindPassword from '../features/auth/FindPassword';
 import BottomNavLayout from '../widgets/layout/BottomNavLayout';
 import PrivateRoute from '../app/routes/PrivateRoute';
-import FriendCodePage from '../features/profile/FriendCodePage';
+import FriendCodePage from '../features/user-code/ui/friendCodePage';
 import ChatRoom from '../features/chat/ChatRoom';
 import EditProfile from '../features/profile/EditProfile';
 import { theme } from './styles/theme';
