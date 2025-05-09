@@ -8,16 +8,19 @@ import {
     acceptFriendRequest,
     cancelFriendRequest,
 } from '../../api/friends';
-import { Friend, FriendResponse } from '../../model/types/friend.types';
+import { Friend, FriendResponse } from '../../../../entities/friend';
 
 // API 응답을 Friend 타입으로 변환하는 함수
 const convertToFriend = (response: FriendResponse): Friend => ({
     id: response.id,
-    name: response.username,
     username: response.username,
     nickname: response.nickname,
     status: "온라인", // TODO: 실제 상태 정보로 대체
-    profileImageUrl: response.profileImageUrl
+    profileImageUrl: response.profileImageUrl,
+    isFriend: true,
+    isPending: false,
+    isIncoming: false,
+    isOutgoing: false
 });
 
 interface SocialData {

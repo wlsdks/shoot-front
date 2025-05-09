@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { getFriends } from '../../../features/social/api/friends';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
-import { Friend, FriendResponse } from '../../../features/social/model/types/friend.types';
+import { Friend, FriendResponse } from '../../../entities/friend';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -126,11 +126,14 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
         const friendsData = await getFriends(user.id);
         const formattedFriends = friendsData.map((friend: FriendResponse) => ({
           id: friend.id,
-          name: friend.username,
           username: friend.username,
           nickname: friend.nickname,
           profileImageUrl: friend.profileImageUrl || "",
-          status: friend.status || "온라인"
+          status: friend.status || "온라인",
+          isFriend: true,
+          isPending: false,
+          isIncoming: false,
+          isOutgoing: false
         }));
         setFriends(formattedFriends);
       } catch (error) {

@@ -5,15 +5,7 @@ import { EventSourcePolyfill } from "event-source-polyfill";
 import { refreshTokenApi, loginCheckApi } from "../../../features/auth/api";
 import { updateUserStatus } from '../../../features/profile/api/profile';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-interface User {
-    id: number;
-    username: string;
-    nickname?: string;
-    bio?: string;
-    profileImageUrl?: string;
-    status?: string;
-}
+import { User } from '../../../entities/user';
 
 interface AuthContextType {
     isAuthenticated: boolean;

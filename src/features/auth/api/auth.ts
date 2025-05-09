@@ -2,20 +2,11 @@ import api from "../../../shared/api/api";  // 예: axios.create({ baseURL: 'htt
 import { authApi } from './authApi';
 import { ApiResponse } from "../../../shared/api/api";
 import { extractData } from '../../../shared/lib/apiUtils';
-
-// User 인터페이스 정의
-export interface User {
-    id: number; // string -> number로 변경
-    username: string;
-    nickname?: string;
-    bio?: string;
-    profileImageUrl?: string;
-    status?: string;
-}
+import { User } from '../../../entities/user';
 
 // 백엔드에서 실제로 반환하는 응답 형식에 맞춘 LoginResponse
 export interface LoginResponse {
-    userId: number; // string -> number로 변경
+    userId: number;
     accessToken: string;
     refreshToken: string;
 }

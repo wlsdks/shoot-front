@@ -111,11 +111,14 @@ const FriendsTab: React.FC = () => {
                         <FriendItem
                             friend={{
                                 id: user.id,
-                                name: user.username,
                                 username: user.username,
                                 nickname: user.nickname ?? undefined,
                                 status: "나",
-                                profileImageUrl: user.profileImageUrl ?? undefined
+                                profileImageUrl: user.profileImageUrl ?? undefined,
+                                isFriend: true,
+                                isPending: false,
+                                isIncoming: false,
+                                isOutgoing: false
                             }}
                             onChatClick={() => {}}
                             onClick={() => {}}

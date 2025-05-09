@@ -1,11 +1,10 @@
-export interface Friend {
-    id: number;
-    name: string;
-    username: string;
-    nickname?: string;
-    bio?: string;
-    profileImageUrl?: string;
-    status: string;
+import { User } from '../../user';
+
+export interface Friend extends User {
+    isFriend: boolean;
+    isPending: boolean;
+    isIncoming: boolean;
+    isOutgoing: boolean;
 }
 
 export interface FriendResponse {

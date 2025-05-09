@@ -1,6 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Friend } from '../model/types/friend.types';
+import { Friend } from '../../../entities/friend';
 import { commonColors, commonShadows, commonBorderRadius } from '../../../shared/ui/commonStyles';
 
 const fadeInUp = keyframes`
@@ -136,7 +136,7 @@ export const FriendItem: React.FC<FriendItemProps> = ({ friend, onChatClick, onC
         return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
     };
 
-    const displayName = friend.nickname || friend.name;
+    const displayName = friend.nickname || friend.username;
 
     return (
         <FriendItemComponent onClick={onClick}>

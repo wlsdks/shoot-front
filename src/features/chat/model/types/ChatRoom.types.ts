@@ -1,20 +1,13 @@
+import { ChatRoom } from '../../../../entities/chat-room';
+
+export type { ChatRoom };
+
 export enum MessageStatus {
     SENDING = 'SENDING',
     PROCESSING = 'PROCESSING',
     SENT_TO_KAFKA = 'SENT_TO_KAFKA',
     SAVED = 'SAVED',
     FAILED = 'FAILED'
-}
-
-export interface ChatRoom {
-    roomId: number;
-    title: string;
-    lastMessage: string | null;
-    unreadMessages: number;
-    isPinned: boolean;
-    timestamp?: string;
-    type: 'INDIVIDUAL' | 'GROUP';
-    profileImageUrl?: string;
 }
 
 // 채팅 메시지 인터페이스
