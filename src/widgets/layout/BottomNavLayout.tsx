@@ -9,8 +9,13 @@ const Container = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;  /* 화면을 꽉 채우는 구조 */
-    background-color: #ffffff;  /* 배경색 */
+    height: 100vh;
+    background-color: #ffffff;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 `;
 
 const MobileScreen = styled.div`
@@ -30,6 +35,21 @@ const ContentArea = styled.div`
     flex: 1;
     overflow-y: auto;
     position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: #ddd transparent;
+    
+    &::-webkit-scrollbar {
+        width: 5px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 3px;
+    }
+    
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
 `;
 
 const BottomNav = styled.div`

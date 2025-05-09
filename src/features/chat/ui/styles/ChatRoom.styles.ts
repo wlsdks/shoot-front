@@ -16,23 +16,27 @@ export const ChatWrapper = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - 60px);
-    padding-top: 60px;
-    background-color: #f5f7fa;
+    height: 100vh;
+    background-color: #ffffff;
     overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 `;
 
 export const ChatContainer = styled.div`
     width: 375px;
     height: 667px;
     background-color: #fff;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border-radius: 30px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 2px solid #ddd;
     position: relative;
-    border: 1px solid rgba(0, 0, 0, 0.05);
 `;
 
 // 헤더 스타일
@@ -80,7 +84,7 @@ export const ChatArea = styled.div`
     padding: 10px;
     padding-bottom: 0px;
     background: #f8f9fa;
-    overflow-y: scroll;
+    overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #ddd transparent;
     display: flex;
@@ -140,7 +144,6 @@ export const ChatBubble = styled.div<{ $isOwnMessage: boolean }>`
     transition: all 0.2s;
     word-break: break-word;
     position: relative;
-    className: "chat-bubble";
     
     &:hover {
         transform: translateY(-2px);

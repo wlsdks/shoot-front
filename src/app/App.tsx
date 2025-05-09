@@ -12,6 +12,7 @@ import FriendCodePage from '../pages/user-code/FriendCodePage';
 import ChatRoomPage from '../pages/chat/ChatRoomPage';
 import EditProfilePage from '../pages/profile/EditProfilePage';
 import { theme } from './styles/theme';
+import GlobalStyles from './styles/GlobalStyles';
 
 // FriendCodePage를 위한 래퍼 컴포넌트
 const FriendCodePageWrapper = () => {
@@ -22,6 +23,7 @@ const FriendCodePageWrapper = () => {
 const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
+            <GlobalStyles />
             <AuthProvider>
                 <Routes>
                     {/* 인증이 필요 없는 페이지 */}
