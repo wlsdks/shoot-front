@@ -33,6 +33,10 @@ const ProfileImageContainer = styled.div`
   border-radius: 50%;
   overflow: hidden;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const ProfileImage = styled.img`
@@ -60,6 +64,24 @@ const UploadButton = styled.label`
   &:hover {
     background: #0056b3;
     transform: scale(1.1);
+  }
+
+  &.add-button {
+    position: static;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: #666;
+    box-shadow: none;
+    
+    &:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    svg {
+      width: 32px;
+      height: 32px;
+    }
   }
 `;
 
@@ -284,7 +306,7 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
     if (user) {
       setNickname(user.nickname || '');
       setBio(user.bio || '');
-      setProfileImage(user.profileImageUrl || null);
+      setProfileImage(user.profileImageUrl && user.profileImageUrl !== 'null' ? user.profileImageUrl : null);
     }
   }, [user]);
   
@@ -378,23 +400,34 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
     <Form onSubmit={handleSubmit}>
       <ProfileImageSection>
         <ProfileImageContainer>
-          <ProfileImage 
-            src={profileImage || 'https://via.placeholder.com/100?text=사용자'} 
-            alt="프로필 이미지" 
+          {profileImage && profileImage !== 'null' ? (
+            <>
+              <ProfileImage 
+                src={profileImage} 
+                alt="프로필 이미지"
+              />
+              <UploadButton htmlFor="profile-image">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              </UploadButton>
+            </>
+          ) : (
+            <UploadButton htmlFor="profile-image" className="add-button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </UploadButton>
+          )}
+          <FileInput 
+            id="profile-image" 
+            type="file" 
+            accept="image/*"
+            onChange={handleImageChange} 
           />
-          <UploadButton htmlFor="profile-image">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            <FileInput 
-              id="profile-image" 
-              type="file" 
-              accept="image/*"
-              onChange={handleImageChange} 
-            />
-          </UploadButton>
         </ProfileImageContainer>
       </ProfileImageSection>
       
