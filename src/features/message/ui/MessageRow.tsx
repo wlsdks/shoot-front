@@ -1,31 +1,31 @@
 import React from 'react';
 import styled from 'styled-components';
-import { ChatMessageItem, MessageStatus } from '../model/types/ChatRoom.types';
+import { ChatMessageItem, MessageStatus } from '../types/ChatRoom.types';
 import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../ui/styles/ChatRoom.styles';
 
 const ReactionEmoji = styled.div<{ $isOwnMessage: boolean }>`
-  position: absolute;
-  right: -8px;
-  top: -8px;
-  font-size: 12px;
-  z-index: 1;
-  background: white;
-  padding: 1px 4px;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  display: flex;
-  gap: 1px;
-  min-width: 16px;
-  min-height: 16px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #eee;
+    position: absolute;
+    right: -8px;
+    top: -8px;
+    font-size: 12px;
+    z-index: 1;
+    background: white;
+    padding: 1px 4px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 1px;
+    min-width: 16px;
+    min-height: 16px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #eee;
 `;
 
 const EmojiSpan = styled.span`
-  display: inline-block;
-  font-size: 12px;
-  line-height: 1;
+    display: inline-block;
+    font-size: 12px;
+    line-height: 1;
 `;
 
 interface MessageRowProps {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { TypingIndicatorMessage } from './types/ChatRoom.types';
+import { TypingIndicatorMessage } from '../types/ChatRoom.types';
 
 export const useTypingState = () => {
     const [typingUsers, setTypingUsers] = useState<{ [key: string]: TypingIndicatorMessage }>({});
