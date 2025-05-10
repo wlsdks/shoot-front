@@ -10,7 +10,7 @@ import TabHeader from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Icon from "../../../shared/ui/Icon";
-import { FriendItem } from "./FriendItem";
+import FriendItem from "./FriendItem";
 import {
     TabContent,
     TabSection,
@@ -121,7 +121,6 @@ const FriendsTab: React.FC = () => {
                                 isOutgoing: false
                             }}
                             onChatClick={() => {}}
-                            onClick={() => {}}
                         />
                     </MySection>
                 )}
@@ -152,7 +151,6 @@ const FriendsTab: React.FC = () => {
                                 key={friend.id}
                                 friend={friend}
                                 onChatClick={() => handleFriendClick(friend.id)}
-                                onClick={() => handleFriendClick(friend.id)}
                             />
                         ))}
                     </TabSection>
