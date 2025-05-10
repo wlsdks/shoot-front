@@ -29,9 +29,7 @@ export const findUserByCode = async (code: string) => {
     const response = await api.get<ApiResponse<any>>('/users/find-by-code', {
         params: { code }
     });
-    return {
-        data: extractData(response)
-    };
+    return response.data;
 };
 
 // 유저 코드로 친구 요청 보내기

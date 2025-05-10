@@ -142,10 +142,8 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
     const [searchedUser, setSearchedUser] = useState<UserCode | null>(null);
 
     const {
-        createCode,
         findUser,
         sendFriendRequest,
-        isCreatingCode,
         isFindingUser,
         isSendingRequest
     } = useUserCode(user?.id || 0);
@@ -156,41 +154,41 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
         setIsError(false);
         findUser(code, {
             onSuccess: (response) => {
-                setSearchedUser(response.data);
-                setMessage("유저를 찾았습니다.");
-                setIsError(false);
+                if (response.success) {
+                    if (response.data) {
+                        setSearchedUser(response.data);
+                        setMessage("유저를 찾았습니다.");
+                        setIsError(false);
+                    } else {
+                        setMessage(response.message || "해당 코드의 사용자가 없습니다.");
+                        setIsError(true);
+                        setSearchedUser(null);
+                    }
+                } else {
+                    setMessage(response.message || "검색 중 오류가 발생했습니다.");
+                    setIsError(true);
+                    setSearchedUser(null);
+                }
             },
             onError: () => {
-                setMessage("검색된 유저가 없습니다.");
+                setMessage("검색 중 오류가 발생했습니다.");
                 setIsError(true);
                 setSearchedUser(null);
             }
         });
     };
 
-    // 코드 등록/수정 핸들러
-    const handleRegisterCode = () => {
-        createCode(code, {
-            onSuccess: () => {
-                setMessage("코드 등록/수정 성공!");
-                setIsError(false);
-            },
-            onError: (error: any) => {
-                setMessage(error.message || "코드 등록 실패");
-                setIsError(true);
-            }
-        });
-    };
-
-    // 친구 신청 핸들러
+    // 친구 요청 보내기
     const handleSendRequest = () => {
-        sendFriendRequest(code, {
-            onSuccess: (data) => {
-                setMessage(`친구 요청 성공: ${data}`);
+        if (!searchedUser || !searchedUser.userCode) return;
+        sendFriendRequest(searchedUser.userCode, {
+            onSuccess: () => {
+                setMessage("친구 요청을 보냈습니다.");
                 setIsError(false);
+                setSearchedUser(null);
             },
             onError: () => {
-                setMessage("친구 요청에 실패했습니다.");
+                setMessage("친구 요청 전송에 실패했습니다.");
                 setIsError(true);
             }
         });
@@ -199,7 +197,7 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
     return (
         <Container>
             <CloseButton onClick={onClose}>&times;</CloseButton>
-            <Title>코드로 친구 찾기 / 코드 등록</Title>
+            <Title>코드로 친구 찾기</Title>
             <FormGroup>
                 <Label>코드 입력</Label>
                 <Input
@@ -210,12 +208,6 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
                 />
             </FormGroup>
             <ButtonRow>
-                <Button 
-                    onClick={handleRegisterCode}
-                    disabled={isCreatingCode}
-                >
-                    {isCreatingCode ? "처리중..." : "코드 등록/수정"}
-                </Button>
                 <Button 
                     onClick={handleSearch}
                     disabled={isFindingUser}

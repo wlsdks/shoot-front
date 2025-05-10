@@ -87,7 +87,7 @@ const FriendsTab: React.FC = () => {
                             </Icon>
                         </SearchButton>
                         <SearchButton onClick={() => setShowCode((prev) => !prev)}>
-                            코드 등록/찾기
+                            코드로 찾기
                         </SearchButton>
                     </>
                 }
