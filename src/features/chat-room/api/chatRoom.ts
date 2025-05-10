@@ -1,7 +1,7 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
-import { ChatRoomResponse, DirectChatRoomResponse } from '../types/chatRoom.types';
+import { ChatRoomResponse, DirectChatRoomResponse, FindDirectChatRoomParams } from '../types/chatRoom.types';
 
 /**
  * 채팅방 목록 조회 API
@@ -80,3 +80,11 @@ export const createDirectChat = async (
         data: extractData(response)
     };
 };
+
+// 1:1 채팅방 찾기 API
+export const findDirectChatRoom = async (
+    { myId, otherUserId }: FindDirectChatRoomParams
+): Promise<ChatRoomResponse> => {
+    const response = await api.get<ApiResponse<ChatRoomResponse>>(`/chatrooms/direct?myId=${myId}&otherUserId=${otherUserId}`);
+    return extractData(response);
+}; 

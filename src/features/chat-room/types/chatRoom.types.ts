@@ -15,3 +15,8 @@ export interface DirectChatRoomResponse {
     isPinned: boolean;
     timestamp: string;
 } 
+
+export interface FindDirectChatRoomParams {
+    myId: number;
+    otherUserId: number;
+}
