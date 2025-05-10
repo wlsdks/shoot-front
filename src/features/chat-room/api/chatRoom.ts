@@ -1,11 +1,12 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
+import { ChatRoomResponse, DirectChatRoomResponse } from '../types/chatRoom.types';
 
 /**
  * 채팅방 목록 조회 API
  */
-export const getChatRooms = async (userId: number) => { // userId 타입 변경
+export const getChatRooms = async (userId: number) => {
     const response = await api.get<ApiResponse<any>>(`/chatrooms`, { params: { userId } });
     return {
         data: extractData(response)
@@ -20,7 +21,7 @@ export const updateChatRoomFavorite = async (
     userId: number,
     isFavorite: boolean
 ) => {
-    const response = await api.post<ApiResponse<any>>(`/chatrooms/favorite`, null, {
+    const response = await api.post<ApiResponse<ChatRoomResponse>>(`/chatrooms/favorite`, null, {
         params: {
             roomId,
             userId,
@@ -69,10 +70,12 @@ export const markMessageAsRead = async (messageId: string, userId: number) => {
  * @returns 생성된 채팅방 정보
  */
 export const createDirectChat = async (
-    userId: number, // userId 타입 변경
-    friendId: number // friendId 타입 변경
+    userId: number,
+    friendId: number
 ) => {
-    const response = await api.post<ApiResponse<any>>(`/chatrooms/create/direct`, null, { params: { userId, friendId } });
+    const response = await api.post<ApiResponse<DirectChatRoomResponse>>(`/chatrooms/create/direct`, null, { 
+        params: { userId, friendId } 
+    });
     return {
         data: extractData(response)
     };

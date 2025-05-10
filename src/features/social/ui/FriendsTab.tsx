@@ -56,8 +56,8 @@ const FriendsTab: React.FC = () => {
         if (!user) return;
         try {
             const response = await createDirectChat(user.id, friendId);
-            console.log("FriendTab: Chat created, roomId:", response.data.id);
-            navigate(`/chatroom/${response.data.id}`);
+            console.log("FriendTab: Chat created, roomId:", response.data.roomId);
+            navigate(`/chatroom/${response.data.roomId}`);
         } catch (err) {
             console.error("FriendTab: Chat Room creation failed:", err);
             alert("채팅방 생성에 실패했습니다.");
