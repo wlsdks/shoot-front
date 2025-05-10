@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useAuth } from "../../../shared/lib/context/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { findUserByCode } from "../api/userCodeApi";
-
-// Friend 인터페이스 정의
-interface Friend {
-    id: number;
-    username: string;
-}
+import { Friend } from "../types/friend";
+import { useFriendSearch } from "../model/hooks/useFriendSearch";
 
 interface FriendSearchProps {
     onClose: () => void;
@@ -66,10 +60,9 @@ const ResultItem = styled.li`
 `;
 
 const NoResultsMessage = styled.p`
-    color: green;
-    font-weight: bold;
-    margin-top: 12px;
+    color: #666;
     font-size: 0.95rem;
+    margin-top: 12px;
 `;
 
 const CloseButton = styled.button`
@@ -93,16 +86,7 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
     const [query, setQuery] = useState("");
 
     // 친구 검색 쿼리
-    const { data: results = [], isLoading } = useQuery({
-        queryKey: ['friends', 'search', query],
-        queryFn: async () => {
-            if (!user || !query.trim()) return [];
-            const response = await findUserByCode(query);
-            return [response.data];
-        },
-        enabled: !!user && query.trim() !== "",
-        staleTime: 1000 * 60, // 1분 동안 캐시 유지
-    });
+    const { data: results = [], isLoading } = useFriendSearch(user?.id, query);
 
     return (
         <SearchContainer>
@@ -121,7 +105,7 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
                 <ResultList>
                     {results.map((friend: Friend) => (
                         <ResultItem key={friend.id}>
-                            {friend.username}
+                            {friend.nickname || friend.username}
                         </ResultItem>
                     ))}
                 </ResultList>
