@@ -21,13 +21,22 @@ export interface SetBackgroundImageRequest {
 }
 
 /**
+ * 현재 사용자 정보 조회 API
+ * @returns 현재 사용자 정보
+ */
+export const getCurrentUser = async (): Promise<UserResponse> => {
+    const response = await api.get<ApiResponse<UserResponse>>('/users/me');
+    return extractData(response);
+};
+
+/**
  * 사용자 프로필 업데이트 API
  * @param userId 사용자 ID
  * @param profileData 업데이트할 프로필 데이터
  * @returns 업데이트된 사용자 정보
  */
 export const updateProfile = async (
-    userId: number, // userId 타입 변경
+    userId: number,
     profileData: ProfileUpdateRequest
 ) => {
     const response = await api.put<ApiResponse<any>>(`/users/me`, profileData);

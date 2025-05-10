@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Friend } from '../../../entities/friend';
+import { Friend } from '../types/friend';
 import { commonColors, commonShadows, commonBorderRadius } from '../../../shared/ui/commonStyles';
 import { useNavigate } from 'react-router-dom';
 import FriendProfileModal from '../../profile/ui/FriendProfileModal';

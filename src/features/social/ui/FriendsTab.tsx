@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../../shared/lib/context/AuthContext";
 import { useFriends } from "../model/hooks/useFriends";
+import { Friend } from "../types/friend";
 import FriendSearch from "../../user-code/ui/friendSearch";
 import FriendCodePage from "../../user-code/ui/friendCodePage";
 import { createDirectChat } from "../../chat-room/api/chatRoom";
@@ -112,13 +113,13 @@ const FriendsTab: React.FC = () => {
                             friend={{
                                 id: user.id,
                                 username: user.username,
-                                nickname: user.nickname ?? undefined,
+                                nickname: user.nickname || user.username,
                                 status: "나",
-                                profileImageUrl: user.profileImageUrl ?? undefined,
-                                isFriend: true,
-                                isPending: false,
-                                isIncoming: false,
-                                isOutgoing: false
+                                profileImageUrl: user.profileImageUrl || null,
+                                backgroundImageUrl: null,
+                                bio: null,
+                                userCode: "",
+                                lastSeenAt: null
                             }}
                             onChatClick={() => {}}
                         />

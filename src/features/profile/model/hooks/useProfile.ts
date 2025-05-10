@@ -1,15 +1,22 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { updateUserStatus } from '../../api/profile';
 import { setProfileImage, setBackgroundImage } from '../../api/profile';
+import { getCurrentUser } from '../../api/profile';
+import { UserResponse } from '../../types/user';
 
 export const useProfile = (userId: number) => {
     const queryClient = useQueryClient();
+
+    // 현재 사용자 정보 조회
+    const { data: currentUser, isLoading: isLoadingUser } = useQuery<UserResponse>({
+        queryKey: ['currentUser'],
+        queryFn: getCurrentUser
+    });
 
     // 사용자 상태 업데이트
     const updateStatus = useMutation({
         mutationFn: (status: string) => updateUserStatus(userId, status),
         onSuccess: () => {
-            // 사용자 정보 새로고침
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
         },
     });
@@ -31,6 +38,8 @@ export const useProfile = (userId: number) => {
     });
 
     return {
+        currentUser,
+        isLoadingUser,
         updateStatus: updateStatus.mutate,
         isUpdating: updateStatus.isPending,
         updateError: updateStatus.error,

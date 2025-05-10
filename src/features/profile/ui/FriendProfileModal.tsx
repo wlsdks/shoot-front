@@ -1,6 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Friend } from '../../../entities/friend';
+import { Friend } from '../../social/types/friend';
 import { useMutation } from '@tanstack/react-query';
 import { setBackgroundImage } from '../api/profile';
 
@@ -45,32 +45,36 @@ const ModalContent = styled.div`
 `;
 
 const HeaderImage = styled.div<{ $imageUrl: string | null }>`
-  position: relative;
   width: 100%;
   height: 35vh;
   max-height: 200px;
-  background: ${props => props.$imageUrl ? `url(${props.$imageUrl})` : '#e0e0e0'};
+  background-image: ${props => props.$imageUrl ? `url(${props.$imageUrl})` : 'none'};
   background-size: cover;
   background-position: center;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  overflow: hidden;
+  align-items: center;
+  background-color: ${props => props.$imageUrl ? 'transparent' : '#f5f5f5'};
 `;
 
 const HeaderInitial = styled.div`
-  font-size: 5rem;
-  color: #999;
-  font-weight: 600;
-  line-height: 1;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #666;
   margin-bottom: 8px;
 `;
 
 const AddBackgroundText = styled.div`
+  font-size: 14px;
   color: #666;
-  font-size: 0.9rem;
-  font-weight: 500;
 `;
 
 const BorderLine = styled.div`
@@ -236,19 +240,13 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
   return (
     <ModalOverlay onClick={onClose}>
       <ModalContent onClick={e => e.stopPropagation()}>
-        <HeaderImage $imageUrl={friend.profileImageUrl || null} onClick={handleBackgroundClick}>
-          {!friend.profileImageUrl && (
+        <HeaderImage $imageUrl={friend.backgroundImageUrl || null}>
+          {!friend.backgroundImageUrl && (
             <>
               <HeaderInitial>+</HeaderInitial>
               <AddBackgroundText>프로필 배경 추가하기</AddBackgroundText>
             </>
           )}
-          <CloseButton onClick={onClose}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </CloseButton>
         </HeaderImage>
         <BorderLine />
         <ProfileImageContainer>
