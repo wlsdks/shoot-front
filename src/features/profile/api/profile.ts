@@ -1,12 +1,23 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
+import { UserResponse } from '../types/user';
 
 // 사용자 프로필 인터페이스
 export interface ProfileUpdateRequest {
     nickname?: string;
     bio?: string;
     profileImageUrl?: string;
+}
+
+// 사용자 프로필 이미지 업로드 인터페이스
+export interface SetProfileImageRequest {
+    imageUrl: string;
+}
+
+// 사용자 프로필 배경 이미지 업로드 인터페이스
+export interface SetBackgroundImageRequest {
+    imageUrl: string;
 }
 
 /**
@@ -67,5 +78,21 @@ export const changePassword = async (
         currentPassword,
         newPassword
     });
+    return extractData(response);
+};
+
+// 사용자 프로필 이미지 업로드 API
+export const setProfileImage = async (
+    request: SetProfileImageRequest
+): Promise<UserResponse> => {
+    const response = await api.put<ApiResponse<UserResponse>>('/users/me/profile-image', request);
+    return extractData(response);
+};
+
+// 사용자 프로필 배경 이미지 업로드 API
+export const setBackgroundImage = async (request
+    : SetBackgroundImageRequest
+): Promise<UserResponse> => {
+    const response = await api.put<ApiResponse<UserResponse>>('/users/me/background-image', request);
     return extractData(response);
 };

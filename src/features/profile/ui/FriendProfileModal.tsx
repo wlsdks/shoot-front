@@ -1,7 +1,8 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
-import { useNavigate } from 'react-router-dom';
 import { Friend } from '../../../entities/friend';
+import { useMutation } from '@tanstack/react-query';
+import { setBackgroundImage } from '../api/profile';
 
 const fadeIn = keyframes`
   from {
@@ -44,12 +45,32 @@ const ModalContent = styled.div`
 `;
 
 const HeaderImage = styled.div<{ $imageUrl: string | null }>`
+  position: relative;
+  width: 100%;
   height: 35vh;
   max-height: 200px;
-  background-image: ${props => props.$imageUrl ? `url(${props.$imageUrl})` : 'linear-gradient(45deg, #6a11cb 0%, #2575fc 100%)'};
+  background: ${props => props.$imageUrl ? `url(${props.$imageUrl})` : '#e0e0e0'};
   background-size: cover;
   background-position: center;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+`;
+
+const HeaderInitial = styled.div`
+  font-size: 5rem;
+  color: #999;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 8px;
+`;
+
+const AddBackgroundText = styled.div`
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 500;
 `;
 
 const BorderLine = styled.div`
@@ -73,7 +94,7 @@ const ProfileImageContainer = styled.div`
   transform: translate(-50%, -50%);
   border: 3px solid white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background: #f5f5f5;
+  background: #e0e0e0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,7 +117,7 @@ const ProfileInitial = styled.div`
   justify-content: center;
   background: #e0e0e0;
   color: #666;
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: 600;
 `;
 
@@ -194,6 +215,19 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
     onClose();
   };
 
+  const { mutate: updateBackgroundImage } = useMutation({
+    mutationFn: setBackgroundImage,
+    onSuccess: () => {
+      // TODO: 프로필 정보 새로고침
+    }
+  });
+
+  const handleBackgroundClick = () => {
+    // TODO: 이미지 업로드 로직 구현
+    const imageUrl = "업로드된 이미지 URL";
+    updateBackgroundImage({ imageUrl });
+  };
+
   const getInitial = () => {
     const name = friend.nickname || friend.username;
     return name.charAt(0).toUpperCase();
@@ -202,7 +236,13 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
   return (
     <ModalOverlay onClick={onClose}>
       <ModalContent onClick={e => e.stopPropagation()}>
-        <HeaderImage $imageUrl={friend.profileImageUrl || null}>
+        <HeaderImage $imageUrl={friend.profileImageUrl || null} onClick={handleBackgroundClick}>
+          {!friend.profileImageUrl && (
+            <>
+              <HeaderInitial>+</HeaderInitial>
+              <AddBackgroundText>프로필 배경 추가하기</AddBackgroundText>
+            </>
+          )}
           <CloseButton onClick={onClose}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -215,7 +255,7 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
           {friend.profileImageUrl ? (
             <ProfileImage $imageUrl={friend.profileImageUrl} />
           ) : (
-            <ProfileInitial>{getInitial()}</ProfileInitial>
+            <ProfileInitial>+</ProfileInitial>
           )}
         </ProfileImageContainer>
         <UserInfo>
