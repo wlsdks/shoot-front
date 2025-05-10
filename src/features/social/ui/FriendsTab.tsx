@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../../shared/lib/context/AuthContext";
 import { useFriends } from "../model/hooks/useFriends";
-import FriendSearch from "../../user-code/ui/friendSearch";
+import FriendSearch from "../ui/friendSearch";
 import FriendCodePage from "../../user-code/ui/friendCodePage";
 import { createDirectChat } from "../../chat-room/api/chatRoom";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +10,7 @@ import TabHeader from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Icon from "../../../shared/ui/Icon";
-import { FriendItem } from "./FriendItem";
+import FriendItem from "./FriendItem";
 import {
     TabContent,
     TabSection,
@@ -86,7 +86,7 @@ const FriendsTab: React.FC = () => {
                             </Icon>
                         </SearchButton>
                         <SearchButton onClick={() => setShowCode((prev) => !prev)}>
-                            코드 등록/찾기
+                            코드로 찾기
                         </SearchButton>
                     </>
                 }
@@ -112,16 +112,15 @@ const FriendsTab: React.FC = () => {
                             friend={{
                                 id: user.id,
                                 username: user.username,
-                                nickname: user.nickname ?? undefined,
+                                nickname: user.nickname || user.username,
                                 status: "나",
-                                profileImageUrl: user.profileImageUrl ?? undefined,
-                                isFriend: true,
-                                isPending: false,
-                                isIncoming: false,
-                                isOutgoing: false
+                                profileImageUrl: user.profileImageUrl || null,
+                                backgroundImageUrl: null,
+                                bio: null,
+                                userCode: "",
+                                lastSeenAt: null
                             }}
                             onChatClick={() => {}}
-                            onClick={() => {}}
                         />
                     </MySection>
                 )}
@@ -152,7 +151,6 @@ const FriendsTab: React.FC = () => {
                                 key={friend.id}
                                 friend={friend}
                                 onChatClick={() => handleFriendClick(friend.id)}
-                                onClick={() => handleFriendClick(friend.id)}
                             />
                         ))}
                     </TabSection>

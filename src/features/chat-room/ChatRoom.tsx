@@ -32,9 +32,8 @@ import {
 import {
     MessageStatus,
     ChatMessageItem,
-    TypingIndicatorMessage,
-    ChatRoomProps
-} from '../message/model/types/ChatRoom.types';
+    TypingIndicatorMessage
+} from '../message/types/ChatRoom.types';
 
 // 커스텀 훅 임포트
 import { useMessageState } from '../message/model/useMessageState';

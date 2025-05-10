@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from '../../../shared/lib/context/AuthContext';
 import { useChatRooms } from '../model/hooks/useChatRooms';
-import { ChatRoom } from '../../message/model/types/ChatRoom.types';
+import { ChatRoom } from '../../message/types/ChatRoom.types';
 import TabContainer from '../../../shared/ui/TabContainer';
 import TabHeader from '../../../shared/ui/TabHeader';
 import LoadingSpinner from '../../../shared/ui/LoadingSpinner';

@@ -1,6 +1,8 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
+import { UserResponse } from '../types/user';
+import { Friend } from '../../social/types/friend';
 
 // 사용자 프로필 인터페이스
 export interface ProfileUpdateRequest {
@@ -9,6 +11,25 @@ export interface ProfileUpdateRequest {
     profileImageUrl?: string;
 }
 
+// 사용자 프로필 이미지 업로드 인터페이스
+export interface SetProfileImageRequest {
+    imageUrl: string;
+}
+
+// 사용자 프로필 배경 이미지 업로드 인터페이스
+export interface SetBackgroundImageRequest {
+    imageUrl: string;
+}
+
+/**
+ * 현재 사용자 정보 조회 API
+ * @returns 현재 사용자 정보
+ */
+export const getCurrentUser = async (): Promise<UserResponse> => {
+    const response = await api.get<ApiResponse<UserResponse>>('/users/me');
+    return extractData(response);
+};
+
 /**
  * 사용자 프로필 업데이트 API
  * @param userId 사용자 ID
@@ -16,7 +37,7 @@ export interface ProfileUpdateRequest {
  * @returns 업데이트된 사용자 정보
  */
 export const updateProfile = async (
-    userId: number, // userId 타입 변경
+    userId: number,
     profileData: ProfileUpdateRequest
 ) => {
     const response = await api.put<ApiResponse<any>>(`/users/me`, profileData);
@@ -67,5 +88,27 @@ export const changePassword = async (
         currentPassword,
         newPassword
     });
+    return extractData(response);
+};
+
+// 사용자 프로필 이미지 업로드 API
+export const setProfileImage = async (
+    request: SetProfileImageRequest
+): Promise<UserResponse> => {
+    const response = await api.put<ApiResponse<UserResponse>>('/users/me/profile-image', request);
+    return extractData(response);
+};
+
+// 사용자 프로필 배경 이미지 업로드 API
+export const setBackgroundImage = async (request
+    : SetBackgroundImageRequest
+): Promise<UserResponse> => {
+    const response = await api.put<ApiResponse<UserResponse>>('/users/me/background-image', request);
+    return extractData(response);
+};
+
+// 친구 프로필 조회 API
+export const getUserProfile = async (userId: number): Promise<Friend> => {
+    const response = await api.get(`/users/${userId}`);
     return extractData(response);
 };

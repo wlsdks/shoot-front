@@ -1,20 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { getFriends } from '../../api/friends';
-import { Friend, FriendResponse } from '../../../../entities/friend';
+import { Friend } from '../../types/friend';
+import { convertToFriend } from '../utils/friendConverter';
 
-// API 응답을 Friend 타입으로 변환하는 함수
-const convertToFriend = (response: FriendResponse): Friend => ({
-    id: response.id,
-    username: response.username,
-    nickname: response.nickname,
-    status: "온라인", // TODO: 실제 상태 정보로 대체
-    profileImageUrl: response.profileImageUrl,
-    isFriend: true,
-    isPending: false,
-    isIncoming: false,
-    isOutgoing: false
-});
-
+// 친구 목록 조회 훅
 export const useFriends = (userId: number) => {
     const { data, isLoading, error } = useQuery<Friend[]>({
         queryKey: ['friends', userId],

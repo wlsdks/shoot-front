@@ -13,7 +13,7 @@ import {
   Input,
   Button,
   ErrorMessage
-} from './ui/common';
+} from '../auth/styles/Auth.styles';
 import styled from 'styled-components';
 
 const ScrollContainer = styled.div`
