@@ -3,6 +3,9 @@ import { Friend } from '../../social/types/friend';
 import { useMutation } from '@tanstack/react-query';
 import { setBackgroundImage } from '../api/profile';
 import { useFriendProfile } from '../model/hooks/useProfile';
+import { useChatRooms } from '../../chat-room/model/hooks/useChatRooms';
+import { useNavigate } from 'react-router-dom';
+import { ChatRoomResponse } from '../../chat-room/types/chatRoom.types';
 import {
   ModalOverlay,
   ModalContent,
@@ -43,6 +46,8 @@ interface FriendProfileModalProps {
 const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend: initialFriend, onClose, onChatClick }) => {
   const [isHoveringCover, setIsHoveringCover] = useState(false);
   const { friend, isLoading } = useFriendProfile(initialFriend.id);
+  const navigate = useNavigate();
+  const { findDirectChatRoom } = useChatRooms(1); // TODO: 실제 로그인한 사용자의 ID로 대체
   
   const { mutate: updateBackgroundImage } = useMutation({
     mutationFn: setBackgroundImage,
@@ -52,8 +57,20 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend: initial
   });
 
   const handleChatClick = () => {
-    onChatClick(initialFriend.id);
-    onClose();
+    findDirectChatRoom.mutate(
+      { myId: 1, otherUserId: initialFriend.id },
+      {
+        onSuccess: (data: ChatRoomResponse) => {
+          if (data) {
+            navigate(`/chatroom/${data.roomId}`);
+            onClose();
+          }
+        },
+        onError: (error) => {
+          console.error('채팅방을 찾을 수 없습니다:', error);
+        }
+      }
+    );
   };
 
   const handleEditCover = (e: React.MouseEvent) => {

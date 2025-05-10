@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getChatRooms, updateChatRoomFavorite } from '../../api/chatRoom';
+import { FindDirectChatRoomParams, ChatRoomResponse } from '../../types/chatRoom.types';
+import { getChatRooms, updateChatRoomFavorite, findDirectChatRoom } from '../../api/chatRoom';
 
 export const useChatRooms = (userId: number) => {
     const queryClient = useQueryClient();
@@ -20,10 +21,16 @@ export const useChatRooms = (userId: number) => {
         },
     });
 
+    // 1:1 채팅방 찾기
+    const findDirectChatRoomMutation = useMutation<ChatRoomResponse, Error, FindDirectChatRoomParams>({
+        mutationFn: findDirectChatRoom,
+    });
+
     return {
         chatRooms,
         isLoading,
         error,
         updateFavorite,
+        findDirectChatRoom: findDirectChatRoomMutation,
     };
 }; 
