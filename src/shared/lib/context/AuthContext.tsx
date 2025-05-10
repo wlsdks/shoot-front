@@ -62,6 +62,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const token = localStorage.getItem("accessToken");
             if (!token) return undefined;
             
+            // 로그인 페이지에서는 API 호출을 하지 않음
+            if (window.location.pathname === '/login') {
+                return undefined;
+            }
+            
             try {
                 const userData = await loginCheckApi();
                 setUser(userData);
