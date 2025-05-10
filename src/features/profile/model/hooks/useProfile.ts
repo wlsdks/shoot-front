@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { updateUserStatus } from '../../api/profile';
-import { setProfileImage, setBackgroundImage } from '../../api/profile';
+import { setProfileImage, setBackgroundImage, getUserProfile } from '../../api/profile';
 import { getCurrentUser } from '../../api/profile';
 import { UserResponse } from '../../types/user';
+import { Friend } from '../../../social/types/friend';
 
 export const useProfile = (userId: number) => {
     const queryClient = useQueryClient();
@@ -49,5 +50,20 @@ export const useProfile = (userId: number) => {
         updateBackgroundImage: updateBackgroundImage.mutate,
         isUpdatingBackgroundImage: updateBackgroundImage.isPending,
         updateBackgroundImageError: updateBackgroundImage.error,
+    };
+};
+
+// 친구 프로필 조회
+export const useFriendProfile = (userId: number) => {
+    const { data: friend, isLoading, error } = useQuery<Friend>({
+        queryKey: ['friendProfile', userId],
+        queryFn: () => getUserProfile(userId),
+        enabled: !!userId,
+    });
+
+    return {
+        friend,
+        isLoading,
+        error,
     };
 }; 

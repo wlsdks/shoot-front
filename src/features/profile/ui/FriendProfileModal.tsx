@@ -3,6 +3,7 @@ import styled, { keyframes } from 'styled-components';
 import { Friend } from '../../social/types/friend';
 import { useMutation } from '@tanstack/react-query';
 import { setBackgroundImage } from '../api/profile';
+import { useFriendProfile } from '../model/hooks/useProfile';
 
 // 애니메이션 효과
 const fadeIn = keyframes`
@@ -45,9 +46,9 @@ const ModalOverlay = styled.div`
 const ModalContent = styled.div`
   position: relative;
   width: 90%;
-  max-width: 360px;
-  height: 85vh;
-  max-height: 600px;
+  max-width: 320px;
+  height: 75vh;
+  max-height: 500px;
   background: white;
   border-radius: 16px;
   overflow: hidden;
@@ -61,7 +62,7 @@ const ModalContent = styled.div`
 const VisualSection = styled.div`
   position: relative;
   width: 100%;
-  height: 240px;
+  height: 200px;
 `;
 
 // 배경 이미지
@@ -135,8 +136,8 @@ const ProfileCard = styled.div`
 // 프로필 이미지
 const ProfileImageWrapper = styled.div`
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   border: 3px solid white;
   background: white;
@@ -207,14 +208,14 @@ const UserInfoBasic = styled.div`
 
 // 사용자 이름
 const Username = styled.h2`
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 600;
   margin: 0 0 4px 0;
 `;
 
 // 온라인 상태
 const OnlineStatus = styled.div`
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -230,18 +231,18 @@ const StatusIndicator = styled.div<{ $online?: boolean }>`
 
 // 상세 정보 영역
 const InfoSection = styled.div`
-  padding: 20px;
+  padding: 15px;
   flex: 1;
   overflow-y: auto;
 `;
 
 // 섹션 제목
 const SectionTitle = styled.h3`
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #333;
-  margin: 0 0 12px 0;
-  padding-bottom: 8px;
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
   border-bottom: 1px solid #eee;
 `;
 
@@ -256,13 +257,13 @@ const InfoList = styled.div`
 const InfoItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 `;
 
 // 상세 정보 아이콘
 const InfoIcon = styled.div`
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   background: #f5f5f5;
   display: flex;
@@ -271,8 +272,8 @@ const InfoIcon = styled.div`
   color: #555;
   
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -283,35 +284,35 @@ const InfoText = styled.div`
 
 // 상세 정보 라벨
 const InfoLabel = styled.div`
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #777;
   margin-bottom: 2px;
 `;
 
 // 상세 정보 값
 const InfoValue = styled.div`
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #333;
   font-weight: 500;
 `;
 
 // 푸터 액션 영역
 const ActionFooter = styled.div`
-  padding: 14px 20px;
+  padding: 12px 15px;
   border-top: 1px solid #eee;
   display: flex;
-  gap: 12px;
+  gap: 10px;
 `;
 
 // 액션 버튼
 const ActionButton = styled.button<{ $primary?: boolean }>`
   flex: 1;
-  padding: 12px;
+  padding: 10px;
   border-radius: 8px;
   background: ${props => props.$primary ? '#007AFF' : '#f5f5f5'};
   color: ${props => props.$primary ? 'white' : '#333'};
   border: none;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -327,8 +328,8 @@ const ActionButton = styled.button<{ $primary?: boolean }>`
   }
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
   }
 `;
 
@@ -360,6 +361,15 @@ const CloseButton = styled.button`
   }
 `;
 
+const LoadingText = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 1rem;
+  color: #666;
+`;
+
 // Props 인터페이스
 interface FriendProfileModalProps {
   friend: Friend;
@@ -367,18 +377,19 @@ interface FriendProfileModalProps {
   onChatClick: (friendId: number) => void;
 }
 
-const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose, onChatClick }) => {
+const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend: initialFriend, onClose, onChatClick }) => {
   const [isHoveringCover, setIsHoveringCover] = useState(false);
+  const { friend, isLoading } = useFriendProfile(initialFriend.id);
   
   const { mutate: updateBackgroundImage } = useMutation({
     mutationFn: setBackgroundImage,
     onSuccess: () => {
-      // TODO: 프로필 정보 새로고침
-    }
+      // TODO: 성공 처리
+    },
   });
 
   const handleChatClick = () => {
-    onChatClick(friend.id);
+    onChatClick(initialFriend.id);
     onClose();
   };
 
@@ -395,11 +406,23 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
   };
 
   const getInitial = () => {
-    const name = friend.nickname || friend.username;
+    const name = friend?.nickname || friend?.username || initialFriend.nickname || initialFriend.username;
     return name.charAt(0).toUpperCase();
   };
 
-  const isOnline = friend.status === '온라인' || true; // 예시로 기본값 설정
+  const isOnline = friend?.status === '온라인' || initialFriend.status === '온라인' || true;
+
+  if (isLoading) {
+    return (
+      <ModalOverlay onClick={onClose}>
+        <ModalContent onClick={e => e.stopPropagation()}>
+          <LoadingText>로딩 중...</LoadingText>
+        </ModalContent>
+      </ModalOverlay>
+    );
+  }
+
+  const displayFriend = friend || initialFriend;
 
   return (
     <ModalOverlay onClick={onClose}>
@@ -408,10 +431,10 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
           onMouseEnter={() => setIsHoveringCover(true)}
           onMouseLeave={() => setIsHoveringCover(false)}
         >
-          <CoverPhoto $imageUrl={friend.backgroundImageUrl || null} />
+          <CoverPhoto $imageUrl={displayFriend.backgroundImageUrl || null} />
           <CoverOverlay />
           
-          {(isHoveringCover || !friend.backgroundImageUrl) && (
+          {(isHoveringCover || !displayFriend.backgroundImageUrl) && (
             <EditCoverButton onClick={handleEditCover}>
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15 8L16 9L9 16L8 15L15 8Z" fill="currentColor" />
@@ -419,14 +442,14 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
                 <path d="M8 16V17H7V16H8Z" fill="currentColor" />
                 <path fillRule="evenodd" clipRule="evenodd" d="M3 6C3 4.34315 4.34315 3 6 3H18C19.6569 3 21 4.34315 21 6V18C21 19.6569 19.6569 21 18 21H6C4.34315 21 3 19.6569 3 18V6ZM6 5C5.44772 5 5 5.44772 5 6V18C5 18.5523 5.44772 19 6 19H18C18.5523 19 19 18.5523 19 18V6C19 5.44772 18.5523 5 18 5H6Z" fill="currentColor" />
               </svg>
-              {friend.backgroundImageUrl ? '배경 편집' : '배경 추가'}
+              {displayFriend.backgroundImageUrl ? '배경 편집' : '배경 추가'}
             </EditCoverButton>
           )}
           
           <ProfileCard>
             <ProfileImageWrapper>
-              {friend.profileImageUrl ? (
-                <ProfileImage $imageUrl={friend.profileImageUrl} />
+              {displayFriend.profileImageUrl ? (
+                <ProfileImage $imageUrl={displayFriend.profileImageUrl} />
               ) : (
                 <ProfileInitial>{getInitial()}</ProfileInitial>
               )}
@@ -439,10 +462,10 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
             </ProfileImageWrapper>
             
             <UserInfoBasic>
-              <Username>{friend.nickname || friend.username}</Username>
+              <Username>{displayFriend.nickname || displayFriend.username}</Username>
               <OnlineStatus>
                 <StatusIndicator $online={isOnline} />
-                {friend.status || (isOnline ? '온라인' : '오프라인')}
+                {displayFriend.status || (isOnline ? '온라인' : '오프라인')}
               </OnlineStatus>
             </UserInfoBasic>
           </ProfileCard>
@@ -464,6 +487,10 @@ const FriendProfileModal: React.FC<FriendProfileModalProps> = ({ friend, onClose
                   <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18ZM4 0H20V2H4V0ZM4 22H20V24H4V22ZM12 12C14.21 12 16 10.21 16 8H8C8 10.21 9.79 12 12 12ZM12 7C12.55 7 13 7.45 13 8C13 8.55 12.55 9 12 9C11.45 9 11 8.55 11 8C11 7.45 11.45 7 12 7ZM17 15H7V14C7 12.67 10.33 12 12 12C13.67 12 17 12.67 17 14V15Z" fill="currentColor" />
                 </svg>
               </InfoIcon>
+              <InfoText>
+                <InfoLabel>유저코드</InfoLabel>
+                <InfoValue>{displayFriend.userCode || 'userCode'}</InfoValue>
+              </InfoText>
             </InfoItem>
             
             <InfoItem>

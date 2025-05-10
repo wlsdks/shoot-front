@@ -2,6 +2,7 @@ import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
 import { UserResponse } from '../types/user';
+import { Friend } from '../../social/types/friend';
 
 // 사용자 프로필 인터페이스
 export interface ProfileUpdateRequest {
@@ -103,5 +104,11 @@ export const setBackgroundImage = async (request
     : SetBackgroundImageRequest
 ): Promise<UserResponse> => {
     const response = await api.put<ApiResponse<UserResponse>>('/users/me/background-image', request);
+    return extractData(response);
+};
+
+// 친구 프로필 조회 API
+export const getUserProfile = async (userId: number): Promise<Friend> => {
+    const response = await api.get(`/users/${userId}`);
     return extractData(response);
 };
