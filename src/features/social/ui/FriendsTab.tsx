@@ -1,3 +1,4 @@
+// src/features/social/ui/FriendsTab.tsx
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../../shared/lib/context/AuthContext";
 import { useFriends } from "../model/hooks/useFriends";
@@ -20,26 +21,38 @@ import {
 } from "../../../shared/ui/tabStyles";
 import styled from "styled-components";
 
-const SearchButton = styled.button`
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    padding: 0.5rem;
+const ActionButton = styled.button`
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
+    justify-content: center;
+    padding: 0.5rem;
+    background-color: #f2f8ff;
+    border: none;
+    border-radius: 10px;
+    color: #007bff;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    gap: 6px;
+    height: 38px;
     
     &:hover {
-        opacity: 0.8;
+        background-color: #e1eeff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
     }
 `;
 
-const MySection = styled.div`
+const ProfileSection = styled.div`
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid #e0e0e0;
+    border-bottom: 1px solid #eef2f7;
+`;
+
+const HeaderButtons = styled.div`
+    display: flex;
+    gap: 8px;
 `;
 
 const FriendsTab: React.FC = () => {
@@ -78,17 +91,23 @@ const FriendsTab: React.FC = () => {
             <TabHeader 
                 title="내 친구 목록"
                 actions={
-                    <>
-                        <SearchButton onClick={() => setShowSearch((prev) => !prev)}>
+                    <HeaderButtons>
+                        <ActionButton onClick={() => setShowSearch((prev) => !prev)}>
                             <Icon>
                                 <circle cx="11" cy="11" r="8" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </Icon>
-                        </SearchButton>
-                        <SearchButton onClick={() => setShowCode((prev) => !prev)}>
+                            검색
+                        </ActionButton>
+                        <ActionButton onClick={() => setShowCode((prev) => !prev)}>
+                            <Icon>
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <line x1="8" y1="12" x2="16" y2="12" />
+                                <line x1="12" y1="8" x2="12" y2="16" />
+                            </Icon>
                             코드로 찾기
-                        </SearchButton>
-                    </>
+                        </ActionButton>
+                    </HeaderButtons>
                 }
             />
             
@@ -107,7 +126,7 @@ const FriendsTab: React.FC = () => {
                 
                 {/* 내 프로필 카드 */}
                 {user && (
-                    <MySection>
+                    <ProfileSection>
                         <FriendItem
                             friend={{
                                 id: user.id,
@@ -122,7 +141,7 @@ const FriendsTab: React.FC = () => {
                             }}
                             onChatClick={() => {}}
                         />
-                    </MySection>
+                    </ProfileSection>
                 )}
                 
                 {/* 친구 섹션 헤더 */}
