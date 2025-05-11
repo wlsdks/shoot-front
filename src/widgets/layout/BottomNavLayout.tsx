@@ -1,21 +1,24 @@
+// src/widgets/layout/BottomNavLayout.tsx
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import FriendTab from "../../features/social/ui/FriendsTab";
 import SocialTab from "../../features/social/ui/SocialTab";
 import ChatTab from "../../features/chat-room/ui/ChatRoomListTab";
 import SettingsTab from "../../features/settings/ui/SettingsTab";
+import { fadeIn } from "../../shared/ui/commonStyles";
 
 const Container = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background-color: #ffffff;
+    background-color: #f8fafc;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
+    overflow: hidden;
 `;
 
 const MobileScreen = styled.div`
@@ -23,28 +26,28 @@ const MobileScreen = styled.div`
     height: 667px;
     background-color: #fff;
     border-radius: 30px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 2px solid #ddd;
+    border: 1.5px solid #eaeaea;
     position: relative;
+    animation: ${fadeIn} 0.5s ease-out;
 `;
 
 const ContentArea = styled.div`
     flex: 1;
     overflow-y: auto;
     position: relative;
-    scrollbar-width: thin;
-    scrollbar-color: #ddd transparent;
+    background-color: #f8fafc;
     
     &::-webkit-scrollbar {
-        width: 5px;
+        width: 4px;
     }
     
     &::-webkit-scrollbar-thumb {
         background: #ddd;
-        border-radius: 3px;
+        border-radius: 4px;
     }
     
     &::-webkit-scrollbar-track {
@@ -55,35 +58,53 @@ const ContentArea = styled.div`
 const BottomNav = styled.div`
     display: flex;
     background: #fff;
-    border-top: 1px solid #ddd;
-    height: 60px; /* 하단 네비게이션 높이 고정 */
+    border-top: 1px solid #eaeaea;
+    height: 64px;
+    padding: 0.3rem 0.5rem;
 `;
 
 const NavButton = styled.button<{ $active: boolean }>`
     flex: 1;
-    padding: 0.75rem 0;
-    background: ${(props) => (props.$active ? "#f2f2f2" : "#fff")};
-    border: none;
-    border-bottom: ${(props) =>
-        props.$active ? "3px solid #007bff" : "3px solid transparent"};
-    color: ${(props) => (props.$active ? "#007bff" : "#333")};
-    font-weight: ${(props) => (props.$active ? "600" : "400")};
-    cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
+    background: ${(props) => (props.$active ? "#f0f7ff" : "transparent")};
+    border: none;
+    border-radius: 12px;
+    color: ${(props) => (props.$active ? "#007bff" : "#94a3b8")};
+    font-weight: ${(props) => (props.$active ? "600" : "400")};
+    cursor: pointer;
+    padding: 0.5rem 0;
+    transition: all 0.3s ease;
+    margin: 0 0.25rem;
+    
+    &:hover {
+        background: ${(props) => props.$active ? "#e1eeff" : "#f8fafc"};
+        transform: translateY(-2px);
+    }
 `;
 
-const IconWrapper = styled.div`
+const IconWrapper = styled.div<{ $active: boolean }>`
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 24px;
+    height: 24px;
+    transition: all 0.3s ease;
+    
+    svg {
+        width: 24px;
+        height: 24px;
+        stroke-width: ${props => props.$active ? '2.2px' : '1.8px'};
+        transition: all 0.3s ease;
+    }
 `;
 
 const ButtonLabel = styled.span`
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    transition: all 0.3s ease;
 `;
 
 const BottomNavLayout: React.FC = () => {
@@ -124,8 +145,8 @@ const BottomNavLayout: React.FC = () => {
                 </ContentArea>
                 <BottomNav>
                     <NavButton $active={activeTab === 0} onClick={() => setActiveTab(0)}>
-                        <IconWrapper>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <IconWrapper $active={activeTab === 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
                                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -135,8 +156,8 @@ const BottomNavLayout: React.FC = () => {
                         <ButtonLabel>친구</ButtonLabel>
                     </NavButton>
                     <NavButton $active={activeTab === 1} onClick={() => setActiveTab(1)}>
-                        <IconWrapper>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <IconWrapper $active={activeTab === 1}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
                                 <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                                 <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                                 <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
@@ -145,16 +166,16 @@ const BottomNavLayout: React.FC = () => {
                         <ButtonLabel>소셜</ButtonLabel>
                     </NavButton>
                     <NavButton $active={activeTab === 2} onClick={() => setActiveTab(2)}>
-                        <IconWrapper>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <IconWrapper $active={activeTab === 2}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                             </svg>
                         </IconWrapper>
                         <ButtonLabel>채팅</ButtonLabel>
                     </NavButton>
                     <NavButton $active={activeTab === 3} onClick={() => setActiveTab(3)}>
-                        <IconWrapper>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <IconWrapper $active={activeTab === 3}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3"></circle>
                                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                             </svg>
