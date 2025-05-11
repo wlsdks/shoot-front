@@ -1,3 +1,4 @@
+// src/features/social/ui/SocialTab.tsx
 import React, { useState } from "react";
 import { useAuth } from "../../../shared/lib/context/AuthContext";
 import { useSocialData } from "../model/hooks/useSocialData";
@@ -14,17 +15,67 @@ import {
     TabSectionTitle,
     TabSectionCount,
 } from "../../../shared/ui/tabStyles";
+import styled from "styled-components";
+
+const ErrorContainer = styled.div`
+    background-color: #fff5f5;
+    color: #e53e3e;
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 5px rgba(229, 62, 62, 0.1);
+    
+    svg {
+        flex-shrink: 0;
+    }
+`;
+
+const LoadMoreButton = styled.button`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #f2f8ff;
+    border: none;
+    border-radius: 10px;
+    color: #007bff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 1rem;
+    
+    &:hover {
+        background-color: #e1eeff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+    }
+    
+    &:disabled {
+        background-color: #f2f2f2;
+        color: #aaa;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+`;
 
 const SocialTab: React.FC = () => {
     const { user } = useAuth();
     const [error, setError] = useState("");
+    const [loadingMore, setLoadingMore] = useState(false);
 
     const {
         data: socialData,
         isLoading,
         sendFriendRequest,
         acceptRequest,
-        cancelRequest
+        cancelRequest,
+        fetchMoreRecommended
     } = useSocialData(user?.id || 0);
 
     // 친구 요청 보내기
@@ -60,6 +111,21 @@ const SocialTab: React.FC = () => {
         }
     };
 
+    // 더 많은 추천 친구 불러오기
+    const handleLoadMoreRecommended = async () => {
+        if (!socialData?.recommendedFriends) return;
+        
+        setLoadingMore(true);
+        try {
+            await fetchMoreRecommended(socialData.recommendedFriends.length);
+        } catch (err) {
+            console.error("추천 친구 불러오기 실패:", err);
+            setError("추천 친구를 더 불러오지 못했습니다.");
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
     if (isLoading && (!socialData?.friends || socialData.friends.length === 0)) {
         return (
             <TabContainer>
@@ -85,14 +151,14 @@ const SocialTab: React.FC = () => {
             
             <TabContent>
                 {error && (
-                    <div style={{ color: 'red', padding: '1rem' }}>
+                    <ErrorContainer>
                         <Icon>
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="8" x2="12" y2="12" />
                             <line x1="12" y1="16" x2="12.01" y2="16" />
                         </Icon>
                         {error}
-                    </div>
+                    </ErrorContainer>
                 )}
 
                 {/* 받은 친구 요청 섹션 */}
@@ -183,14 +249,25 @@ const SocialTab: React.FC = () => {
                             text="추천 친구가 없습니다."
                         />
                     ) : (
-                        socialData.recommendedFriends.map((friend) => (
-                            <SocialItem
-                                key={friend.id}
-                                friend={friend}
-                                status="recommended"
-                                onAction={handleSendFriendRequest}
-                            />
-                        ))
+                        <>
+                            {socialData.recommendedFriends.map((friend) => (
+                                <SocialItem
+                                    key={friend.id}
+                                    friend={friend}
+                                    status="recommended"
+                                    onAction={handleSendFriendRequest}
+                                />
+                            ))}
+                            
+                            {socialData.recommendedFriends.length >= 5 && (
+                                <LoadMoreButton 
+                                    onClick={handleLoadMoreRecommended}
+                                    disabled={loadingMore}
+                                >
+                                    {loadingMore ? '불러오는 중...' : '더 보기'}
+                                </LoadMoreButton>
+                            )}
+                        </>
                     )}
                 </TabSection>
             </TabContent>

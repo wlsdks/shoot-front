@@ -1,36 +1,24 @@
+// src/features/social/ui/SocialItem.tsx
 import React from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { Friend } from '../../../entities/friend';
-import { commonColors, commonShadows, commonBorderRadius } from '../../../shared/ui/commonStyles';
-
-const fadeInUp = keyframes`
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-`;
+import { fadeIn } from '../../../shared/ui/commonStyles';
 
 const SocialItemContainer = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem;
+    padding: 1rem;
     background-color: white;
-    border: 1px solid #e0e0e0;
-    border-radius: ${commonBorderRadius.medium};
-    margin-bottom: 0.6rem;
+    border-radius: 14px;
+    margin-bottom: 0.8rem;
     transition: all 0.3s ease;
-    animation: ${fadeInUp} 0.3s ease-out;
-    box-shadow: ${commonShadows.small};
+    animation: ${fadeIn} 0.3s ease-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
     &:hover {
-        transform: translateY(-2px);
-        box-shadow: ${commonShadows.medium};
-        border-color: ${commonColors.primary};
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
     }
 
     &:active {
@@ -46,21 +34,16 @@ const UserInfo = styled.div`
 `;
 
 const ProfileImageContainer = styled.div`
-    width: 38px;
-    height: 38px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     overflow: hidden;
     margin-right: 0.75rem;
-    background-color: #e9ecef;
+    background-color: #f0f5ff;
     flex-shrink: 0;
     border: 2px solid #e1ecff;
-    box-shadow: ${commonShadows.small};
-    transition: all 0.3s ease;
-
-    ${SocialItemContainer}:hover & {
-        border-color: ${commonColors.primary};
-        transform: scale(1.05);
-    }
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    position: relative;
 `;
 
 const ProfileImage = styled.img`
@@ -80,14 +63,13 @@ const ProfileInitial = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: ${commonColors.primary};
+    background: linear-gradient(135deg, #4a6cf7, #2a4cdf);
     color: white;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.2rem;
     transition: all 0.3s ease;
 
     ${SocialItemContainer}:hover & {
-        background-color: ${commonColors.primary};
         transform: scale(1.1);
     }
 `;
@@ -100,25 +82,31 @@ const FriendInfo = styled.div`
 
 const FriendName = styled.span`
     font-weight: 600;
-    color: ${commonColors.dark};
-    font-size: 0.85rem;
+    color: #333;
+    font-size: 0.95rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.2rem;
     transition: color 0.3s ease;
 
     ${SocialItemContainer}:hover & {
-        color: ${commonColors.primary};
+        color: #007bff;
     }
 `;
 
 const FriendStatus = styled.span`
-    font-size: 0.75rem;
-    color: ${commonColors.secondary};
+    font-size: 0.8rem;
+    color: #666;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const FriendUsername = styled.span`
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.1rem;
 `;
 
 const Actions = styled.div`
@@ -130,31 +118,31 @@ const Actions = styled.div`
 const ActionButton = styled.button<{ $primary?: boolean; $danger?: boolean; disabled?: boolean }>`
     background: ${(props) => 
         props.disabled ? '#f1f3f5' :
-        props.$primary ? commonColors.primary : 
+        props.$primary ? '#007bff' : 
         props.$danger ? '#dc3545' : 'white'};
     color: ${(props) => 
         props.disabled ? '#adb5bd' :
-        (props.$primary || props.$danger) ? '#ffffff' : commonColors.dark};
-    padding: 0.4rem 0.8rem;
-    font-size: 0.75rem;
+        (props.$primary || props.$danger) ? '#ffffff' : '#333'};
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
     border: 1px solid ${(props) => 
         props.disabled ? '#e9ecef' :
-        props.$primary ? commonColors.primary : 
+        props.$primary ? '#007bff' : 
         props.$danger ? '#dc3545' : '#e0e0e0'};
-    border-radius: ${commonBorderRadius.medium};
+    border-radius: 10px;
     cursor: ${(props) => props.disabled ? 'default' : 'pointer'};
     font-weight: 500;
     display: flex;
     align-items: center;
     transition: all 0.3s ease;
-    box-shadow: ${commonShadows.small};
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     
     &:hover {
-        transform: translateY(-2px);
-        box-shadow: ${commonShadows.medium};
+        transform: ${props => props.disabled ? 'none' : 'translateY(-2px)'};
+        box-shadow: ${props => props.disabled ? 'none' : '0 4px 8px rgba(0, 0, 0, 0.1)'};
         background: ${(props) => 
             props.disabled ? '#f1f3f5' :
-            props.$primary ? '#0056b3' : 
+            props.$primary ? '#0069d9' : 
             props.$danger ? '#c82333' : '#f8f9fa'};
     }
     
@@ -207,11 +195,32 @@ const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => 
             case 'recommended':
                 return (
                     <ActionButton $primary onClick={() => onAction(friend.id)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
                         친구 추가
                     </ActionButton>
                 );
             default:
                 return null;
+        }
+    };
+
+    const getStatusText = () => {
+        switch (status) {
+            case 'friend':
+                return '이미 친구입니다';
+            case 'requested':
+                return '친구 요청 받음';
+            case 'outgoing':
+                return '친구 요청 보냄';
+            case 'recommended':
+                return '추천 친구';
+            default:
+                return '';
         }
     };
 
@@ -222,16 +231,11 @@ const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => 
                     {renderProfileImage()}
                 </ProfileImageContainer>
                 <FriendInfo>
-                    <FriendName>{friend.username}</FriendName>
-                    <FriendStatus>
-                        {status === 'friend' 
-                            ? '이미 친구입니다' 
-                            : status === 'requested' 
-                                ? '친구 요청 받음' 
-                                : status === 'outgoing'
-                                    ? '친구 요청 보냄'
-                                    : '추천 친구'}
-                    </FriendStatus>
+                    <FriendName>{friend.nickname || friend.username}</FriendName>
+                    <FriendStatus>{getStatusText()}</FriendStatus>
+                    {friend.username && friend.nickname && friend.username !== friend.nickname && (
+                        <FriendUsername>@{friend.username}</FriendUsername>
+                    )}
                 </FriendInfo>
             </UserInfo>
             <Actions>
@@ -241,4 +245,4 @@ const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => 
     );
 };
 
-export default SocialItem; 
+export default SocialItem;
