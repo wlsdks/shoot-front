@@ -2,285 +2,31 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../shared/lib/context/AuthContext';
 import { useUserCode } from '../model/useUserCode';
-import styled from 'styled-components';
-import { fadeIn } from '../../../shared/ui/commonStyles';
-
-const Container = styled.div`
-    background-color: #fff;
-    border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    animation: ${fadeIn} 0.3s ease-out;
-`;
-
-const Title = styled.h3`
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #333;
-    margin: 0 0 1.2rem 0;
-    position: relative;
-    padding-left: 0.8rem;
-    
-    &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 18px;
-        background: #4a6cf7;
-        border-radius: 3px;
-    }
-`;
-
-const Description = styled.p`
-    font-size: 0.9rem;
-    color: #64748b;
-    line-height: 1.6;
-    margin: 0 0 1.5rem 0;
-`;
-
-const CurrentCodeCard = styled.div`
-    background: linear-gradient(145deg, #f0f7ff, #f8fafc);
-    border-radius: 12px;
-    padding: 1.2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    border: 1px solid #d9e6ff;
-    position: relative;
-    
-    &::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(to right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.5));
-        border-radius: 12px;
-        pointer-events: none;
-    }
-`;
-
-const CodeLabel = styled.div`
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-`;
-
-const CodeDisplay = styled.div`
-    display: flex;
-    align-items: center;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #4a6cf7;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 1px;
-`;
-
-const CodePrefix = styled.span`
-    color: #94a3b8;
-    margin-right: 0.2rem;
-`;
-
-const CodeActions = styled.div`
-    display: flex;
-    gap: 0.8rem;
-    margin-top: 1rem;
-`;
-
-const CodeButton = styled.button<{ $primary?: boolean }>`
-    background: ${props => props.$primary ? '#4a6cf7' : 'white'};
-    color: ${props => props.$primary ? 'white' : '#475569'};
-    border: 1px solid ${props => props.$primary ? '#4a6cf7' : '#e2e8f0'};
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    transition: all 0.2s;
-    
-    &:hover {
-        background: ${props => props.$primary ? '#3a5be0' : '#f8fafc'};
-        transform: translateY(-2px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    
-    svg {
-        width: 14px;
-        height: 14px;
-    }
-`;
-
-const FormSection = styled.div`
-    margin-top: 1.5rem;
-`;
-
-const FormTitle = styled.h4`
-    font-size: 1rem;
-    font-weight: 600;
-    color: #333;
-    margin: 0 0 1rem 0;
-    position: relative;
-`;
-
-const InputGroup = styled.div`
-    margin-bottom: 1.2rem;
-`;
-
-const Label = styled.label`
-    display: block;
-    font-size: 0.85rem;
-    color: #475569;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-`;
-
-const InputWrapper = styled.div`
-    position: relative;
-`;
-
-const InputPrefix = styled.div`
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #4a6cf7;
-    font-weight: 600;
-    font-size: 1rem;
-`;
-
-const Input = styled.input`
-    width: 100%;
-    padding: 0.8rem 1rem 0.8rem 2.2rem;
-    border: 1px solid #e1e8ed;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    background: #f8fafc;
-    transition: all 0.3s;
-    
-    &:focus {
-        outline: none;
-        border-color: #4a6cf7;
-        background: #fff;
-        box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
-    }
-    
-    &::placeholder {
-        color: #a0aec0;
-    }
-`;
-
-const HelpText = styled.div`
-    background: #f8fafc;
-    border-radius: 10px;
-    padding: 1rem;
-    font-size: 0.8rem;
-    color: #64748b;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid #4a6cf7;
-`;
-
-const HelpTitle = styled.div`
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 0.5rem;
-`;
-
-const HelpList = styled.ul`
-    margin: 0;
-    padding-left: 1.2rem;
-    
-    li {
-        margin-bottom: 0.4rem;
-        line-height: 1.5;
-        
-        &:last-child {
-            margin-bottom: 0;
-        }
-    }
-`;
-
-const SubmitButton = styled.button`
-    width: 100%;
-    background: #4a6cf7;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 0.9rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.3s;
-    
-    &:hover {
-        background: #3a5be0;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(74, 108, 247, 0.15);
-    }
-    
-    &:disabled {
-        background: #a0aef0;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-    }
-`;
-
-const Spinner = styled.div`
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 0.7s linear infinite;
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-`;
-
-const Message = styled.div<{ $type: 'success' | 'error' }>`
-    margin: 1rem 0;
-    padding: 0.8rem 1rem;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    animation: ${fadeIn} 0.3s ease;
-    
-    ${props => props.$type === 'success' 
-        ? `
-        background: #ecfdf5;
-        border: 1px solid #d1fae5;
-        color: #059669;
-        `
-        : `
-        background: #fef2f2;
-        border: 1px solid #fee2e2;
-        color: #dc2626;
-        `
-    }
-`;
-
-const MessageIcon = styled.div`
-    display: flex;
-    
-    svg {
-        width: 16px;
-        height: 16px;
-    }
-`;
+import {
+    Container,
+    Title,
+    Description,
+    CurrentCodeCard,
+    CodeLabel,
+    CodeDisplay,
+    CodePrefix,
+    CodeActions,
+    CodeButton,
+    FormSection,
+    FormTitle,
+    InputGroup,
+    Label,
+    InputWrapper,
+    InputPrefix,
+    Input,
+    HelpText,
+    HelpTitle,
+    HelpList,
+    SubmitButton,
+    Spinner,
+    Message,
+    MessageIcon
+} from '../styles/userCodeSettings.styles';
 
 interface UserCodeSettingsProps {
     userId: number;
