@@ -2,15 +2,17 @@ import React from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { AuthProvider } from '../shared/lib/context/AuthContext';
-import LoginPage from '../pages/auth/LoginPage';
-import SignUpPage from '../pages/auth/SignUpPage';
-import FindIdPage from '../pages/auth/FindIdPage';
-import FindPasswordPage from '../pages/auth/FindPasswordPage';
+import {
+    LoginPage,
+    SignUpPage,
+    FindIdPage,
+    FindPasswordPage,
+    FriendCodePage,
+    ChatRoomPage,
+    EditProfilePage,
+} from '../pages';
 import BottomNavLayout from '../widgets/layout/BottomNavLayout';
-import PrivateRoute from '../app/routes/PrivateRoute';
-import FriendCodePage from '../pages/user-code/FriendCodePage';
-import ChatRoomPage from '../pages/chat/ChatRoomPage';
-import EditProfilePage from '../pages/profile/EditProfilePage';
+import PrivateRoute from './routes/PrivateRoute';
 import { theme } from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
 

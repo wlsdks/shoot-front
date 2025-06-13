@@ -96,23 +96,14 @@ const SocialTab: React.FC = () => {
             <TabHeader 
                 title="소셜"
                 actions={
-                    <Icon>
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </Icon>
+                    <Icon name="users" />
                 }
             />
             
             <TabContent>
                 {error && (
                     <ErrorContainer>
-                        <Icon>
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                        </Icon>
+                        <Icon name="error-circle" />
                         {error}
                     </ErrorContainer>
                 )}
@@ -128,14 +119,7 @@ const SocialTab: React.FC = () => {
 
                     {!socialData?.incomingRequests || socialData.incomingRequests.length === 0 ? (
                         <EmptyState
-                            icon={
-                                <Icon>
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <line x1="17" y1="8" x2="17" y2="14" />
-                                    <line x1="14" y1="11" x2="20" y2="11" />
-                                </Icon>
-                            }
+                            icon={<Icon name="user-plus" />}
                             text="아직 받은 친구 요청이 없습니다."
                         />
                     ) : (
@@ -161,14 +145,7 @@ const SocialTab: React.FC = () => {
 
                     {!socialData?.outgoingRequests || socialData.outgoingRequests.length === 0 ? (
                         <EmptyState
-                            icon={
-                                <Icon>
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <line x1="17" y1="8" x2="17" y2="14" />
-                                    <line x1="14" y1="11" x2="20" y2="11" />
-                                </Icon>
-                            }
+                            icon={<Icon name="user-plus" />}
                             text="보낸 친구 요청이 없습니다."
                         />
                     ) : (
@@ -194,14 +171,7 @@ const SocialTab: React.FC = () => {
 
                     {!socialData?.recommendedFriends || socialData.recommendedFriends.length === 0 ? (
                         <EmptyState
-                            icon={
-                                <Icon>
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                </Icon>
-                            }
+                            icon={<Icon name="users" />}
                             text="추천 친구가 없습니다."
                         />
                     ) : (
