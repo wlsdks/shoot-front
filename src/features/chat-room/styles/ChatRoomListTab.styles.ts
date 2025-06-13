@@ -82,7 +82,7 @@ export const SearchContainer = styled.div`
 
 export const SearchInput = styled.input`
     width: 100%;
-    padding: 0.8rem 2.7rem 0.8rem 1rem;
+    padding: 0.8rem 1rem 0.8rem 3.0rem;
     border: 1px solid #e1e8ed;
     border-radius: 12px;
     font-size: 0.9rem;
@@ -103,9 +103,11 @@ export const SearchInput = styled.input`
 
 export const SearchIcon = styled.div`
     position: absolute;
-    right: 1rem;
-    top: 50%;
+    left: 1rem;
+    top: calc(50% - 0.5rem);
     transform: translateY(-50%);
     color: #a0aec0;
     pointer-events: none;
+    display: flex;
+    align-items: center;
 `; 
