@@ -1,8 +1,8 @@
-import api from "../../../shared/api/api";  // 예: axios.create({ baseURL: 'http://localhost:8100/api/v1' }) 등
-import { authApi } from './authApi';
+import api from "../../../shared/api/api";
 import { ApiResponse } from "../../../shared/api/api";
 import { extractData } from '../../../shared/lib/apiUtils';
 import { User } from '../../../entities/user';
+import { API_ENDPOINTS } from '../../../shared/api/config';
 
 // 백엔드에서 실제로 반환하는 응답 형식에 맞춘 LoginResponse
 export interface LoginResponse {
@@ -25,19 +25,19 @@ export const signup = async (formData: FormData) => {
 
 // 로그인 API 호출 (예: JWT 토큰 발급)
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
-    const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', { username, password });
+    const response = await api.post<ApiResponse<LoginResponse>>(API_ENDPOINTS.AUTH.LOGIN, { username, password });
     return extractData(response);
 };
 
 // 현재 사용자 정보 조회 API
 export const loginCheckApi = async (): Promise<User> => {
-    const response = await api.get<ApiResponse<User>>("/auth/me");
+    const response = await api.get<ApiResponse<User>>(API_ENDPOINTS.AUTH.ME);
     return extractData(response);
 };
 
 // refresh token API 호출 함수
 export const refreshTokenApi = async (refreshToken: string) => {
-    const response = await authApi.post<ApiResponse<TokenResponse>>('/auth/refresh-token', null, {
+    const response = await api.post<ApiResponse<TokenResponse>>(API_ENDPOINTS.AUTH.REFRESH, null, {
         headers: {
             Authorization: `Bearer ${refreshToken}`
         }
@@ -47,6 +47,6 @@ export const refreshTokenApi = async (refreshToken: string) => {
 
 // 사용자 정보 가져오기 (AuthContext에서 사용할 수 있는 함수)
 export const fetchUserInfo = async (): Promise<User> => {
-    const response = await api.get<ApiResponse<User>>('/auth/me');
+    const response = await api.get<ApiResponse<User>>(API_ENDPOINTS.AUTH.ME);
     return extractData(response);
 };

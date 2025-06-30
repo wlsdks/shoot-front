@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { createApiError, handleApiError } from '../lib/apiUtils';
+import { API_CONFIG } from './config';
 
 // 백엔드의 ResponseDto와 일치하는 인터페이스 정의
 export interface ApiResponse<T> {
@@ -13,7 +14,8 @@ export interface ApiResponse<T> {
 
 // 백엔드의 기본 URL (포트 등은 백엔드 설정에 맞춤)
 const api = axios.create({
-    baseURL: 'http://localhost:8100/api/v1',
+    baseURL: API_CONFIG.BASE_URL,
+    timeout: API_CONFIG.TIMEOUT,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -21,7 +23,7 @@ const api = axios.create({
 
 // 요청 인터셉터를 통해 JWT 토큰을 헤더에 추가합니다.
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
         config.headers = config.headers || {};
         config.headers['Authorization'] = `Bearer ${token}`;

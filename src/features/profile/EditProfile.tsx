@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../shared/lib/context/AuthContext';
 import { updateProfile, uploadProfileImage, changePassword } from './api/profile';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { API_CONFIG } from '../../shared/api/config';
 import {
   Form,
   ProfileImageSection,
@@ -112,8 +113,8 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // 파일 크기 체크 (5MB 제한)
-      if (file.size > 5 * 1024 * 1024) {
+      // 파일 크기 체크
+      if (file.size > API_CONFIG.MAX_FILE_SIZE) {
         setError('이미지 크기는 5MB 이하여야 합니다.');
         return;
       }
