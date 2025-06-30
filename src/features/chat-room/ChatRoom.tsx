@@ -653,13 +653,12 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
                 // 초기 동기화 요청
                 setTimeout(() => {
-                    const lastMessageId = messages.length > 0 
-                        ? messages[messages.length - 1].id 
-                        : null;
-
+                    // 새로고침 직후나 첫 진입 시에는 최신 메시지부터 가져오기
+                    console.log("초기 동기화 요청 시작 - 최신 메시지부터 가져오기");
+                    
                     webSocketService.current.requestSync(
-                        lastMessageId || undefined,
-                        lastMessageId ? "AFTER" : "INITIAL"
+                        undefined,  // lastMessageId를 undefined로 설정하여 최신 메시지부터 가져오기
+                        "INITIAL"   // 항상 INITIAL로 요청하여 최신 메시지들을 가져오기
                     );
 
                     // 첫 진입 시 읽음 처리 추가
