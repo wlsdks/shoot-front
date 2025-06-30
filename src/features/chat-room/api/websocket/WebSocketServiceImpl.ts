@@ -7,6 +7,7 @@ export class WebSocketServiceImpl implements WebSocketService {
     private client: Client | null = null;
     private roomId: number | null = null;
     private userId: number | null = null;
+    private isConnecting: boolean = false;
     // 메시지 수신 콜백 목록
     private messageCallbacks: ((message: ChatMessageItem) => void)[] = [];
     // 타이핑 상태 변경 콜백 목록
@@ -27,11 +28,18 @@ export class WebSocketServiceImpl implements WebSocketService {
     private lastActiveStatus: boolean | null = null;
 
     async connect(roomId: number, userId: number): Promise<void> {
+        if (this.isConnecting) {
+            console.log("웹소켓 연결 중 - 중복 연결 시도 무시");
+            return;
+        }
+        
+        this.isConnecting = true;
         this.roomId = roomId;
         this.userId = userId;
 
         const token = localStorage.getItem("accessToken");
         if (!token) {
+            this.isConnecting = false;
             throw new Error("No access token found");
         }
 
@@ -42,6 +50,8 @@ export class WebSocketServiceImpl implements WebSocketService {
             reconnectDelay: 5000,
             debug: () => {},
             onConnect: () => {
+                console.log("웹소켓 연결 완료");
+                this.isConnecting = false;
                 this.setupSubscriptions();
                 // Send active status immediately on connect
                 this.sendActiveStatus(true);
@@ -52,9 +62,11 @@ export class WebSocketServiceImpl implements WebSocketService {
             },
             onStompError: (frame) => {
                 console.error("STOMP error:", frame);
+                this.isConnecting = false;
             },
             onWebSocketError: (event) => {
                 console.error("WebSocket error:", event);
+                this.isConnecting = false;
             }
         });
 
@@ -62,6 +74,7 @@ export class WebSocketServiceImpl implements WebSocketService {
             await this.client.activate();
         } catch (error) {
             console.error("WebSocket connection failed:", error);
+            this.isConnecting = false;
             throw error;
         }
     }
@@ -289,6 +302,7 @@ export class WebSocketServiceImpl implements WebSocketService {
         });
     }
 
+    // 핸들러 등록 메서드들
     onMessage(callback: (message: ChatMessageItem) => void): void {
         this.messageCallbacks.push(callback);
     }
@@ -321,7 +335,23 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.syncCallbacks.push(callback);
     }
 
+    // 핸들러 제거 메서드들
+    clearAllHandlers(): void {
+        this.messageCallbacks = [];
+        this.typingIndicatorCallbacks = [];
+        this.messageStatusCallbacks = [];
+        this.messageUpdateCallbacks = [];
+        this.readBulkCallbacks = [];
+        this.readCallbacks = [];
+        this.pinUpdateCallbacks = [];
+        this.syncCallbacks = [];
+    }
+
     isConnected(): boolean {
         return this.client?.connected || false;
+    }
+    
+    getIsConnecting(): boolean {
+        return this.isConnecting;
     }
 }

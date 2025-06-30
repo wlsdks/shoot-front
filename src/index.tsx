@@ -18,11 +18,12 @@ const root = ReactDOM.createRoot(
 );
 
 root.render(
-  <React.StrictMode>
+  // Strict Mode 임시 비활성화 (개발 중 디버깅용)
+  // <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <App />
       </BrowserRouter>
     </QueryClientProvider>
-  </React.StrictMode>
+  // </React.StrictMode>
 ); 

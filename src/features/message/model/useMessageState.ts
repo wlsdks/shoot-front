@@ -33,9 +33,26 @@ export const useMessageState = () => {
                 return prev;
             }
             
-            return [...prev, {...newMsg, readBy: newMsg.readBy || {}}];
+            // 메시지에 저장된 상태 정보 적용
+            let messageToAdd = {...newMsg, readBy: newMsg.readBy || {}};
+            if (newMsg.tempId && messageStatuses[newMsg.tempId]) {
+                const statusInfo = messageStatuses[newMsg.tempId];
+                messageToAdd = {
+                    ...messageToAdd,
+                    status: statusInfo.status,
+                    id: statusInfo.persistedId || messageToAdd.id
+                };
+                console.log("메시지 추가 시 저장된 상태 적용:", {
+                    tempId: newMsg.tempId,
+                    originalStatus: newMsg.status,
+                    appliedStatus: statusInfo.status,
+                    persistedId: statusInfo.persistedId
+                });
+            }
+            
+            return [...prev, messageToAdd];
         });
-    }, []);
+    }, [messageStatuses]);
 
     // messagesRef 업데이트
     useEffect(() => {
