@@ -811,17 +811,21 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             }
         };
 
-        // 상태를 먼저 설정하고 메시지 추가
+        // 상태를 먼저 설정
         updateMessageStatus(tempId, { 
             status: MessageStatus.SENDING, 
             persistedId: null,
             createdAt: new Date().toISOString()
         });
 
-        // 상태 설정 후 약간의 지연을 두고 메시지 추가 (동기화 보장)
-        setTimeout(() => {
-            updateMessages(chatMessage);
-        }, 0);
+        // 메시지 즉시 추가 (상태는 updateMessages 내에서 적용됨)
+        updateMessages(chatMessage);
+        
+        // console.log("메시지 전송:", {
+        //     tempId: chatMessage.tempId,
+        //     content: chatMessage.content.text,
+        //     timestamp: new Date().toISOString()
+        // });
         
         webSocketService.current.sendMessage(chatMessage);
         setInput("");
@@ -1037,9 +1041,29 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                                 currentStatus = statusInfo.status;
                                 // SAVED 상태이거나 persistedId가 있으면 저장된 것으로 간주
                                 isPersisted = statusInfo.status === MessageStatus.SAVED || !!statusInfo.persistedId;
+                                
+                                // 디버깅: 상태 정보 확인
+                                if (isOwn && idx === messages.length - 1) {
+                                    // console.log("최신 메시지 상태 확인:", {
+                                    //     tempId: msg.tempId,
+                                    //     originalStatus: msg.status,
+                                    //     currentStatus,
+                                    //     isPersisted,
+                                    //     statusInfo
+                                    // });
+                                }
                             } else {
                                 // tempId가 없거나 상태 정보가 없으면 이미 저장된 메시지로 간주
                                 isPersisted = !!msg.id && msg.id !== msg.tempId;
+                                
+                                // 디버깅: 상태 정보 없음
+                                if (isOwn && idx === messages.length - 1) {
+                                    // console.log("최신 메시지 상태 정보 없음:", {
+                                    //     tempId: msg.tempId,
+                                    //     hasMessageStatuses: Object.keys(messageStatuses).length > 0,
+                                    //     allStatuses: Object.keys(messageStatuses)
+                                    // });
+                                }
                             }
                             
                             // 읽음 상태 확인 로직
