@@ -4,7 +4,7 @@ import { useAuth } from "../../shared/lib/context/AuthContext";
 import { pinMessage, unpinMessage, getPinnedMessages } from "../message/api/message";
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
-import { MessageStatusUpdate } from "./api/websocket/types";
+
 import { SmileOutlined } from '@ant-design/icons';
 import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
 import { Button } from 'antd';
@@ -37,6 +37,7 @@ import {
 
 // 커스텀 훅 임포트
 import { useMessageState } from '../message/model/useMessageState';
+import { useMessageHandlers } from '../message/model/useMessageHandlers';
 import { useTypingState } from '../message/model/useTypingState';
 import { useScrollManager } from '../message/model/useScrollManager';
 import { useTypingHandlers } from '../message/model/useTypingHandlers';
@@ -86,6 +87,23 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         messagesRef,
         chatAreaRef
     } = useMessageState();
+
+    const {
+        handleMessage,
+        handleMessageStatus,
+        handleMessageUpdate,
+        handleReadBulk
+    } = useMessageHandlers({
+        webSocketService,
+        roomId,
+        userId: user?.id,
+        updateMessages,
+        updateMessageStatus,
+        setMessageStatuses,
+        setMessages,
+        messagesRef,
+        messageStatuses
+    });
 
     const {
         typingUsers,
@@ -360,16 +378,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         webSocketService.current.markAllMessagesAsRead();
     }, [roomId, user, sessionId]);
 
-    // 여러 메시지 읽음 업데이트 처리 함수
-    const updateBulkMessageReadStatus = useCallback((messageIds: string[], userId: string) => {
-        setMessages((prev) =>
-            prev.map((msg) =>
-                messageIds.includes(msg.id)
-                    ? { ...msg, readBy: { ...msg.readBy, [userId]: true } }
-                    : msg
-            )
-        );
-    }, [setMessages]);
+
 
     // 뒤로가기 클릭시 동작
     const handleBack = () => {
@@ -413,6 +422,16 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
         const connectWebSocket = async () => {
             try {
+                // 이미 연결 중이거나 연결된 상태라면 중복 연결 방지
+                if (webSocketService.current.isConnected() || 
+                    (webSocketService.current as any).getIsConnecting?.()) {
+                    console.log("웹소켓이 이미 연결되어 있거나 연결 중 - 중복 연결 방지");
+                    return;
+                }
+                
+                // 기존 핸들러들 모두 제거
+                webSocketService.current.clearAllHandlers();
+                
                 await webSocketService.current.connect(numericRoomId, user.id);
                 setConnectionError(null);
                 setIsConnected(true);
@@ -424,9 +443,9 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     updateTypingStatus(typingMsg);
                 });
 
-                // 메시지 수신 핸들러
+                // 메시지 수신 핸들러 (useMessageHandlers에서 처리)
                 webSocketService.current.onMessage((msg: ChatMessageItem) => {
-                    updateMessages(msg);
+                    handleMessage(msg);
                     
                     // 상대방이 보낸 메시지이고, 현재 스크롤이 맨 하단에 있을 때만 자동 스크롤
                     if (msg.senderId !== user?.id) {
@@ -456,80 +475,14 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     }
                 });
 
-                // 메시지 상태 핸들러
-                webSocketService.current.onMessageStatus((update: MessageStatusUpdate) => {
-                    const statusUpdate = Array.isArray(update) 
-                        ? update[update.length - 1] 
-                        : update;
-                    
-                    if (!statusUpdate || !statusUpdate.tempId) return;
+                // 메시지 상태 핸들러 (useMessageHandlers에서 처리)
+                webSocketService.current.onMessageStatus(handleMessageStatus);
 
-                    setMessageStatuses((prev) => {
-                        const existingStatus = prev[statusUpdate.tempId] || {};
-                        const newStatus = {
-                            status: statusUpdate.status,
-                            persistedId: statusUpdate.persistedId || existingStatus.persistedId,
-                            createdAt: statusUpdate.createdAt || existingStatus.createdAt
-                        };
-                        
-                        return {
-                            ...prev,
-                            [statusUpdate.tempId]: newStatus
-                        };
-                    });
+                // 메시지 업데이트 핸들러 (useMessageHandlers에서 처리)
+                webSocketService.current.onMessageUpdate(handleMessageUpdate);
 
-                    setMessages((prev) => {
-                        const messageMap = new Map<string, ChatMessageItem>();
-                        
-                        prev.forEach(msg => {
-                            if (msg.tempId === statusUpdate.tempId) return;
-                            messageMap.set(msg.id, msg);
-                        });
-
-                        const updatedMsg = prev.find(msg => msg.tempId === statusUpdate.tempId);
-                        if (updatedMsg) {
-                            const newMsg = {
-                                ...updatedMsg,
-                                status: statusUpdate.status,
-                                id: statusUpdate.persistedId || updatedMsg.id
-                            };
-                            messageMap.set(newMsg.id, newMsg);
-                        }
-
-                        return Array.from(messageMap.values()).sort((a, b) => 
-                            new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-                        );
-                    });
-
-                    if (statusUpdate.status === MessageStatus.SAVED && statusUpdate.persistedId) {
-                        const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
-                        if (currentMsg && !currentMsg.readBy[user?.id || ''] && currentMsg.senderId !== user?.id) {
-                            webSocketService.current.sendMessage({
-                                ...currentMsg,
-                                id: statusUpdate.persistedId
-                            });
-                        }
-                    }
-
-                    if (statusUpdate.status === MessageStatus.FAILED) {
-                        setConnectionError(`메시지 저장 실패: ${statusUpdate.errorMessage || '알 수 없는 오류'}`);
-                        setTimeout(() => setConnectionError(null), 3000);
-                    }
-                });
-
-                // 메시지 업데이트 핸들러
-                webSocketService.current.onMessageUpdate((updatedMessage: ChatMessageItem) => {
-                    setMessages((prevMessages) => 
-                        prevMessages.map((msg) => 
-                            msg.id === updatedMessage.id ? updatedMessage : msg
-                        )
-                    );
-                });
-
-                // 읽음 처리 핸들러
-                webSocketService.current.onReadBulk(({ messageIds, userId }: { messageIds: string[], userId: number }) => {
-                    updateBulkMessageReadStatus(messageIds, userId.toString());
-                });
+                // 읽음 처리 핸들러 (useMessageHandlers에서 처리)
+                webSocketService.current.onReadBulk(handleReadBulk);
 
                 // 개별 메시지 읽음 처리 핸들러 추가
                 webSocketService.current.onRead((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => {
@@ -691,13 +644,12 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
                 // 초기 동기화 요청
                 setTimeout(() => {
-                    const lastMessageId = messages.length > 0 
-                        ? messages[messages.length - 1].id 
-                        : null;
-
+                    // 새로고침 직후나 첫 진입 시에는 최신 메시지부터 가져오기
+                    console.log("초기 동기화 요청 시작 - 최신 메시지부터 가져오기");
+                    
                     webSocketService.current.requestSync(
-                        lastMessageId || undefined,
-                        lastMessageId ? "AFTER" : "INITIAL"
+                        undefined,  // lastMessageId를 undefined로 설정하여 최신 메시지부터 가져오기
+                        "INITIAL"   // 항상 INITIAL로 요청하여 최신 메시지들을 가져오기
                     );
 
                     // 첫 진입 시 읽음 처리 추가
@@ -733,7 +685,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             }
             webSocketService.current.disconnect();
         };
-    }, [roomId, user]);
+    }, [roomId, user?.id]);
 
     useEffect(() => {
         const handleOnline = () => {
@@ -772,53 +724,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             window.removeEventListener("online", handleOnline);
             window.removeEventListener("offline", handleOffline);
         };
-    }, [roomId, user]);
-
-    // WebSocket 이벤트 핸들러 설정을 위한 별도의 useEffect
-    useEffect(() => {
-        if (!webSocketService.current.isConnected()) return;
-
-        // 타이핑 인디케이터 핸들러
-        webSocketService.current.onTypingIndicator((typingMsg: TypingIndicatorMessage) => {
-            if (typingMsg.userId === user?.id) return;
-            updateTypingStatus(typingMsg);
-        });
-
-        // 메시지 수신 핸들러
-        webSocketService.current.onMessage((msg: ChatMessageItem) => {
-            updateMessages(msg);
-            
-            if (msg.senderId !== user?.id) {
-                const chatArea = chatAreaRef.current;
-                if (chatArea) {
-                    const { scrollTop, scrollHeight, clientHeight } = chatArea;
-                    const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
-                    
-                    if (isAtBottom) {
-                        setTimeout(() => {
-                            scrollToBottom();
-                        }, 100);
-                    }
-                }
-            }
-            
-            if (
-                document.visibilityState === "visible" &&
-                msg.readBy && !msg.readBy[user?.id || ''] &&
-                msg.senderId !== user?.id &&
-                msg.tempId && messageStatuses[msg.tempId]?.persistedId
-            ) {
-                webSocketService.current.sendMessage({
-                    ...msg,
-                    id: messageStatuses[msg.tempId].persistedId!
-                });
-            }
-        });
-
-        // ... other WebSocket handlers ...
-
-    }, [user?.id, updateTypingStatus, updateMessages, scrollToBottom, messageStatuses]);
-    /* eslint-enable react-hooks/exhaustive-deps */
+    }, [roomId, user?.id]);
 
     // 스크롤 이벤트 핸들러 (페이징)
     useEffect(() => {
@@ -853,6 +759,15 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         };
     }, [chatAreaRef, firstVisibleMessageRef, isPreviousMessagesLoadingRef, messages, setMessageDirection, hasMoreMessages]);
 
+    // UUID 생성 함수
+    const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : ((r & 0x3) | 0x8);
+            return v.toString(16);
+        });
+    };
+
     // 메시지 전송
     const sendMessage = () => {
         if (!webSocketService.current.isConnected() || input.trim() === "" || !roomId || !user) {
@@ -862,7 +777,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
         setMessageDirection("new");
 
-        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        const tempId = generateUUID();
 
         const chatMessage: ChatMessageItem = {
             id: tempId,
@@ -886,13 +801,22 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             }
         };
 
+        // 상태를 먼저 설정
         updateMessageStatus(tempId, { 
             status: MessageStatus.SENDING, 
             persistedId: null,
             createdAt: new Date().toISOString()
         });
 
+        // 메시지 즉시 추가 (상태는 updateMessages 내에서 적용됨)
         updateMessages(chatMessage);
+        
+        // console.log("메시지 전송:", {
+        //     tempId: chatMessage.tempId,
+        //     content: chatMessage.content.text,
+        //     timestamp: new Date().toISOString()
+        // });
+        
         webSocketService.current.sendMessage(chatMessage);
         setInput("");
         sendTypingIndicator(false);
@@ -1098,16 +1022,41 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                             // 내 메시지인가?
                             const isOwn = String(msg.senderId) === String(user?.id);
                             
-                            // 우선, 웹소켓 업데이트 상태가 있다면 사용, 없으면 API의 상태 사용
-                            const currentStatus = msg.tempId
-                                ? messageStatuses[msg.tempId]?.status || msg.status
-                                : msg.status;
+                            // 메시지 상태 결정 로직 개선
+                            let currentStatus = msg.status;
+                            let isPersisted = false;
                             
-                            // persistedId가 있거나 SAVED 상태면 저장된 것으로 간주
-                            const isPersisted = (!!msg.id && msg.id !== msg.tempId) || (currentStatus === MessageStatus.SAVED);
+                            if (msg.tempId && messageStatuses[msg.tempId]) {
+                                const statusInfo = messageStatuses[msg.tempId];
+                                currentStatus = statusInfo.status;
+                                // SAVED 상태이거나 persistedId가 있으면 저장된 것으로 간주
+                                isPersisted = statusInfo.status === MessageStatus.SAVED || !!statusInfo.persistedId;
+                                
+                                // 디버깅: 상태 정보 확인
+                                if (isOwn && idx === messages.length - 1) {
+                                    // console.log("최신 메시지 상태 확인:", {
+                                    //     tempId: msg.tempId,
+                                    //     originalStatus: msg.status,
+                                    //     currentStatus,
+                                    //     isPersisted,
+                                    //     statusInfo
+                                    // });
+                                }
+                            } else {
+                                // tempId가 없거나 상태 정보가 없으면 이미 저장된 메시지로 간주
+                                isPersisted = !!msg.id && msg.id !== msg.tempId;
+                                
+                                // 디버깅: 상태 정보 없음
+                                if (isOwn && idx === messages.length - 1) {
+                                    // console.log("최신 메시지 상태 정보 없음:", {
+                                    //     tempId: msg.tempId,
+                                    //     hasMessageStatuses: Object.keys(messageStatuses).length > 0,
+                                    //     allStatuses: Object.keys(messageStatuses)
+                                    // });
+                                }
+                            }
                             
-                            // 읽음 상태 확인 로직 수정
-                            // 내 메시지의 경우, 가장 먼저 다른 참여자가 있는지 확인
+                            // 읽음 상태 확인 로직
                             const otherParticipants = msg.readBy 
                                 ? Object.keys(msg.readBy).filter(id => id !== user?.id.toString()) 
                                 : [];
@@ -1123,7 +1072,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                             // indicatorText: 메시지를 모든 상대방이 읽지 않았으면 "1" 표시
                             const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
                             
-                            // 상태표시
+                            // 상태표시 - persistedId가 있으면 표시하지 않음
                             const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
                             
                             const nextMessage = messages[idx + 1];

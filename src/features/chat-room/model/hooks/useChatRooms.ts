@@ -1,25 +1,22 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { FindDirectChatRoomParams, ChatRoomResponse } from '../../types/chatRoom.types';
 import { getChatRooms, updateChatRoomFavorite, findDirectChatRoom } from '../../api/chatRoom';
+import { useUserDataQuery, useMutationWithSingleInvalidation } from '../../../../shared/lib/hooks/useQueryFactory';
 
 export const useChatRooms = (userId: number) => {
-    const queryClient = useQueryClient();
-
     // 채팅방 목록 조회
-    const { data: chatRooms, isLoading, error } = useQuery({
-        queryKey: ['chatRooms', userId],
-        queryFn: () => getChatRooms(userId),
-    });
+    const { data: chatRooms, isLoading, error } = useUserDataQuery(
+        ['chatRooms'],
+        () => getChatRooms(userId),
+        userId
+    );
 
     // 채팅방 즐겨찾기 상태 업데이트
-    const updateFavorite = useMutation({
-        mutationFn: ({ roomId, isFavorite }: { roomId: number; isFavorite: boolean }) =>
+    const updateFavorite = useMutationWithSingleInvalidation(
+        ({ roomId, isFavorite }: { roomId: number; isFavorite: boolean }) =>
             updateChatRoomFavorite(roomId, userId, isFavorite),
-            onSuccess: () => {
-            // 채팅방 목록 새로고침
-            queryClient.invalidateQueries({ queryKey: ['chatRooms', userId] });
-        },
-    });
+        ['chatRooms', userId]
+    );
 
     // 1:1 채팅방 찾기
     const findDirectChatRoomMutation = useMutation<ChatRoomResponse, Error, FindDirectChatRoomParams>({

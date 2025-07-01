@@ -6,6 +6,11 @@ import { refreshTokenApi, loginCheckApi } from "../../../features/auth/api";
 import { updateUserStatus } from '../../../features/profile/api/profile';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User } from '../../../entities/user';
+import { API_CONFIG, API_ENDPOINTS } from '../../api/config';
+
+// SSE 이벤트 타입 정의
+type SseEventType = 'message' | 'friendAdded' | 'chatRoomCreated' | 'heartbeat';
+type SseListener = (event: MessageEvent) => void;
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -17,8 +22,8 @@ interface AuthContextType {
     logout: () => void;
     deleteUser: () => void;
     updateStatus: (status: string) => void;
-    subscribeToSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
-    unsubscribeFromSse: (eventName: string, callback: (event: MessageEvent) => void) => void;
+    subscribeToSse: (eventName: SseEventType, callback: SseListener) => void;
+    unsubscribeFromSse: (eventName: SseEventType, callback: SseListener) => void;
     reconnectSse: () => void;
     fetchCurrentUser: () => void;
 }
@@ -50,16 +55,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(true);
     const sseSource = useRef<EventSourcePolyfill | null>(null);
-    const listeners = useRef<Map<string, Set<(event: MessageEvent) => void>>>(new Map());
+    const listeners = useRef<Map<SseEventType, Set<SseListener>>>(new Map());
     const connectionAttemptCount = useRef<number>(0);
     const reconnectTimeout = useRef<NodeJS.Timeout>();
     const queryClient = useQueryClient();
 
     // 현재 사용자 정보 조회 쿼리
-    const { data: currentUser, isLoading: isLoadingUser } = useQuery({
+    const { isLoading: isLoadingUser } = useQuery({
         queryKey: ['currentUser'],
         queryFn: async () => {
-            const token = localStorage.getItem("accessToken");
+            const token = localStorage.getItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN);
             if (!token) return undefined;
             
             // 로그인 페이지에서는 API 호출을 하지 않음
@@ -81,13 +86,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 return undefined;
             }
         },
-        enabled: !!localStorage.getItem("accessToken"),
+        enabled: !!localStorage.getItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN),
+        staleTime: API_CONFIG.QUERY_STALE_TIME.MEDIUM,
     });
 
     // 사용자 삭제 mutation
     const deleteUserMutation = useMutation({
         mutationFn: async () => {
-            await api.delete("/api/v1/users/me");
+            await api.delete(API_ENDPOINTS.USERS.DELETE_ME);
         },
         onSuccess: () => {
             logout();
@@ -106,121 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
     });
 
-    const establishSseConnection = useCallback((u: User, token: string) => {
-        if (sseSource.current) {
-            sseSource.current.close();
-            sseSource.current = null;
-        }
-
-        connectionAttemptCount.current += 1;
-        const currentAttempt = connectionAttemptCount.current;
-
-        try {
-            sseSource.current = new EventSourcePolyfill(
-                `http://localhost:8100/api/v1/chatrooms/updates/${u.id}`,
-                { 
-                    headers: { "Authorization": `Bearer ${token}` },
-                    heartbeatTimeout: 60000,
-                }
-            );
-
-            sseSource.current.onopen = () => {
-                connectionAttemptCount.current = 0;
-            };
-
-            (sseSource.current as any).onmessage = function(this: EventSource, ev: MessageEvent) {
-                try {
-                    const parsedData = JSON.parse(ev.data);
-                    const listenersForEvent = listeners.current.get("message") || new Set();
-                    listenersForEvent.forEach(callback => callback(ev));
-                } catch (err) {
-                    console.error("Failed to parse SSE data:", err);
-                }
-            };
-
-            const eventTypes = ["friendAdded", "chatRoomCreated", "heartbeat"];
-            eventTypes.forEach(eventType => {
-                (sseSource.current as any).addEventListener(eventType, function(this: EventSource, ev: Event) {
-                    const msgEvent = ev as MessageEvent;
-                    const listenersForEvent = listeners.current.get(eventType) || new Set();
-                    listenersForEvent.forEach(callback => callback(msgEvent));
-                });
-            });
-
-            (sseSource.current as any).onerror = function(this: EventSource, ev: Event) {
-                if (currentAttempt === connectionAttemptCount.current && sseSource.current) {
-                    sseSource.current.close();
-                    sseSource.current = null;
-                    
-                    if (reconnectTimeout.current) {
-                        clearTimeout(reconnectTimeout.current);
-                    }
-
-                    reconnectTimeout.current = setTimeout(() => {
-                        if (u.id && token && currentAttempt === connectionAttemptCount.current) {
-                            establishSseConnection(u, token);
-                        }
-                    }, 5000);
-                }
-            };
-        } catch (error) {
-            console.error("Failed to establish SSE connection:", error);
-        }
-    }, []);
-
-    const reconnectSse = useCallback(() => {
-        if (user) {
-            const token = localStorage.getItem("accessToken");
-            if (token) {
-                connectionAttemptCount.current = 0;
-                
-                if (sseSource.current) {
-                    sseSource.current.close();
-                    sseSource.current = null;
-                }
-                establishSseConnection(user, token);
-            }
-        }
-    }, [user, establishSseConnection]);
-
-    useEffect(() => {
-        return () => {
-            if (sseSource.current) {
-                sseSource.current.close();
-                sseSource.current = null;
-            }
-            if (reconnectTimeout.current) {
-                clearTimeout(reconnectTimeout.current);
-            }
-            listeners.current.clear();
-        };
-    }, []);
-
-    const login = useCallback((u: User, token: string, refreshToken?: string) => {
-        if (!token) return;
-
-        if (sseSource.current) {
-            sseSource.current.close();
-            sseSource.current = null;
-            listeners.current.clear();
-        }
-        
-        setUser(u);
-        setIsAuthenticated(true);
-        
-        localStorage.setItem("accessToken", token);
-        if (refreshToken) {
-            localStorage.setItem("refreshToken", refreshToken);
-        }
-
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        if (u.id) {
-            establishSseConnection(u, token);
-        }
-    }, [establishSseConnection]);
-
-    const logout = useCallback(() => {
+    const closeSSEConnection = useCallback(() => {
         if (sseSource.current) {
             sseSource.current.close();
             sseSource.current = null;
@@ -228,23 +120,121 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (reconnectTimeout.current) {
             clearTimeout(reconnectTimeout.current);
         }
+    }, []);
+
+    const establishSseConnection = useCallback((u: User, token: string) => {
+        closeSSEConnection();
+
+        connectionAttemptCount.current += 1;
+        const currentAttempt = connectionAttemptCount.current;
+
+        try {
+            const sseUrl = `${API_CONFIG.BASE_URL}${API_ENDPOINTS.CHAT_ROOMS.SSE_UPDATES(u.id)}`;
+            sseSource.current = new EventSourcePolyfill(sseUrl, { 
+                headers: { "Authorization": `Bearer ${token}` },
+                heartbeatTimeout: API_CONFIG.SSE_HEARTBEAT_TIMEOUT,
+            });
+
+            sseSource.current.onopen = () => {
+                connectionAttemptCount.current = 0;
+            };
+
+            (sseSource.current as any).onmessage = function(ev: MessageEvent) {
+                try {
+                    JSON.parse(ev.data); // 데이터 유효성 검사
+                    const listenersForEvent = listeners.current.get("message") || new Set();
+                    listenersForEvent.forEach(callback => callback(ev));
+                } catch (err) {
+                    console.error("Failed to parse SSE data:", err);
+                }
+            };
+
+            const eventTypes: SseEventType[] = ["friendAdded", "chatRoomCreated", "heartbeat"];
+            eventTypes.forEach(eventType => {
+                (sseSource.current as any).addEventListener(eventType, function(ev: Event) {
+                    const msgEvent = ev as MessageEvent;
+                    const listenersForEvent = listeners.current.get(eventType) || new Set();
+                    listenersForEvent.forEach(callback => callback(msgEvent));
+                });
+            });
+
+            (sseSource.current as any).onerror = function(ev: Event) {
+                if (currentAttempt === connectionAttemptCount.current && sseSource.current) {
+                    closeSSEConnection();
+                    
+                    reconnectTimeout.current = setTimeout(() => {
+                        if (u.id && token && currentAttempt === connectionAttemptCount.current) {
+                            establishSseConnection(u, token);
+                        }
+                    }, API_CONFIG.SSE_RECONNECT_DELAY);
+                }
+            };
+        } catch (error) {
+            console.error("Failed to establish SSE connection:", error);
+        }
+    }, [closeSSEConnection]);
+
+    const reconnectSse = useCallback(() => {
+        if (user) {
+            const token = localStorage.getItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN);
+            if (token) {
+                connectionAttemptCount.current = 0;
+                establishSseConnection(user, token);
+            }
+        }
+    }, [user, establishSseConnection]);
+
+    useEffect(() => {
+        const currentListeners = listeners.current;
+        return () => {
+            closeSSEConnection();
+            currentListeners.clear();
+        };
+    }, [closeSSEConnection]);
+
+    const login = useCallback((u: User, token: string, refreshToken?: string) => {
+        if (!token) return;
+
+        closeSSEConnection();
+        listeners.current.clear();
+        
+        setUser(u);
+        setIsAuthenticated(true);
+        
+        localStorage.setItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN, token);
+        if (refreshToken) {
+            localStorage.setItem(API_CONFIG.TOKEN_STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        }
+
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        if (u.id) {
+            establishSseConnection(u, token);
+        }
+    }, [establishSseConnection, closeSSEConnection]);
+
+    const logout = useCallback(() => {
+        closeSSEConnection();
         
         setUser(null);
         setIsAuthenticated(false);
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("activeTab");
+        
+        // 토큰 및 저장된 데이터 정리
+        Object.values(API_CONFIG.TOKEN_STORAGE_KEYS).forEach(key => {
+            localStorage.removeItem(key);
+        });
+        
         delete axios.defaults.headers.common["Authorization"];
         listeners.current.clear();
-    }, []);
+    }, [closeSSEConnection]);
 
-    const subscribeToSse = (eventName: string, callback: (event: MessageEvent) => void) => {
+    const subscribeToSse = useCallback((eventName: SseEventType, callback: SseListener) => {
         const eventListeners = listeners.current.get(eventName) || new Set();
         eventListeners.add(callback);
         listeners.current.set(eventName, eventListeners);
-    };
+    }, []);
 
-    const unsubscribeFromSse = (eventName: string, callback: (event: MessageEvent) => void) => {
+    const unsubscribeFromSse = useCallback((eventName: SseEventType, callback: SseListener) => {
         const eventListeners = listeners.current.get(eventName);
         if (eventListeners) {
             eventListeners.delete(callback);
@@ -252,7 +242,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 listeners.current.delete(eventName);
             }
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (!isLoadingUser) {
@@ -268,7 +258,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
                 if (error.response?.status === 401 && !originalRequest._retry) {
                     originalRequest._retry = true;
-                    const storedRefreshToken = localStorage.getItem("refreshToken");
+                    const storedRefreshToken = localStorage.getItem(API_CONFIG.TOKEN_STORAGE_KEYS.REFRESH_TOKEN);
 
                     if (storedRefreshToken) {
                         try {
@@ -277,8 +267,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                             if (response.data.success && response.data.data) {
                                 const { accessToken, refreshToken: newRefreshToken } = response.data.data;
                         
-                                localStorage.setItem("accessToken", accessToken);
-                                localStorage.setItem("refreshToken", newRefreshToken);
+                                localStorage.setItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+                                localStorage.setItem(API_CONFIG.TOKEN_STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
                         
                                 api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
                                 originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;

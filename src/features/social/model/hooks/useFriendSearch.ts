@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { searchFriends } from '../../api/friends';
 import { convertToFriend } from '../utils/friendConverter';
+import { API_CONFIG } from '../../../../shared/api/config';
 
 // 친구 검색 훅
 export const useFriendSearch = (userId: number | undefined, query: string) => {
@@ -12,6 +13,6 @@ export const useFriendSearch = (userId: number | undefined, query: string) => {
             return response.map(convertToFriend);
         },
         enabled: !!userId && query.trim() !== "",
-        staleTime: 1000 * 60, // 1분 동안 캐시 유지
+        staleTime: API_CONFIG.QUERY_STALE_TIME.SHORT, // 검색은 더 자주 갱신
     });
 }; 

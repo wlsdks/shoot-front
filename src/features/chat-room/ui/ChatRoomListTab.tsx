@@ -30,6 +30,7 @@ import {
     ErrorContainer,
     SearchContainer,
     SearchInput,
+    SearchIcon as SearchIconWrapper
 } from "../styles/ChatRoomListTab.styles";
 
 const ChatRoomList: React.FC = () => {
@@ -117,13 +118,15 @@ const ChatRoomList: React.FC = () => {
                 )}
 
                 <SearchContainer>
+                    <SearchIconWrapper>
+                        <SearchIcon />
+                    </SearchIconWrapper>
                     <SearchInput
                         type="text"
                         placeholder="채팅방 검색"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    <SearchIcon />
                 </SearchContainer>
 
                 {(!chatRooms?.data || chatRooms.data.length === 0 || filteredRooms.length === 0) ? (

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { ChatMessageItem, MessageStatus } from '../types/ChatRoom.types';
 import { WebSocketService } from '../../chat-room/api/websocket/types';
 
@@ -25,7 +25,32 @@ export const useMessageHandlers = ({
     messagesRef,
     messageStatuses
 }: UseMessageHandlersProps) => {
+    // 중복 상태 업데이트 방지를 위한 참조
+    const lastStatusUpdateRef = useRef<Record<string, { status: string; timestamp: number }>>({});
+    // 최근 전송된 메시지들의 tempId 추적
+    const recentSentMessagesRef = useRef<string[]>([]);
     const handleMessage = useCallback((msg: ChatMessageItem) => {
+        // console.log("메시지 수신:", {
+        //     id: msg.id,
+        //     tempId: msg.tempId,
+        //     senderId: msg.senderId,
+        //     content: msg.content?.text,
+        //     isOwn: msg.senderId === userId
+        // });
+        
+        // 내가 보낸 메시지이고 tempId가 있으면 추적 목록에 추가
+        if (msg.senderId === userId && msg.tempId) {
+            recentSentMessagesRef.current.push(msg.tempId);
+            // 최근 10개만 유지
+            if (recentSentMessagesRef.current.length > 10) {
+                recentSentMessagesRef.current = recentSentMessagesRef.current.slice(-10);
+            }
+            // console.log("내가 보낸 메시지 추적 추가:", {
+            //     tempId: msg.tempId,
+            //     recentSentMessages: recentSentMessagesRef.current
+            // });
+        }
+        
         updateMessages(msg);
         
         if (
@@ -39,52 +64,158 @@ export const useMessageHandlers = ({
                 id: messageStatuses[msg.tempId].persistedId!
             });
         }
-    }, [userId, updateMessages, messageStatuses]);
+    }, [userId, updateMessages, messageStatuses, webSocketService]);
 
     const handleMessageStatus = useCallback((update: any) => {
         const statusUpdate = Array.isArray(update) 
             ? update[update.length - 1] 
             : update;
         
-        if (!statusUpdate || !statusUpdate.tempId) return;
+        if (!statusUpdate || !statusUpdate.tempId) {
+            console.log("Invalid status update:", statusUpdate);
+            return;
+        }
 
-        setMessageStatuses((prev) => {
-            const existingStatus = prev[statusUpdate.tempId] || {};
-            const newStatus = {
-                status: statusUpdate.status,
-                persistedId: statusUpdate.persistedId || existingStatus.persistedId,
-                createdAt: statusUpdate.createdAt || existingStatus.createdAt
-            };
+        // console.log("메시지 상태 업데이트 수신:", statusUpdate);
+
+        // 중복 상태 업데이트 방지 (100ms 내 같은 상태는 무시)
+        const now = Date.now();
+        const lastUpdate = lastStatusUpdateRef.current[statusUpdate.tempId];
+        if (lastUpdate && 
+            lastUpdate.status === statusUpdate.status && 
+            now - lastUpdate.timestamp < 100) {
+            console.log("중복 상태 업데이트 무시:", statusUpdate);
+            return;
+        }
+
+        lastStatusUpdateRef.current[statusUpdate.tempId] = {
+            status: statusUpdate.status,
+            timestamp: now
+        };
+
+        // 상태 업데이트 - 실제 변경이 있을 때만
+        const existingStatus = messageStatuses[statusUpdate.tempId];
+        // console.log("현재 messageStatuses:", {
+        //     tempId: statusUpdate.tempId,
+        //     existingStatus,
+        //     allStatuses: Object.keys(messageStatuses),
+        //     statusUpdate
+        // });
+        
+        const newStatus = {
+            status: statusUpdate.status,
+            persistedId: statusUpdate.persistedId || existingStatus?.persistedId,
+            createdAt: statusUpdate.createdAt || existingStatus?.createdAt
+        };
+        
+        // 상태가 실제로 변경된 경우에만 업데이트
+        const hasStatusChanged = !existingStatus || 
+            existingStatus.status !== newStatus.status || 
+            existingStatus.persistedId !== newStatus.persistedId;
             
-            return {
-                ...prev,
-                [statusUpdate.tempId]: newStatus
-            };
-        });
+        if (!hasStatusChanged) {
+            console.log("상태 변경 없음 - 업데이트 스킵:", { tempId: statusUpdate.tempId, currentStatus: existingStatus?.status });
+            return;
+        }
+        
+        // console.log("상태 업데이트:", { tempId: statusUpdate.tempId, oldStatus: existingStatus, newStatus });
+        
+        setMessageStatuses((prev) => ({
+            ...prev,
+            [statusUpdate.tempId]: newStatus
+        }));
+
+        // 메시지 업데이트 - 메시지가 있는 경우 즉시 적용, 없으면 대안 매칭 시도
+        let targetMessage = messagesRef.current.find(msg => msg.tempId === statusUpdate.tempId);
+        
+        if (!targetMessage) {
+            // console.warn("직접 tempId로 메시지를 찾을 수 없음:", {
+            //     statusTempId: statusUpdate.tempId,
+            //     status: statusUpdate.status,
+            //     recentSentMessages: recentSentMessagesRef.current,
+            //     currentMessages: messagesRef.current.slice(-3).map(m => ({ id: m.id, tempId: m.tempId }))
+            // });
+            
+            // 최근 전송된 메시지 중에서 아직 상태가 SENDING인 메시지 찾기
+            const pendingMessage = messagesRef.current
+                .filter(msg => msg.senderId === userId && msg.status === "SENDING")
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                
+            if (pendingMessage) {
+                // console.log("대안 매칭: SENDING 상태인 최신 메시지에 상태 적용:", {
+                //     targetTempId: pendingMessage.tempId,
+                //     statusTempId: statusUpdate.tempId,
+                //     status: statusUpdate.status
+                // });
+                targetMessage = pendingMessage;
+                
+                // 이 경우 실제 tempId를 업데이트하여 향후 매칭이 가능하도록 함
+                setMessages((prev) => 
+                    prev.map(msg => 
+                        msg.tempId === pendingMessage.tempId 
+                            ? { 
+                                ...msg, 
+                                tempId: statusUpdate.tempId, // 서버 tempId로 업데이트
+                                status: statusUpdate.status,
+                                id: statusUpdate.persistedId || msg.id 
+                            }
+                            : msg
+                    )
+                );
+                return;
+            }
+            
+            // 100ms 후에 다시 시도
+            setTimeout(() => {
+                const delayedTargetMessage = messagesRef.current.find(msg => msg.tempId === statusUpdate.tempId);
+                if (delayedTargetMessage) {
+                    // console.log("지연 후 메시지 발견 - 상태 적용:", statusUpdate.tempId);
+                    setMessages((prev) => 
+                        prev.map(msg => 
+                            msg.tempId === statusUpdate.tempId 
+                                ? { 
+                                    ...msg, 
+                                    status: statusUpdate.status,
+                                    id: statusUpdate.persistedId || msg.id 
+                                }
+                                : msg
+                        )
+                    );
+                }
+            }, 100);
+            return;
+        }
 
         setMessages((prev) => {
-            const messageMap = new Map<string, ChatMessageItem>();
+            // console.log("메시지 업데이트 시작 - 현재 메시지 수:", prev.length);
             
-            prev.forEach(msg => {
-                if (msg.tempId === statusUpdate.tempId) return;
-                messageMap.set(msg.id, msg);
+            const updatedMessages = prev.map(msg => {
+                if (msg.tempId === statusUpdate.tempId) {
+                    const updatedMsg = {
+                        ...msg,
+                        status: statusUpdate.status,
+                        id: statusUpdate.persistedId || msg.id
+                    };
+                    // console.log("메시지 업데이트 적용:", { 
+                    //     tempId: statusUpdate.tempId,
+                    //     oldMsg: { id: msg.id, tempId: msg.tempId, status: msg.status }, 
+                    //     updatedMsg: { id: updatedMsg.id, tempId: updatedMsg.tempId, status: updatedMsg.status },
+                    //     statusUpdate 
+                    // });
+                    return updatedMsg;
+                }
+                return msg;
             });
-
-            const updatedMsg = prev.find(msg => msg.tempId === statusUpdate.tempId);
-            if (updatedMsg) {
-                const newMsg = {
-                    ...updatedMsg,
-                    status: statusUpdate.status,
-                    id: statusUpdate.persistedId || updatedMsg.id
-                };
-                messageMap.set(newMsg.id, newMsg);
-            }
-
-            return Array.from(messageMap.values()).sort((a, b) => 
-                new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()
-            );
+            
+            return updatedMessages;
         });
 
+        // 실패 상태 처리
+        if (statusUpdate.status === MessageStatus.FAILED) {
+            console.error("메시지 전송 실패:", statusUpdate);
+        }
+
+        // 읽음 처리 로직
         if (statusUpdate.status === MessageStatus.SAVED && statusUpdate.persistedId) {
             const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
             if (currentMsg && !currentMsg.readBy[userId!] && currentMsg.senderId !== userId) {
@@ -94,7 +225,7 @@ export const useMessageHandlers = ({
                 });
             }
         }
-    }, [userId, setMessageStatuses, setMessages, messagesRef]);
+    }, [userId, setMessageStatuses, setMessages, messagesRef, webSocketService, messageStatuses]);
 
     const handleMessageUpdate = useCallback((updatedMessage: ChatMessageItem) => {
         setMessages((prevMessages) => 

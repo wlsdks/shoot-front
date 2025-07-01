@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { login, signup, loginCheckApi } from '../../../features/auth/api';
 import { useAuth as useAuthContext } from '../context/AuthContext';
+import { API_CONFIG } from '../../api/config';
 
 export const useAuth = () => {
     const { login: contextLogin, isAuthenticated } = useAuthContext();
@@ -12,9 +13,9 @@ export const useAuth = () => {
         onSuccess: async (data) => {
             try {
                 // 토큰 저장
-                localStorage.setItem("accessToken", data.accessToken);
+                localStorage.setItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN, data.accessToken);
                 if (data.refreshToken) {
-                    localStorage.setItem("refreshToken", data.refreshToken);
+                    localStorage.setItem(API_CONFIG.TOKEN_STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
                 }
                 
                 // 사용자 정보를 가져와서 context에 저장
@@ -28,8 +29,8 @@ export const useAuth = () => {
             } catch (error) {
                 console.error("Failed to fetch user data:", error);
                 // 에러 발생 시 토큰 제거
-                localStorage.removeItem("accessToken");
-                localStorage.removeItem("refreshToken");
+                localStorage.removeItem(API_CONFIG.TOKEN_STORAGE_KEYS.ACCESS_TOKEN);
+                localStorage.removeItem(API_CONFIG.TOKEN_STORAGE_KEYS.REFRESH_TOKEN);
                 throw error;
             }
         }

@@ -1,7 +1,13 @@
-export * from './api';
+// API 설정 및 상수
+export { API_CONFIG, API_ENDPOINTS } from './config';
 
-export interface ApiResponse<T> {
-  data: T;
-  status: number;
-  message?: string;
-} 
+// 메인 API 클라이언트
+export { default as api, type ApiResponse } from './api';
+
+// API 유틸리티 함수들
+export { 
+  extractData, 
+  extractMessage, 
+  createApiError, 
+  handleApiError 
+} from '../lib/apiUtils'; 

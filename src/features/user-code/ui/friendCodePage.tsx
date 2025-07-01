@@ -84,8 +84,10 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
                     setSearchedUser(null);
                 }
             },
-            onError: () => {
-                setMessage("검색 중 오류가 발생했습니다");
+            onError: (error: any) => {
+                // API 응답의 message를 우선적으로 사용
+                const errorMessage = error?.message || "검색 중 오류가 발생했습니다";
+                setMessage(errorMessage);
                 setIsError(true);
                 setSearchedUser(null);
             }
@@ -102,8 +104,10 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
                 setIsError(false);
                 // 성공 후에도 사용자 정보는 유지
             },
-            onError: () => {
-                setMessage("친구 요청 전송에 실패했습니다");
+            onError: (error: any) => {
+                // API 응답의 message를 우선적으로 사용
+                const errorMessage = error?.message || "친구 요청 전송에 실패했습니다";
+                setMessage(errorMessage);
                 setIsError(true);
             }
         });

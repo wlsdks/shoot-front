@@ -12,6 +12,7 @@ export interface WebSocketService {
     onReadBulk(callback: (data: any) => void): void;
     onPinUpdate(callback: () => void): void;
     onSync(callback: (syncResponse: any) => void): void;
+    clearAllHandlers(): void;
     markAllMessagesAsRead(): void;
     sendTypingIndicator(isTyping: boolean): void;
     sendActiveStatus(isActive: boolean): void;
