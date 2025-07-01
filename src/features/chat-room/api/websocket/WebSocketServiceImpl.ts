@@ -285,7 +285,7 @@ export class WebSocketServiceImpl implements WebSocketService {
     }
 
     // 메시지를 받아오기 위해 호출 (초기 로드, 이전 메시지 로드, 새 메시지 동기화 시 호출)
-    requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL"): void {
+    requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL", limit?: number): void {
         if (!this.client?.connected || !this.roomId || !this.userId) return;
 
         const syncMessage: WebSocketMessage = {
@@ -293,8 +293,11 @@ export class WebSocketServiceImpl implements WebSocketService {
             userId: this.userId,
             lastMessageId,
             timestamp: new Date().toISOString(),
-            direction
+            direction,
+            limit: limit || (direction === "INITIAL" ? 50 : 20) // 초기 로드시 50개, 페이징시 20개
         };
+
+        console.log("동기화 요청:", { direction, limit: syncMessage.limit, lastMessageId });
 
         this.client.publish({
             destination: "/app/sync",
