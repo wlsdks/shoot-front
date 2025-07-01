@@ -16,7 +16,7 @@ export interface WebSocketService {
     markAllMessagesAsRead(): void;
     sendTypingIndicator(isTyping: boolean): void;
     sendActiveStatus(isActive: boolean): void;
-    requestSync(lastMessageId?: string, direction?: string): void;
+    requestSync(lastMessageId?: string, direction?: string, limit?: number): void;
 }
 
 export interface WebSocketMessage {
@@ -25,6 +25,7 @@ export interface WebSocketMessage {
     lastMessageId?: string;
     timestamp: string;
     direction?: string;
+    limit?: number;
 }
 
 export interface TypingIndicatorMessage {

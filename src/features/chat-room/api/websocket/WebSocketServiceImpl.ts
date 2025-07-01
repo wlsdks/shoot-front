@@ -94,6 +94,13 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.client.subscribe(`/topic/messages/${this.roomId}`, (message) => {
             try {
                 const msg: ChatMessageItem = JSON.parse(message.body);
+                console.log('🆕 [WebSocket] 실시간 새 메시지 수신:', {
+                    id: msg.id,
+                    content: msg.content?.text || 'No text',
+                    senderId: msg.senderId,
+                    timestamp: msg.createdAt,
+                    roomId: msg.roomId
+                });
                 this.messageCallbacks.forEach(callback => callback(msg));
             } catch (error) {
                 console.error("Error processing message:", error);
@@ -155,6 +162,18 @@ export class WebSocketServiceImpl implements WebSocketService {
         // 메시지 동기화 구독 (초기 로드, 이전 메시지 로드, 새 메시지 동기화 시 호출) -> 이걸로 모든 메시지를 받아옴 (api 호출 없이)
         this.client.subscribe(`/user/queue/sync`, (message) => {
             const syncData = JSON.parse(message.body);
+            console.log('🔄 [WebSocket] 동기화 응답 수신:', {
+                roomId: syncData.roomId,
+                direction: syncData.direction,
+                messageCount: syncData.messages?.length || 0,
+                rawData: syncData
+            });
+            console.log('📋 [WebSocket] 동기화 메시지 리스트:', syncData.messages?.map((msg: any) => ({
+                id: msg.id,
+                content: msg.content?.text || 'No text',
+                timestamp: msg.timestamp,
+                senderId: msg.senderId
+            })));
             this.syncCallbacks.forEach(callback => callback(syncData));
         });
     }
@@ -285,16 +304,33 @@ export class WebSocketServiceImpl implements WebSocketService {
     }
 
     // 메시지를 받아오기 위해 호출 (초기 로드, 이전 메시지 로드, 새 메시지 동기화 시 호출)
-    requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL"): void {
-        if (!this.client?.connected || !this.roomId || !this.userId) return;
+    requestSync(lastMessageId?: string, direction: "INITIAL" | "BEFORE" | "AFTER" = "INITIAL", limit?: number): void {
+        if (!this.client?.connected || !this.roomId || !this.userId) {
+            console.warn('🔄 [WebSocket] 동기화 요청 불가:', {
+                connected: this.client?.connected,
+                roomId: this.roomId,
+                userId: this.userId
+            });
+            return;
+        }
 
         const syncMessage: WebSocketMessage = {
             roomId: this.roomId,
             userId: this.userId,
             lastMessageId,
             timestamp: new Date().toISOString(),
-            direction
+            direction,
+            limit: limit || (direction === "INITIAL" ? 50 : 20) // 초기 로드시 50개, 페이징시 20개
         };
+
+        console.log("📤 [WebSocket] 동기화 요청 전송:", {
+            direction: syncMessage.direction,
+            limit: syncMessage.limit,
+            lastMessageId: syncMessage.lastMessageId,
+            roomId: syncMessage.roomId,
+            userId: syncMessage.userId,
+            timestamp: syncMessage.timestamp
+        });
 
         this.client.publish({
             destination: "/app/sync",
