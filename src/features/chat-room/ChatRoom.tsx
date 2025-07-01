@@ -552,19 +552,36 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
                 // 동기화 핸들러
                 webSocketService.current.onSync((syncResponse: { roomId: number, direction?: string, messages: any[] }) => {
-                    console.log("동기화 응답 수신:", {
+                    console.log("📥 [ChatRoom] 동기화 응답 처리 시작:", {
                         direction: syncResponse.direction,
-                        messageCount: syncResponse.messages.length,
-                        source: "sync",
-                        messages: syncResponse.messages.map(msg => ({
+                        messageCount: syncResponse.messages?.length || 0,
+                        roomId: syncResponse.roomId,
+                        rawResponse: syncResponse
+                    });
+                    
+                    if (!syncResponse.messages || !Array.isArray(syncResponse.messages)) {
+                        console.error("❌ [ChatRoom] 동기화 응답에 메시지 배열이 없음:", syncResponse);
+                        return;
+                    }
+                    
+                    console.log("📋 [ChatRoom] 동기화 메시지 상세:", 
+                        syncResponse.messages.map((msg: any) => ({
                             id: msg.id,
-                            reactions: msg.reactions,
-                            content: msg.content,
+                            content: msg.content?.text || 'No text',
                             senderId: msg.senderId,
                             timestamp: msg.timestamp,
                             status: msg.status,
                             readBy: msg.readBy
                         }))
+                    );
+                    
+                    // 가장 최신 메시지의 timestamp 확인
+                    const latestMessage = syncResponse.messages[syncResponse.messages.length - 1];
+                    console.log("🕐 [ChatRoom] 동기화에서 받은 가장 최신 메시지:", {
+                        id: latestMessage?.id,
+                        content: latestMessage?.content?.text,
+                        timestamp: latestMessage?.timestamp,
+                        currentTime: new Date().toISOString()
                     });
                     
                     if (syncResponse.direction === "BEFORE") {
@@ -637,7 +654,14 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                             });
                         });
                     } else {
+                        console.log("✅ [ChatRoom] 일반 동기화 처리 (INITIAL/AFTER)");
                         setMessages((prevMessages) => {
+                            console.log("📊 [ChatRoom] 메시지 상태 업데이트 전:", {
+                                기존메시지수: prevMessages.length,
+                                새로받은메시지수: syncResponse.messages.length,
+                                동기화방향: syncResponse.direction
+                            });
+                            
                             const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg: any) => ({
                                 id: msg.id,
                                 tempId: msg.tempId,
