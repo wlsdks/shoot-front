@@ -26,18 +26,34 @@ export const getMyCode = async (userId: number) => {
 
 // 유저 코드로 사용자 조회
 export const findUserByCode = async (code: string) => {
-    const response = await api.get<ApiResponse<any>>('/users/find-by-code', {
-        params: { code }
-    });
-    return response.data;
+    try {
+        const response = await api.get<ApiResponse<any>>('/users/find-by-code', {
+            params: { code }
+        });
+        return response.data;
+    } catch (error: any) {
+        // 에러 응답의 데이터를 그대로 반환하여 message를 포함시킴
+        if (error.response?.data) {
+            throw error.response.data;
+        }
+        throw error;
+    }
 };
 
 // 유저 코드로 친구 요청 보내기
 export const sendFriendRequestByCode = async (userId: number, targetCode: string) => {
-    const response = await api.post<ApiResponse<any>>('/users/request/by-code', null, {
-        params: { userId, targetCode }
-    });
-    return {
-        data: extractData(response)
-    };
+    try {
+        const response = await api.post<ApiResponse<any>>('/users/request/by-code', null, {
+            params: { userId, targetCode }
+        });
+        return {
+            data: extractData(response)
+        };
+    } catch (error: any) {
+        // 에러 응답의 데이터를 그대로 반환하여 message를 포함시킴
+        if (error.response?.data) {
+            throw error.response.data;
+        }
+        throw error;
+    }
 }; 
