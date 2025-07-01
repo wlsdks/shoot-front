@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import styled from 'styled-components';
 import { ChatMessageItem, MessageStatus } from '../types/ChatRoom.types';
 import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../ui/styles/ChatRoom.styles';
@@ -40,7 +40,7 @@ interface MessageRowProps {
     onClick: (e: React.MouseEvent, message: ChatMessageItem) => void;
 }
 
-export const MessageRow: React.FC<MessageRowProps> = ({
+const MessageRowComponent: React.FC<MessageRowProps> = ({
     message,
     isOwn,
     showTime,
@@ -148,3 +148,19 @@ export const MessageRow: React.FC<MessageRowProps> = ({
         </StyledMessageRow>
     );
 };
+
+// React.memo로 렌더링 최적화 - 메시지별 개별 메모이제이션
+export const MessageRow = memo(MessageRowComponent, (prevProps, nextProps) => {
+    // 메시지 내용, 상태, 시간 표시 여부 등이 동일하면 리렌더링 하지 않음
+    return (
+        prevProps.message === nextProps.message &&
+        prevProps.isOwn === nextProps.isOwn &&
+        prevProps.showTime === nextProps.showTime &&
+        prevProps.currentTime === nextProps.currentTime &&
+        prevProps.userId === nextProps.userId &&
+        prevProps.statusIndicator === nextProps.statusIndicator &&
+        prevProps.indicatorText === nextProps.indicatorText &&
+        prevProps.onContextMenu === nextProps.onContextMenu &&
+        prevProps.onClick === nextProps.onClick
+    );
+});

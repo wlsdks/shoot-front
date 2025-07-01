@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Header, BackButton, HeaderTitle } from '../../message/ui/styles/ChatRoom.styles';
 import { BackIcon } from '../../message/ui/icons';
 
@@ -7,7 +7,7 @@ interface ChatHeaderProps {
     title?: string;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ onBack, title = "채팅방" }) => {
+const ChatHeaderComponent: React.FC<ChatHeaderProps> = ({ onBack, title = "채팅방" }) => {
     return (
         <Header>
             <BackButton onClick={onBack}>
@@ -16,4 +16,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onBack, title = "채팅�
             <HeaderTitle>{title}</HeaderTitle>
         </Header>
     );
-}; 
+};
+
+// React.memo로 렌더링 최적화 (onBack 함수 참조가 변경될 때만 리렌더링)
+export const ChatHeader = memo(ChatHeaderComponent); 

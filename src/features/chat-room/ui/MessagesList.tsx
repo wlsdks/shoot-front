@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { ChatMessageItem, MessageStatus, MessageStatusInfo } from '../../message/types/ChatRoom.types';
 import { MessagesContainer } from '../../message/ui/styles/ChatRoom.styles';
 import { MessageRow } from '../../message/ui/MessageRow';
@@ -14,7 +14,7 @@ interface MessagesListProps {
     onClick: (e: React.MouseEvent, message: ChatMessageItem) => void;
 }
 
-export const MessagesList: React.FC<MessagesListProps> = ({
+const MessagesListComponent: React.FC<MessagesListProps> = ({
     messages,
     messageStatuses,
     userId,
@@ -123,4 +123,17 @@ export const MessagesList: React.FC<MessagesListProps> = ({
             })}
         </MessagesContainer>
     );
-}; 
+};
+
+// React.memo로 렌더링 최적화
+export const MessagesList = memo(MessagesListComponent, (prevProps: MessagesListProps, nextProps: MessagesListProps) => {
+    // 얕은 비교로 최적화
+    return (
+        prevProps.messages === nextProps.messages &&
+        prevProps.messageStatuses === nextProps.messageStatuses &&
+        prevProps.userId === nextProps.userId &&
+        prevProps.input === nextProps.input &&
+        prevProps.onContextMenu === nextProps.onContextMenu &&
+        prevProps.onClick === nextProps.onClick
+    );
+}); 

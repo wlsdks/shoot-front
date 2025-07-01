@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Button } from 'antd';
 import { SmileOutlined } from '@ant-design/icons';
 import { ContextMenu, ContextMenuItem } from '../../message/ui/styles/ChatRoom.styles';
@@ -28,7 +28,7 @@ interface ContextMenuHandlerProps {
     onCloseContextMenu: () => void;
 }
 
-export const ContextMenuHandler: React.FC<ContextMenuHandlerProps> = ({
+const ContextMenuHandlerComponent: React.FC<ContextMenuHandlerProps> = ({
     contextMenu,
     showReactionPicker,
     reactionTypes,
@@ -106,4 +106,23 @@ export const ContextMenuHandler: React.FC<ContextMenuHandlerProps> = ({
             )}
         </ContextMenu>
     );
-}; 
+};
+
+// React.memo로 렌더링 최적화
+export const ContextMenuHandler = memo(ContextMenuHandlerComponent, (prevProps: ContextMenuHandlerProps, nextProps: ContextMenuHandlerProps) => {
+    // 컨텍스트 메뉴나 리액션 피커 상태가 변경될 때만 리렌더링
+    return (
+        prevProps.contextMenu === nextProps.contextMenu &&
+        prevProps.showReactionPicker === nextProps.showReactionPicker &&
+        prevProps.reactionTypes === nextProps.reactionTypes &&
+        prevProps.pinnedMessages === nextProps.pinnedMessages &&
+        prevProps.userId === nextProps.userId &&
+        prevProps.onForwardClick === nextProps.onForwardClick &&
+        prevProps.onPinMessage === nextProps.onPinMessage &&
+        prevProps.onUnpinMessage === nextProps.onUnpinMessage &&
+        prevProps.onShowReactionPicker === nextProps.onShowReactionPicker &&
+        prevProps.onHideReactionPicker === nextProps.onHideReactionPicker &&
+        prevProps.onReactionSelect === nextProps.onReactionSelect &&
+        prevProps.onCloseContextMenu === nextProps.onCloseContextMenu
+    );
+}); 

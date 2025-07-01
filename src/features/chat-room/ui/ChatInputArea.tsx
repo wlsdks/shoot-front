@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { ChatInputContainer, Input, SendButton, TypingIndicatorContainer, TypingDots } from '../../message/ui/styles/ChatRoom.styles';
 import { SendIcon } from '../../message/ui/icons';
 // TypingUser 타입 정의
@@ -21,7 +21,7 @@ interface ChatInputAreaProps {
     onSendMessage: () => void;
 }
 
-export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
+const ChatInputAreaComponent: React.FC<ChatInputAreaProps> = ({
     input,
     isConnected,
     typingUsers,
@@ -68,4 +68,21 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
             )}
         </ChatInputContainer>
     );
-}; 
+};
+
+// React.memo로 렌더링 최적화
+export const ChatInputArea = memo(ChatInputAreaComponent, (prevProps: ChatInputAreaProps, nextProps: ChatInputAreaProps) => {
+    // 입력값이나 연결 상태, 타이핑 사용자가 변경될 때만 리렌더링
+    return (
+        prevProps.input === nextProps.input &&
+        prevProps.isConnected === nextProps.isConnected &&
+        prevProps.typingUsers === nextProps.typingUsers &&
+        prevProps.userId === nextProps.userId &&
+        prevProps.onInputChange === nextProps.onInputChange &&
+        prevProps.onKeyDown === nextProps.onKeyDown &&
+        prevProps.onCompositionStart === nextProps.onCompositionStart &&
+        prevProps.onCompositionEnd === nextProps.onCompositionEnd &&
+        prevProps.onBlur === nextProps.onBlur &&
+        prevProps.onSendMessage === nextProps.onSendMessage
+    );
+}); 

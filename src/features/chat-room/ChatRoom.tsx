@@ -139,20 +139,12 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     const domReadyRef = useRef(false);
     const lastItemRef = useRef<string | null>(null);
 
-    // 메모이제이션된 값들
-    const sessionId = useMemo(() => 
-        `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        []
-    );
+    // TODO: 메모이제이션된 값들 (향후 사용 예정)
+    // const sessionId = useMemo(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, []);
 
-    // 현재 사용자 ID를 메모이제이션
-    const currentUserId = useMemo(() => user?.id, [user?.id]);
-    
-    // 웹소켓 연결 설정값들을 메모이제이션
-    const reconnectConfig = useMemo(() => ({
-        maxAttempts: maxReconnectAttempts,
-        delay: reconnectDelay
-    }), [maxReconnectAttempts, reconnectDelay]);
+    // TODO: 향후 사용 예정인 메모이제이션된 값들
+    // const currentUserId = useMemo(() => user?.id, [user?.id]);
+    // const reconnectConfig = useMemo(() => ({ maxAttempts: maxReconnectAttempts, delay: reconnectDelay }), []);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -201,20 +193,32 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         
         const messageToPin = contextMenu.message;
         
+        // 0. 이미 고정된 메시지인지 먼저 확인
+        const isAlreadyPinned = pinnedMessages.some(msg => msg.id === messageToPin.id);
+        if (isAlreadyPinned) {
+            console.log("이미 고정된 메시지입니다:", messageToPin.id);
+            setContextMenu({ ...contextMenu, visible: false });
+            return;
+        }
+        
+        console.log("🏷️ 공지사항 등록 시작:", { 
+            messageId: messageToPin.id, 
+            content: messageToPin.content?.text,
+            currentPinnedCount: pinnedMessages.length 
+        });
+        
         // 1. 즉시 UI 업데이트 (Optimistic Update)
+        const formattedPinnedMsg: ChatMessageItem = {
+            ...messageToPin,
+            status: MessageStatus.SAVED,
+            readBy: messageToPin.readBy || {}
+        };
+        
         setPinnedMessages(prev => {
-            // 이미 고정된 메시지인지 확인
-            if (prev.some(msg => msg.id === messageToPin.id)) {
-                return prev;
-            }
-            
-            // 새로운 고정 메시지 추가
-            const formattedPinnedMsg: ChatMessageItem = {
-                ...messageToPin,
-                status: MessageStatus.SAVED,
-                readBy: messageToPin.readBy || {}
-            };
-            
+            console.log("📌 UI에 고정 메시지 추가:", {
+                기존고정수: prev.length,
+                추가메시지ID: formattedPinnedMsg.id
+            });
             return [...prev, formattedPinnedMsg];
         });
         
@@ -223,88 +227,147 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         
         // 3. 백그라운드에서 서버 동기화
         try {
-            console.log("공지사항 등록 API 호출 시작:", { messageId: messageToPin.id });
-            const response = await pinMessage(messageToPin.id);
-            
-            console.log("공지사항 등록 API 응답:", response);
-            
-            // API 응답 구조 확인
-            if (!response) {
-                console.error("Pin message API failed: No response received");
-                setPinnedMessages(prev => prev.filter(msg => msg.id !== messageToPin.id));
-                alert("공지사항 등록에 실패했습니다. (응답 없음)");
-                return;
-            }
-            
-            // extractData 방식으로 응답받는 경우를 고려
-            if (response === null || response === undefined) {
-                console.error("Pin message API failed: Response is null/undefined");
-                setPinnedMessages(prev => prev.filter(msg => msg.id !== messageToPin.id));
-                alert("공지사항 등록에 실패했습니다. (응답 데이터 없음)");
-                return;
-            }
-            
-            console.log("공지사항 등록 성공!");
-            
-        } catch (error: any) {
-            console.error("Failed to pin message:", error);
-            console.error("Error details:", {
-                message: error?.message,
-                stack: error?.stack,
-                response: error?.response
+            console.log("📡 공지사항 등록 API 호출:", { 
+                messageId: messageToPin.id,
+                apiEndpoint: '/messages/pin'
             });
             
-            // API 오류시 롤백
-            setPinnedMessages(prev => prev.filter(msg => msg.id !== messageToPin.id));
+            const response = await pinMessage(messageToPin.id);
             
-            // 사용자에게 상세한 오류 알림
+            console.log("📡 공지사항 등록 API 응답:", {
+                response,
+                type: typeof response,
+                isNull: response === null,
+                isUndefined: response === undefined
+            });
+            
+            // 성공 여부 판단 로직 개선
+            if (response !== null && response !== undefined) {
+                console.log("✅ 공지사항 등록 API 성공!");
+                
+                // 성공시 서버에서 최신 고정 메시지 목록 다시 가져오기 (동기화)
+                setTimeout(() => {
+                    fetchPinnedMessages();
+                }, 500);
+                
+            } else {
+                console.error("❌ 공지사항 등록 API 실패: 응답이 null/undefined");
+                
+                // 롤백
+                setPinnedMessages(prev => {
+                    const filtered = prev.filter(msg => msg.id !== messageToPin.id);
+                    console.log("🔄 UI 롤백:", { 롤백후수: filtered.length });
+                    return filtered;
+                });
+                
+                alert("공지사항 등록에 실패했습니다.\n서버 응답이 없습니다.");
+            }
+            
+        } catch (error: any) {
+            console.error("❌ 공지사항 등록 API 오류:", error);
+            console.error("오류 상세정보:", {
+                message: error?.message,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                data: error?.response?.data
+            });
+            
+            // 롤백
+            setPinnedMessages(prev => {
+                const filtered = prev.filter(msg => msg.id !== messageToPin.id);
+                console.log("🔄 오류로 인한 UI 롤백:", { 롤백후수: filtered.length });
+                return filtered;
+            });
+            
+            // 상세한 오류 메시지 제공
+            const statusCode = error?.response?.status;
             const errorMessage = error?.response?.data?.message || error?.message || "알 수 없는 오류";
-            alert(`공지사항 등록에 실패했습니다.\n오류: ${errorMessage}`);
+            alert(`공지사항 등록에 실패했습니다.\n상태코드: ${statusCode}\n오류: ${errorMessage}`);
         }
-    }, [contextMenu.message, pinnedMessages, setContextMenu]);
+    }, [contextMenu, setContextMenu, pinnedMessages, fetchPinnedMessages]);
     
     // 메시지 고정 해제 함수 (즉시 UI 업데이트) - 메모이제이션
     const handleUnpinMessage = useCallback(async (messageId: string) => {
+        console.log("🗑️ 공지사항 해제 시작:", { 
+            messageId,
+            currentPinnedCount: pinnedMessages.length 
+        });
+        
         // 1. 즉시 UI에서 제거 (Optimistic Update)
         const removedMessage = pinnedMessages.find(msg => msg.id === messageId);
-        setPinnedMessages(prev => prev.filter(msg => msg.id !== messageId));
+        if (!removedMessage) {
+            console.warn("해제할 고정 메시지를 찾을 수 없음:", messageId);
+            return;
+        }
+        
+        setPinnedMessages(prev => {
+            const filtered = prev.filter(msg => msg.id !== messageId);
+            console.log("📌 UI에서 고정 메시지 제거:", {
+                제거전수: prev.length,
+                제거후수: filtered.length,
+                제거메시지ID: messageId
+            });
+            return filtered;
+        });
         
         // 2. 백그라운드에서 서버 동기화
         try {
-            console.log("공지사항 해제 API 호출 시작:", { messageId });
-            const response = await unpinMessage(messageId);
-            
-            console.log("공지사항 해제 API 응답:", response);
-            
-            if (!response) {
-                console.error("Unpin message API failed: No response received");
-                if (removedMessage) {
-                    setPinnedMessages(prev => [...prev, removedMessage]);
-                }
-                alert("공지사항 해제에 실패했습니다. (응답 없음)");
-                return;
-            }
-            
-            console.log("공지사항 해제 성공!");
-            
-        } catch (error: any) {
-            console.error("Failed to unpin message:", error);
-            console.error("Error details:", {
-                message: error?.message,
-                stack: error?.stack,
-                response: error?.response
+            console.log("📡 공지사항 해제 API 호출:", { 
+                messageId,
+                apiEndpoint: '/messages/unpin'
             });
             
-            // API 오류시 롤백
-            if (removedMessage) {
-                setPinnedMessages(prev => [...prev, removedMessage]);
+            const response = await unpinMessage(messageId);
+            
+            console.log("📡 공지사항 해제 API 응답:", {
+                response,
+                type: typeof response,
+                isNull: response === null,
+                isUndefined: response === undefined
+            });
+            
+            if (response !== null && response !== undefined) {
+                console.log("✅ 공지사항 해제 API 성공!");
+                
+                // 성공시 서버에서 최신 고정 메시지 목록 다시 가져오기
+                setTimeout(() => {
+                    fetchPinnedMessages();
+                }, 500);
+                
+            } else {
+                console.error("❌ 공지사항 해제 API 실패: 응답이 null/undefined");
+                
+                // 롤백
+                setPinnedMessages(prev => {
+                    const restored = [...prev, removedMessage];
+                    console.log("🔄 UI 롤백:", { 롤백후수: restored.length });
+                    return restored;
+                });
+                
+                alert("공지사항 해제에 실패했습니다.\n서버 응답이 없습니다.");
             }
             
-            // 사용자에게 상세한 오류 알림
+        } catch (error: any) {
+            console.error("❌ 공지사항 해제 API 오류:", error);
+            console.error("오류 상세정보:", {
+                message: error?.message,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                data: error?.response?.data
+            });
+            
+            // 롤백
+            setPinnedMessages(prev => {
+                const restored = [...prev, removedMessage];
+                console.log("🔄 오류로 인한 UI 롤백:", { 롤백후수: restored.length });
+                return restored;
+            });
+            
+            const statusCode = error?.response?.status;
             const errorMessage = error?.response?.data?.message || error?.message || "알 수 없는 오류";
-            alert(`공지사항 해제에 실패했습니다.\n오류: ${errorMessage}`);
+            alert(`공지사항 해제에 실패했습니다.\n상태코드: ${statusCode}\n오류: ${errorMessage}`);
         }
-    }, []);
+    }, [pinnedMessages, fetchPinnedMessages]);
 
     // 4. 메시지가 처음 로드되었을 때만 강제 스크롤 실행 (필요한 경우)
     useEffect(() => {
@@ -451,7 +514,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         // 웹소켓 연결 상태 확인
         if (!webSocketService.current?.isConnected()) {
             console.log("웹소켓 연결이 없어 HTTP API로 읽음 처리");
-            markAllMessagesAsRead(Number(roomId), user.id, sessionId)
+            markAllMessagesAsRead(Number(roomId), user.id, 'temp-session')
                 .then(() => console.log("읽음 처리 성공"))
                 .catch((err) => console.error("모든 메시지 읽음처리 실패", err));
             return;
@@ -460,7 +523,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         // 웹소켓으로 읽음 처리
         console.log("웹소켓으로 읽음 처리:", { roomId, userId: user.id });
         webSocketService.current.markAllMessagesAsRead();
-    }, [roomId, user, sessionId]);
+    }, [roomId, user]);
 
     // 뒤로가기 클릭시 동작
     const handleBack = () => {
