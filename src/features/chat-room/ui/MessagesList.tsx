@@ -38,18 +38,19 @@ export const MessagesList: React.FC<MessagesListProps> = ({
         otherParticipants: string[],
         msg: ChatMessageItem
     ): boolean => {
-        if (!isOwn || !isPersisted) return false;
-        
-        if (!msg.readBy || Object.keys(msg.readBy).length === 0) return false;
-        
-        if (otherParticipants.length === 0) return true;
-        
-        return otherParticipants.some(participantId => {
-            const readInfo = msg.readBy?.[participantId];
-            // 기존 로직을 그대로 유지 (타입 체크 우회)
-            return readInfo && typeof readInfo === 'object' && (readInfo as any).readAt && 
-                   new Date((readInfo as any).readAt) > new Date(msg.createdAt);
+        // 내 메시지가 아니거나 저장되지 않은 경우 - 읽음 표시 안함
+        if (!isOwn || !isPersisted) return true;
+
+        // 다른 참여자가 없는 경우 - 읽지 않음 표시
+        if (otherParticipants.length === 0) return false;
+
+        // 모든 참여자가 읽었는지 확인
+        const hasReadByAll = otherParticipants.every((id) => {
+            const hasReadBy = Boolean(msg.readBy && msg.readBy[id]);
+            return hasReadBy;
         });
+
+        return hasReadByAll;
     };
 
     const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
