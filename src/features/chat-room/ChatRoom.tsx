@@ -5,27 +5,14 @@ import { pinMessage, unpinMessage, getPinnedMessages } from "../message/api/mess
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
 
-import { SmileOutlined } from '@ant-design/icons';
 import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
-import { Button } from 'antd';
 
 // 스타일 임포트
 import {
     ChatWrapper,
     ChatContainer,
-    Header,
-    BackButton,
-    HeaderTitle,
     ChatArea,
-    MessagesContainer,
-    TypingIndicatorContainer,
-    TypingDots,
-    ChatInputContainer,
-    Input,
-    SendButton,
-    ErrorMessage,
-    ContextMenu,
-    ContextMenuItem
+    ErrorMessage
 } from '../message/ui/styles/ChatRoom.styles';
 
 // 타입 임포트
@@ -43,23 +30,16 @@ import { useScrollManager } from '../message/model/useScrollManager';
 import { useTypingHandlers } from '../message/model/useTypingHandlers';
 import { useContextMenu } from '../message/model/useContextMenu';
 
-// 컴포넌트 임포트
-import { MessageRow } from '../message/ui/MessageRow';
-import { UrlPreview } from '../message/ui/UrlPreview';
+// 새로 분리된 컴포넌트들 임포트
+import { ChatHeader } from './ui/ChatHeader';
+import { MessagesList } from './ui/MessagesList';
+import { ChatInputArea } from './ui/ChatInputArea';
+import { ContextMenuHandler } from './ui/ContextMenuHandler';
+
+// 기존 컴포넌트 임포트
 import { PinnedMessages } from '../message/ui/PinnedMessages';
 import { ForwardMessageModal } from '../message/ui/ForwardMessageModal';
-
-// 아이콘 컴포넌트 임포트
-import {
-    BackIcon,
-    SendIcon,
-    ForwardIcon,
-    ErrorIcon,
-    PinIcon
-} from '../message/ui/icons';
-
-// 유틸리티 임포트
-import { formatTime } from '../message/lib/timeUtils';
+import { ErrorIcon } from '../message/ui/icons';
 
 const ChatRoom = ({ roomId }: { roomId: string }) => {
     const { user } = useAuth();
@@ -200,22 +180,24 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         if (!contextMenu.message || !contextMenu.message.id) return;
         
         try {
-            await pinMessage(contextMenu.message.id);
-            // 성공 시 고정된 메시지 목록 다시 불러오기
-            fetchPinnedMessages();
-            // 컨텍스트 메뉴 닫기
-            setContextMenu({ visible: false, x: 0, y: 0, message: null });
+            const response = await pinMessage(contextMenu.message.id);
+            if (response && response.data) {
+                await fetchPinnedMessages();
+            }
         } catch (error) {
             console.error("Failed to pin message:", error);
+        } finally {
+            setContextMenu({ ...contextMenu, visible: false });
         }
     };
     
     // 메시지 고정 해제 함수
     const handleUnpinMessage = async (messageId: string) => {
         try {
-            await unpinMessage(messageId);
-            // 성공 시 고정된 메시지 목록에서 제거
-            setPinnedMessages(prev => prev.filter(msg => msg.id !== messageId));
+            const response = await unpinMessage(messageId);
+            if (response && response.data) {
+                await fetchPinnedMessages();
+            }
         } catch (error) {
             console.error("Failed to unpin message:", error);
         }
@@ -378,28 +360,12 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         webSocketService.current.markAllMessagesAsRead();
     }, [roomId, user, sessionId]);
 
-
-
     // 뒤로가기 클릭시 동작
     const handleBack = () => {
         navigate("/", { state: { refresh: true } });
     };
 
-    // 시간 문자열 가져오기 함수 추가 (renderTime 섹션 근처에 추가)
-    const getMessageCreatedAt = (msg: ChatMessageItem): string => {
-        // 1. 메시지 자체의 createdAt
-        if (msg.createdAt) {
-            return msg.createdAt;
-        }
-        
-        // 2. messageStatuses에서 저장된 createdAt
-        if (msg.tempId && messageStatuses[msg.tempId]?.createdAt) {
-            return messageStatuses[msg.tempId].createdAt!;
-        }
-        
-        // 3. 기본값 (현재 시간)
-        return new Date().toISOString();
-    };
+    // 시간 문자열 가져오기 함수는 MessagesList 컴포넌트로 이동됨
 
     // 고정글
     useEffect(() => {
@@ -893,22 +859,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     //     setTargetRoomId('');
     // };
 
-    // 메시지 상태 표시 로직
-    const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
-        if (!isOwn || !currentStatus) return null;
-        
-        // SAVED 상태이거나 persistedId가 있으면 상태 표시하지 않음
-        if (currentStatus === MessageStatus.SAVED || isPersisted) return null;
-        
-        return (
-            <div className="status-indicator">
-                {currentStatus === MessageStatus.SENDING && "전송 중..."}
-                {currentStatus === MessageStatus.SENT_TO_KAFKA && "서버로 전송됨"}
-                {currentStatus === MessageStatus.PROCESSING && "처리 중..."}
-                {currentStatus === MessageStatus.FAILED && "전송 실패"}
-            </div>
-        );
-    };
+    // 메시지 상태 표시 로직은 MessagesList 컴포넌트로 이동됨
 
     // 컨텍스트 메뉴에서 "메시지 전달" 선택
     const handleForwardClick = () => {
@@ -919,33 +870,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         closeContextMenu();
     };
 
-    // 읽음 상태 계산 로직 개선
-    const calculateReadStatus = (
-        isOwn: boolean,
-        isPersisted: boolean,
-        otherParticipants: string[],
-        msg: ChatMessageItem
-    ): boolean => {
-        // 1. 내 메시지가 아니거나 저장되지 않은 경우
-        const isNotOwnOrNotPersisted = Boolean((!isOwn) || (!isPersisted));
-        if (isNotOwnOrNotPersisted) {
-            return true;
-        }
-
-        // 2. 다른 참여자가 없는 경우
-        const hasNoParticipants = Boolean(otherParticipants.length === 0);
-        if (hasNoParticipants) {
-            return false;
-        }
-
-        // 3. 모든 참여자가 읽었는지 확인
-        const hasReadByAll = otherParticipants.every((id) => {
-            const hasReadBy = Boolean(msg.readBy && msg.readBy[id]);
-            return hasReadBy;
-        });
-
-        return hasReadByAll;
-    };
+    // 읽음 상태 계산 로직은 MessagesList 컴포넌트로 이동됨
 
     // 리액션 선택 핸들러
     const handleReactionSelect = async (reactionType: string) => {
@@ -977,6 +902,15 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         setShowReactionPicker(true);
     };
 
+    // 입력창 포커스 해제 핸들러
+    const handleBlur = () => {
+        sendTypingIndicator(false);
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+    };
+
     // 클릭 이벤트 핸들러 (리액션 피커 외부 클릭 시 닫기)
     useEffect(() => {
         const handleClickOutside = () => {
@@ -995,12 +929,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     return (
         <ChatWrapper>
             <ChatContainer>
-                <Header>
-                    <BackButton onClick={handleBack}>
-                        <BackIcon />
-                    </BackButton>
-                    <HeaderTitle>채팅방</HeaderTitle>
-                </Header>
+                <ChatHeader onBack={handleBack} />
 
                 <PinnedMessages
                     pinnedMessages={pinnedMessages}
@@ -1017,197 +946,44 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 }
 
                 <ChatArea ref={chatAreaRef}>
-                    <MessagesContainer className={input ? 'typing' : ''}>
-                        {messages.map((msg, idx) => {
-                            // 내 메시지인가?
-                            const isOwn = String(msg.senderId) === String(user?.id);
-                            
-                            // 메시지 상태 결정 로직 개선
-                            let currentStatus = msg.status;
-                            let isPersisted = false;
-                            
-                            if (msg.tempId && messageStatuses[msg.tempId]) {
-                                const statusInfo = messageStatuses[msg.tempId];
-                                currentStatus = statusInfo.status;
-                                // SAVED 상태이거나 persistedId가 있으면 저장된 것으로 간주
-                                isPersisted = statusInfo.status === MessageStatus.SAVED || !!statusInfo.persistedId;
-                                
-                                // 디버깅: 상태 정보 확인
-                                if (isOwn && idx === messages.length - 1) {
-                                    // console.log("최신 메시지 상태 확인:", {
-                                    //     tempId: msg.tempId,
-                                    //     originalStatus: msg.status,
-                                    //     currentStatus,
-                                    //     isPersisted,
-                                    //     statusInfo
-                                    // });
-                                }
-                            } else {
-                                // tempId가 없거나 상태 정보가 없으면 이미 저장된 메시지로 간주
-                                isPersisted = !!msg.id && msg.id !== msg.tempId;
-                                
-                                // 디버깅: 상태 정보 없음
-                                if (isOwn && idx === messages.length - 1) {
-                                    // console.log("최신 메시지 상태 정보 없음:", {
-                                    //     tempId: msg.tempId,
-                                    //     hasMessageStatuses: Object.keys(messageStatuses).length > 0,
-                                    //     allStatuses: Object.keys(messageStatuses)
-                                    // });
-                                }
-                            }
-                            
-                            // 읽음 상태 확인 로직
-                            const otherParticipants = msg.readBy 
-                                ? Object.keys(msg.readBy).filter(id => id !== user?.id.toString()) 
-                                : [];
-                            
-                            // 읽음 상태 계산 로직 개선
-                            const otherHasRead = calculateReadStatus(
-                                isOwn,
-                                isPersisted,
-                                otherParticipants,
-                                msg
-                            );
-                            
-                            // indicatorText: 메시지를 모든 상대방이 읽지 않았으면 "1" 표시
-                            const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
-                            
-                            // 상태표시 - persistedId가 있으면 표시하지 않음
-                            const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
-                            
-                            const nextMessage = messages[idx + 1];
-                            const msgCreatedAt = getMessageCreatedAt(msg);
-                            const currentTime = formatTime(msgCreatedAt);
-                            const nextTime = nextMessage ? formatTime(getMessageCreatedAt(nextMessage)) : null;
-                            const showTime = !nextMessage || currentTime !== nextTime;
-                            
-                            return (
-                                <React.Fragment key={idx}>
-                                    <MessageRow
-                                        message={msg}
-                                        isOwn={isOwn}
-                                        showTime={showTime}
-                                        currentTime={currentTime}
-                                        statusIndicator={statusIndicator}
-                                        indicatorText={indicatorText}
-                                        onContextMenu={handleChatBubbleClick}
-                                        onClick={handleChatBubbleClick}
-                                        userId={user?.id || 0}
-                                    />
-                                    {msg.content?.urlPreview && (
-                                        <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', width: '100%' }}>
-                                            <UrlPreview message={msg} />
-                                        </div>
-                                    )}
-                                </React.Fragment>
-                            );
-                        })}
-                    </MessagesContainer>
+                    <MessagesList
+                        messages={messages}
+                        messageStatuses={messageStatuses}
+                        userId={user?.id}
+                        input={input}
+                        onContextMenu={handleChatBubbleClick}
+                        onClick={handleChatBubbleClick}
+                    />
                     <div ref={bottomRef} />
                 </ChatArea>
 
-                <ChatInputContainer>
-                    <Input
-                        type="text"
-                        value={input}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                        onCompositionStart={handleCompositionStart}
-                        onCompositionEnd={handleCompositionEnd}
-                        onBlur={() => {
-                            sendTypingIndicator(false);
-                            if (typingTimeoutRef.current) {
-                                clearTimeout(typingTimeoutRef.current);
-                                typingTimeoutRef.current = null;
-                            }
-                        }}
-                        placeholder="메시지를 입력하세요"
-                        disabled={!isConnected}
-                    />
-                    <SendButton onClick={sendMessage} disabled={!isConnected}>
-                        <SendIcon />
-                    </SendButton>
-                    {(() => {
-                        const otherTypingUsers = Object.values(typingUsers).filter(typingUser => 
-                            String(typingUser.userId) !== String(user?.id)
-                        );
-                        if (otherTypingUsers.length === 0) return null;
-                        return (
-                            <TypingIndicatorContainer className="visible">
-                                {otherTypingUsers.length > 1 
-                                    ? `${otherTypingUsers.length}명이 타이핑 중입니다`
-                                    : '상대방이 타이핑 중입니다'
-                                }
-                                <TypingDots>
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </TypingDots>
-                            </TypingIndicatorContainer>
-                        );
-                    })()}
-                </ChatInputContainer>
+                <ChatInputArea
+                    input={input}
+                    isConnected={isConnected}
+                    typingUsers={typingUsers}
+                    userId={user?.id}
+                    onInputChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
+                    onBlur={handleBlur}
+                    onSendMessage={sendMessage}
+                />
 
-                {contextMenu.visible && (
-                    <ContextMenu id="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-                        {!showReactionPicker ? (
-                            <>
-                                <ContextMenuItem onClick={handleShowReactionPicker}>
-                                    <SmileOutlined /> 반응 추가
-                                </ContextMenuItem>
-                                <ContextMenuItem onClick={handleForwardClick}>
-                                    <ForwardIcon /> 메시지 전달
-                                </ContextMenuItem>
-                                {contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id) ? (
-                                    <ContextMenuItem onClick={() => {
-                                        if (contextMenu.message) handleUnpinMessage(contextMenu.message.id);
-                                        setContextMenu({ ...contextMenu, visible: false });
-                                    }}>
-                                        <PinIcon /> 공지사항 해제
-                                    </ContextMenuItem>
-                                ) : (
-                                    <ContextMenuItem onClick={handlePinMessage}>
-                                        <PinIcon /> 공지사항 등록
-                                    </ContextMenuItem>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                <div style={{ 
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(4, 1fr)',
-                                    gap: '4px',
-                                    padding: '8px',
-                                    borderBottom: '1px solid #f0f0f0',
-                                    marginBottom: '4px'
-                                }}>
-                                    {reactionTypes.map((type) => (
-                                        <Button
-                                            key={type.code}
-                                            type="text"
-                                            onClick={() => handleReactionSelect(type.code)}
-                                            style={{
-                                                fontSize: '20px',
-                                                padding: '4px',
-                                                height: '32px',
-                                                width: '32px',
-                                                minWidth: '32px',
-                                                backgroundColor: contextMenu.message?.reactions?.[type.code]?.includes(user?.id || 0) 
-                                                    ? '#e6f7ff' 
-                                                    : 'transparent',
-                                            }}
-                                        >
-                                            {type.emoji}
-                                        </Button>
-                                    ))}
-                                </div>
-                                <ContextMenuItem onClick={() => setShowReactionPicker(false)}>
-                                    <SmileOutlined /> 다른 반응
-                                </ContextMenuItem>
-                            </>
-                        )}
-                    </ContextMenu>
-                )}
+                <ContextMenuHandler
+                    contextMenu={contextMenu}
+                    showReactionPicker={showReactionPicker}
+                    reactionTypes={reactionTypes}
+                    pinnedMessages={pinnedMessages}
+                    userId={user?.id}
+                    onForwardClick={handleForwardClick}
+                    onPinMessage={handlePinMessage}
+                    onUnpinMessage={handleUnpinMessage}
+                    onShowReactionPicker={handleShowReactionPicker}
+                    onHideReactionPicker={() => setShowReactionPicker(false)}
+                    onReactionSelect={handleReactionSelect}
+                    onCloseContextMenu={() => setContextMenu({ ...contextMenu, visible: false })}
+                />
 
                 {showForwardModal && selectedMessageId && (
                     <ForwardMessageModal
