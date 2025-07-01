@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/lib/context/AuthContext";
 import { pinMessage, unpinMessage, getPinnedMessages } from "../message/api/message";
@@ -43,8 +43,29 @@ import { ErrorIcon } from '../message/ui/icons';
 
 const ChatRoom = ({ roomId }: { roomId: string }) => {
     const { user } = useAuth();
+    
+    // 🚀 TODO: 새로운 통합 상태 관리 (단계적 적용 예정)
+    // const { state: uiState, actions: uiActions } = useChatRoomState();
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
+    const [isConnected, setIsConnected] = useState(true);
+    const [showForwardModal, setShowForwardModal] = useState(false);
+    const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
+    const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
+    const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+    // 리액션 타입들을 메모이제이션 (불변 데이터)
+    const reactionTypes = useMemo<ReactionType[]>(() => [
+        { code: 'like', emoji: '👍', description: '좋아요' },
+        { code: 'sad', emoji: '😢', description: '슬퍼요' },
+        { code: 'dislike', emoji: '👎', description: '싫어요' },
+        { code: 'angry', emoji: '😡', description: '화나요' },
+        { code: 'curious', emoji: '🤔', description: '궁금해요' },
+        { code: 'surprised', emoji: '😮', description: '놀라워요' }
+    ], []);
+    
     const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const webSocketService = useRef(createWebSocketService());
@@ -114,25 +135,24 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         closeContextMenu
     } = useContextMenu();
 
-    const [connectionError, setConnectionError] = useState<string | null>(null);
-    const [showForwardModal, setShowForwardModal] = useState(false);
-    const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-    const [isConnected, setIsConnected] = useState(true);
     const navigate = useNavigate();
     const domReadyRef = useRef(false);
-    const [pinnedMessages, setPinnedMessages] = useState<ChatMessageItem[]>([]);
-    const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const lastItemRef = useRef<string | null>(null);
-    const [showReactionPicker, setShowReactionPicker] = useState(false);
-    const [reactionTypes] = useState<ReactionType[]>([
-        { code: 'like', emoji: '👍', description: '좋아요' },
-        { code: 'sad', emoji: '😢', description: '슬퍼요' },
-        { code: 'dislike', emoji: '👎', description: '싫어요' },
-        { code: 'angry', emoji: '😡', description: '화나요' },
-        { code: 'curious', emoji: '🤔', description: '궁금해요' },
-        { code: 'surprised', emoji: '😮', description: '놀라워요' }
-    ]);
-    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+
+    // 메모이제이션된 값들
+    const sessionId = useMemo(() => 
+        `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        []
+    );
+
+    // 현재 사용자 ID를 메모이제이션
+    const currentUserId = useMemo(() => user?.id, [user?.id]);
+    
+    // 웹소켓 연결 설정값들을 메모이제이션
+    const reconnectConfig = useMemo(() => ({
+        maxAttempts: maxReconnectAttempts,
+        delay: reconnectDelay
+    }), [maxReconnectAttempts, reconnectDelay]);
 
     // 고정된 메시지 가져오는 함수
     const fetchPinnedMessages = useCallback(async () => {
@@ -175,8 +195,8 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         }
     }, [roomId]);
 
-    // 메시지 고정 함수 (즉시 UI 업데이트)
-    const handlePinMessage = async () => {
+    // 메시지 고정 함수 (즉시 UI 업데이트) - 메모이제이션
+    const handlePinMessage = useCallback(async () => {
         if (!contextMenu.message || !contextMenu.message.id) return;
         
         const messageToPin = contextMenu.message;
@@ -241,10 +261,10 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             const errorMessage = error?.response?.data?.message || error?.message || "알 수 없는 오류";
             alert(`공지사항 등록에 실패했습니다.\n오류: ${errorMessage}`);
         }
-    };
+    }, [contextMenu.message, pinnedMessages, setContextMenu]);
     
-    // 메시지 고정 해제 함수 (즉시 UI 업데이트)
-    const handleUnpinMessage = async (messageId: string) => {
+    // 메시지 고정 해제 함수 (즉시 UI 업데이트) - 메모이제이션
+    const handleUnpinMessage = useCallback(async (messageId: string) => {
         // 1. 즉시 UI에서 제거 (Optimistic Update)
         const removedMessage = pinnedMessages.find(msg => msg.id === messageId);
         setPinnedMessages(prev => prev.filter(msg => msg.id !== messageId));
@@ -284,7 +304,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             const errorMessage = error?.response?.data?.message || error?.message || "알 수 없는 오류";
             alert(`공지사항 해제에 실패했습니다.\n오류: ${errorMessage}`);
         }
-    };
+    }, []);
 
     // 4. 메시지가 처음 로드되었을 때만 강제 스크롤 실행 (필요한 경우)
     useEffect(() => {
@@ -415,8 +435,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         }
     };
 
-    // 읽음 처리를 위한 세션 ID
-    const [sessionId] = useState<string>(() => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+    // 읽음 처리를 위한 참조
     const lastReadTimeRef = useRef<number>(0);
 
     // 모든 메시지 읽음 처리 (웹소켓으로 통일)
@@ -897,7 +916,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     };
 
     // 입력값 변경 및 타이핑 디바운스 처리
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setInput(value);
 
@@ -921,7 +940,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             sendTypingIndicator(false);
             typingTimeoutRef.current = null;
         }, 1000);
-    };
+    }, [sendTypingIndicator, typingTimeoutRef]);
 
     // 웹소켓 연결 상태 모니터링
     useEffect(() => {
@@ -935,8 +954,8 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         return () => clearInterval(checkConnection);
     }, []);
 
-    // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션)
-    const handleChatBubbleClick = (e: React.MouseEvent, message: ChatMessageItem) => {
+    // 우클릭: 컨텍스트 메뉴 표시 (메시지 전달 옵션) - 메모이제이션
+    const handleChatBubbleClick = useCallback((e: React.MouseEvent, message: ChatMessageItem) => {
         e.stopPropagation(); // 이벤트 전파 방지
         
         // 클릭한 위치에 메뉴 표시
@@ -950,7 +969,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             // 메뉴 표시
             setContextMenu({ visible: true, x, y, message });
         }
-    };
+    }, [contextMenu.visible, contextMenu.message, closeContextMenu, setContextMenu]);
 
     // 모달 제출: 대상 채팅방 ID 입력 후 메시지 전달 API 호출
     // const handleModalSubmit = () => {
@@ -980,8 +999,8 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
     // 읽음 상태 계산 로직은 MessagesList 컴포넌트로 이동됨
 
-    // 리액션 선택 핸들러
-    const handleReactionSelect = async (reactionType: string) => {
+    // 리액션 선택 핸들러 - 메모이제이션
+    const handleReactionSelect = useCallback(async (reactionType: string) => {
         if (!contextMenu.message) return;
         
         try {
@@ -1002,7 +1021,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         } catch (error) {
             console.error('리액션 처리 중 오류 발생:', error);
         }
-    };
+    }, [contextMenu.message, user?.id, setMessages, setShowReactionPicker, closeContextMenu]);
 
     // 반응 추가 버튼 클릭 핸들러
     const handleShowReactionPicker = (e: React.MouseEvent) => {
