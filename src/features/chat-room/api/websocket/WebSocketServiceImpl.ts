@@ -27,6 +27,13 @@ export class WebSocketServiceImpl implements WebSocketService {
     private activeStatusDebounceTimeout: NodeJS.Timeout | null = null;
     private lastActiveStatus: boolean | null = null;
 
+    
+
+    constructor() {
+        // constructor에서는 client 생성하지 않음 (connect 시점에 생성)
+        this.client = null;
+    }
+
     async connect(roomId: number, userId: number): Promise<void> {
         if (this.isConnecting) {
             console.log("웹소켓 연결 중 - 중복 연결 시도 무시");
@@ -50,9 +57,9 @@ export class WebSocketServiceImpl implements WebSocketService {
             reconnectDelay: 5000,
             debug: () => {},
             onConnect: () => {
-                console.log("웹소켓 연결 완료");
+                console.log("✅ 웹소켓 연결 완료");
                 this.isConnecting = false;
-                this.setupSubscriptions();
+                this.subscribeToMessages();
                 // Send active status immediately on connect
                 this.sendActiveStatus(true);
                 // Mark all messages as read on initial connection
@@ -61,11 +68,11 @@ export class WebSocketServiceImpl implements WebSocketService {
                 }, 1000);
             },
             onStompError: (frame) => {
-                console.error("STOMP error:", frame);
+                console.error("❌ STOMP error:", frame);
                 this.isConnecting = false;
             },
             onWebSocketError: (event) => {
-                console.error("WebSocket error:", event);
+                console.error("❌ WebSocket error:", event);
                 this.isConnecting = false;
             }
         });
@@ -79,7 +86,7 @@ export class WebSocketServiceImpl implements WebSocketService {
         }
     }
 
-    private setupSubscriptions() {
+    private subscribeToMessages(): void {
         if (!this.client || !this.roomId) {
             console.error("WebSocket client not initialized or no roomId");
             return;
@@ -178,11 +185,21 @@ export class WebSocketServiceImpl implements WebSocketService {
         });
     }
 
+
+
     disconnect(): void {
         if (this.client && this.client.connected) {
             this.sendActiveStatus(false);
             this.client.deactivate();
         }
+    }
+
+    isConnected(): boolean {
+        return this.client?.connected || false;
+    }
+    
+    getIsConnecting(): boolean {
+        return this.isConnecting;
     }
 
     sendMessage(message: ChatMessageItem): void {
@@ -196,84 +213,50 @@ export class WebSocketServiceImpl implements WebSocketService {
         });
     }
 
-    sendTypingIndicator(isTyping: boolean): void {
-        if (!this.client?.connected || !this.roomId || !this.userId) return;
-        
-        const typingPayload: TypingIndicatorMessage = {
-            roomId: this.roomId,
-            userId: this.userId,
-            username: localStorage.getItem("username") || "Unknown",
-            isTyping
-        };
-
-        this.client.publish({
-            destination: "/app/typing",
-            body: JSON.stringify(typingPayload)
-        });
+    // 콜백 등록 메서드들
+    onMessage(callback: (message: ChatMessageItem) => void): void {
+        this.messageCallbacks.push(callback);
     }
 
-    sendActiveStatus(active: boolean): void {
-        if (this.lastActiveStatus === active) {
-            return;
-        }
-
-        if (this.activeStatusDebounceTimeout) {
-            clearTimeout(this.activeStatusDebounceTimeout);
-        }
-
-        this.activeStatusDebounceTimeout = setTimeout(() => {
-            if (!this.client?.connected || !this.roomId || !this.userId) {
-                console.warn("Cannot send active status: WebSocket not connected or missing roomId/userId");
-                return;
-            }
-            
-            const payload = JSON.stringify({ 
-                userId: this.userId, 
-                roomId: this.roomId, 
-                active 
-            });
-            
-            this.client.publish({
-                destination: "/app/active",
-                body: payload
-            });
-
-            this.lastActiveStatus = active;
-        }, 500);
+    onMessageStatus(callback: (update: MessageStatusUpdate) => void): void {
+        this.messageStatusCallbacks.push(callback);
     }
 
-    // Improved read status method
-    sendReadStatus(messageId: string): void {
-        if (!this.client?.connected || !this.userId || !this.roomId) {
-            console.warn("Cannot send read status: WebSocket not connected or missing data", { 
-                messageId, 
-                connected: this.client?.connected, 
-                userId: this.userId,
-                roomId: this.roomId
-            });
-            return;
-        }
-        
-        const payload = { 
-            messageId, 
-            userId: this.userId,
-            roomId: this.roomId
-        };
-        
-        try {
-            this.client.publish({
-                destination: "/app/read",
-                body: JSON.stringify(payload),
-                headers: { 
-                    'content-type': 'application/json'
-                }
-            });
-        } catch (error) {
-            console.error("Error sending read status:", error);
-        }
+    onTypingIndicator(callback: (message: TypingIndicatorMessage) => void): void {
+        this.typingIndicatorCallbacks.push(callback);
     }
 
-    // New method to mark all messages as read on chat room entry
+    onMessageUpdate(callback: (message: ChatMessageItem) => void): void {
+        this.messageUpdateCallbacks.push(callback);
+    }
+
+    onRead(callback: (data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void): void {
+        this.readCallbacks.push(callback);
+    }
+
+    onReadBulk(callback: (data: { messageIds: string[], userId: number }) => void): void {
+        this.readBulkCallbacks.push(callback);
+    }
+
+    onPinUpdate(callback: () => void): void {
+        this.pinUpdateCallbacks.push(callback);
+    }
+
+    onSync(callback: (data: { roomId: number, direction?: string, messages: any[] }) => void): void {
+        this.syncCallbacks.push(callback);
+    }
+
+    clearAllHandlers(): void {
+        this.messageCallbacks = [];
+        this.typingIndicatorCallbacks = [];
+        this.messageStatusCallbacks = [];
+        this.messageUpdateCallbacks = [];
+        this.readBulkCallbacks = [];
+        this.readCallbacks = [];
+        this.pinUpdateCallbacks = [];
+        this.syncCallbacks = [];
+    }
+
     markAllMessagesAsRead(): void {
         if (!this.client?.connected || !this.roomId || !this.userId) {
             console.warn("Cannot mark all as read: WebSocket not connected or missing data", {
@@ -338,56 +321,80 @@ export class WebSocketServiceImpl implements WebSocketService {
         });
     }
 
-    // 핸들러 등록 메서드들
-    onMessage(callback: (message: ChatMessageItem) => void): void {
-        this.messageCallbacks.push(callback);
+    // Improved read status method
+    sendReadStatus(messageId: string): void {
+        if (!this.client?.connected || !this.userId || !this.roomId) {
+            console.warn("Cannot send read status: WebSocket not connected or missing data", { 
+                messageId, 
+                connected: this.client?.connected, 
+                userId: this.userId,
+                roomId: this.roomId
+            });
+            return;
+        }
+        
+        const payload = { 
+            messageId, 
+            userId: this.userId,
+            roomId: this.roomId
+        };
+        
+        try {
+            this.client.publish({
+                destination: "/app/read",
+                body: JSON.stringify(payload),
+                headers: { 
+                    'content-type': 'application/json'
+                }
+            });
+        } catch (error) {
+            console.error("Error sending read status:", error);
+        }
     }
 
-    onTypingIndicator(callback: (message: TypingIndicatorMessage) => void): void {
-        this.typingIndicatorCallbacks.push(callback);
+    sendTypingIndicator(isTyping: boolean): void {
+        if (!this.client?.connected || !this.roomId || !this.userId) return;
+        
+        const typingPayload: TypingIndicatorMessage = {
+            roomId: this.roomId,
+            userId: this.userId,
+            username: localStorage.getItem("username") || "Unknown",
+            isTyping
+        };
+
+        this.client.publish({
+            destination: "/app/typing",
+            body: JSON.stringify(typingPayload)
+        });
     }
 
-    onMessageStatus(callback: (update: MessageStatusUpdate) => void): void {
-        this.messageStatusCallbacks.push(callback);
-    }
+    sendActiveStatus(active: boolean): void {
+        if (this.lastActiveStatus === active) {
+            return;
+        }
 
-    onMessageUpdate(callback: (message: ChatMessageItem) => void): void {
-        this.messageUpdateCallbacks.push(callback);
-    }
+        if (this.activeStatusDebounceTimeout) {
+            clearTimeout(this.activeStatusDebounceTimeout);
+        }
 
-    onReadBulk(callback: (data: { messageIds: string[], userId: number }) => void): void {
-        this.readBulkCallbacks.push(callback);
-    }
+        this.activeStatusDebounceTimeout = setTimeout(() => {
+            if (!this.client?.connected || !this.roomId || !this.userId) {
+                console.warn("Cannot send active status: WebSocket not connected or missing roomId/userId");
+                return;
+            }
+            
+            const payload = JSON.stringify({ 
+                userId: this.userId, 
+                roomId: this.roomId, 
+                active 
+            });
+            
+            this.client.publish({
+                destination: "/app/active",
+                body: payload
+            });
 
-    onRead(callback: (data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void): void {
-        this.readCallbacks.push(callback);
-    }
-
-    onPinUpdate(callback: () => void): void {
-        this.pinUpdateCallbacks.push(callback);
-    }
-
-    onSync(callback: (data: { roomId: number, direction?: string, messages: any[] }) => void): void {
-        this.syncCallbacks.push(callback);
-    }
-
-    // 핸들러 제거 메서드들
-    clearAllHandlers(): void {
-        this.messageCallbacks = [];
-        this.typingIndicatorCallbacks = [];
-        this.messageStatusCallbacks = [];
-        this.messageUpdateCallbacks = [];
-        this.readBulkCallbacks = [];
-        this.readCallbacks = [];
-        this.pinUpdateCallbacks = [];
-        this.syncCallbacks = [];
-    }
-
-    isConnected(): boolean {
-        return this.client?.connected || false;
-    }
-    
-    getIsConnecting(): boolean {
-        return this.isConnecting;
+            this.lastActiveStatus = active;
+        }, 500);
     }
 }
