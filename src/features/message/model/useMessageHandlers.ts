@@ -225,7 +225,7 @@ export const useMessageHandlers = ({
                 });
             }
         }
-    }, [userId, setMessageStatuses, setMessages, messagesRef, webSocketService]);
+    }, [userId, setMessageStatuses, setMessages, messagesRef, webSocketService, messageStatuses]);
 
     const handleMessageUpdate = useCallback((updatedMessage: ChatMessageItem) => {
         setMessages((prevMessages) => 

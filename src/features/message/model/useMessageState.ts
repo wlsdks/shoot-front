@@ -28,8 +28,8 @@ export const useMessageState = () => {
                 if (msg.tempId) messageMap.set(msg.tempId, msg);
             });
             
-            if (newMsg.id && messageMap.has(newMsg.id) || 
-                newMsg.tempId && messageMap.has(newMsg.tempId)) {
+            if ((newMsg.id && messageMap.has(newMsg.id)) || 
+                (newMsg.tempId && messageMap.has(newMsg.tempId))) {
                 return prev;
             }
             

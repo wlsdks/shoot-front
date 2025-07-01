@@ -4,7 +4,7 @@ import { useAuth } from "../../shared/lib/context/AuthContext";
 import { pinMessage, unpinMessage, getPinnedMessages } from "../message/api/message";
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
-import { MessageStatusUpdate } from "./api/websocket/types";
+
 import { SmileOutlined } from '@ant-design/icons';
 import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
 import { Button } from 'antd';
@@ -378,16 +378,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         webSocketService.current.markAllMessagesAsRead();
     }, [roomId, user, sessionId]);
 
-    // 여러 메시지 읽음 업데이트 처리 함수
-    const updateBulkMessageReadStatus = useCallback((messageIds: string[], userId: string) => {
-        setMessages((prev) =>
-            prev.map((msg) =>
-                messageIds.includes(msg.id)
-                    ? { ...msg, readBy: { ...msg.readBy, [userId]: true } }
-                    : msg
-            )
-        );
-    }, [setMessages]);
+
 
     // 뒤로가기 클릭시 동작
     const handleBack = () => {
@@ -772,7 +763,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     const generateUUID = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
             const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            const v = c === 'x' ? r : ((r & 0x3) | 0x8);
             return v.toString(16);
         });
     };

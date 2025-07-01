@@ -20,8 +20,7 @@ import {
   PasswordSection,
   ButtonGroup,
   Button,
-  ErrorMessage,
-  SuccessMessage
+  ErrorMessage
 } from './styles/EditProfile.styles';
 
 // 프로필 인터페이스
