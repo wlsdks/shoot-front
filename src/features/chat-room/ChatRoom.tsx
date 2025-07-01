@@ -58,8 +58,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         pinnedMessages,
         pinMessage: optimizedPinMessage,
         unpinMessage: optimizedUnpinMessage,
-        isPinning,
-        isUnpinning,
         invalidatePinnedMessages
     } = usePinnedMessages(Number(roomId), isConnected);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);

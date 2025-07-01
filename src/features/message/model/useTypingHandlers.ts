@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 import { debounce } from 'lodash';
 import { WebSocketService, TypingIndicatorMessage } from '../../chat-room/api/websocket/types';
 
@@ -19,7 +19,7 @@ export const useTypingHandlers = ({
     const lastTypingTimeRef = useRef<number>(0);
     
     // 디바운싱된 타이핑 인디케이터 전송 (300ms → 200ms로 최적화)
-    const debouncedSendTyping = useCallback(
+    const debouncedSendTyping = useMemo(() => 
         debounce((isTyping: boolean) => {
             if (!webSocketService.current?.isConnected() || !roomId || !userId) return;
 
@@ -71,7 +71,7 @@ export const useTypingHandlers = ({
                 }
             }, 3000); // 3초 후 자동 타이핑 종료
         }
-    }, [debouncedSendTyping, updateTypingStatus, userId]);
+    }, [debouncedSendTyping, updateTypingStatus, userId, roomId]);
 
     return {
         sendTypingIndicator
