@@ -6,6 +6,7 @@ import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
 
 import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
+import { hasReactionType } from '../../shared/lib/reactionsUtils';
 
 // 스타일 임포트
 import {
@@ -13,7 +14,7 @@ import {
     ChatContainer,
     ChatArea,
     ErrorMessage
-} from '../message/ui/styles/ChatRoom.styles';
+} from './styles/ChatRoom.styles';
 
 // 타입 임포트
 import {
@@ -37,9 +38,9 @@ import { ChatInputArea } from './ui/ChatInputArea';
 import { ContextMenuHandler } from './ui/ContextMenuHandler';
 
 // 기존 컴포넌트 임포트
-import { PinnedMessages } from '../message/ui/PinnedMessages';
-import { ForwardMessageModal } from '../message/ui/ForwardMessageModal';
-import { ErrorIcon } from '../message/ui/icons';
+import { PinnedMessages } from './ui/PinnedMessages';
+import { ForwardMessageModal } from './ui/ForwardMessageModal';
+import { ErrorIcon } from './ui/icons';
 
 const ChatRoom = ({ roomId }: { roomId: string }) => {
     const { user } = useAuthContext();
@@ -890,7 +891,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         if (!contextMenu.message) return;
         
         try {
-            const hasReacted = contextMenu.message.reactions?.[reactionType]?.includes(user?.id || 0);
+            const hasReacted = hasReactionType(contextMenu.message.reactions, reactionType, user?.id || 0);
             const response = hasReacted
                 ? await messageReactionService.removeReaction(contextMenu.message.id, reactionType)
                 : await messageReactionService.addReaction(contextMenu.message.id, reactionType);
@@ -948,7 +949,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     pinnedMessages={pinnedMessages}
                     isExpanded={isPinnedMessagesExpanded}
                     onToggleExpand={() => setIsPinnedMessagesExpanded(!isPinnedMessagesExpanded)}
-                    onUnpin={handleUnpinMessage}
                     currentUserId={user?.id}
                 />
 
@@ -998,9 +998,11 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     onCloseContextMenu={() => setContextMenu({ ...contextMenu, visible: false })}
                 />
 
-                {showForwardModal && selectedMessageId && (
+                {showForwardModal && selectedMessageId && user && (
                     <ForwardMessageModal
+                        isOpen={showForwardModal}
                         messageId={selectedMessageId}
+                        currentUserId={user.id}
                         onClose={() => {
                             setShowForwardModal(false);
                             setSelectedMessageId(null);

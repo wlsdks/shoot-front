@@ -1,1 +1,1 @@
-export * from './model/types'; 
+export type { Friend, FriendResponse } from './model/types'; 

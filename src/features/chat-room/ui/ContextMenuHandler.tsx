@@ -1,10 +1,11 @@
 import React, { memo } from 'react';
 import { Button } from 'antd';
 import { SmileOutlined } from '@ant-design/icons';
-import { ContextMenu, ContextMenuItem } from '../../message/ui/styles/ChatRoom.styles';
-import { ForwardIcon, PinIcon } from '../../message/ui/icons';
+import { ContextMenu, ContextMenuItem } from '../styles/ChatRoom.styles';
+import { ForwardIcon, PinIcon } from './icons';
 import { ChatMessageItem } from '../../message/types/ChatRoom.types';
 import { ReactionType } from '../../message-reaction/api/reactionApi';
+import { hasReactionType } from '../../../shared/lib/reactionsUtils';
 
 interface ContextMenuState {
     visible: boolean;
@@ -47,7 +48,7 @@ const ContextMenuHandlerComponent: React.FC<ContextMenuHandlerProps> = ({
     const isPinned = contextMenu.message && pinnedMessages.some(msg => msg.id === contextMenu.message?.id);
 
     return (
-        <ContextMenu id="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+        <ContextMenu $x={contextMenu.x} $y={contextMenu.y}>
             {!showReactionPicker ? (
                 <>
                     <ContextMenuItem onClick={onShowReactionPicker}>
@@ -90,7 +91,7 @@ const ContextMenuHandlerComponent: React.FC<ContextMenuHandlerProps> = ({
                                     height: '32px',
                                     width: '32px',
                                     minWidth: '32px',
-                                    backgroundColor: contextMenu.message?.reactions?.[type.code]?.includes(userId || 0) 
+                                    backgroundColor: hasReactionType(contextMenu.message?.reactions, type.code, userId || 0)
                                         ? '#e6f7ff' 
                                         : 'transparent',
                                 }}

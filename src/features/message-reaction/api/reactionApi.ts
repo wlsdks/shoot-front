@@ -1,6 +1,7 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
+import { ReactionItem } from '../../../entities/message/types';
 
 export interface ReactionType {
   code: string;
@@ -10,12 +11,13 @@ export interface ReactionType {
 
 export interface ReactionResponse {
   messageId: string;
-  reactions: Record<string, number[]>;
+  reactions: ReactionItem[];
+  updatedAt: string;
 }
 
 export interface ReactionListResponse {
   messageId: string;
-  reactions: Record<string, number[]>;
+  reactions: ReactionItem[];
 }
 
 export const messageReactionService = {

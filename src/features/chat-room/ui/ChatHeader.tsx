@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Header, BackButton, HeaderTitle } from '../../message/ui/styles/ChatRoom.styles';
-import { BackIcon } from '../../message/ui/icons';
+import { Header, BackButton, HeaderTitle } from '../styles/ChatRoom.styles';
+import { BackIcon } from './icons';
 
 interface ChatHeaderProps {
     onBack: () => void;

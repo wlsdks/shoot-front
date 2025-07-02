@@ -1,8 +1,21 @@
 // User entity
-export * from './user';
+export type { User } from './user';
 
 // Friend entity  
-export * from './friend';
+export type { Friend, FriendResponse } from './friend';
 
-// Chat room entity
-export * from './chat-room'; 
+// Chat Room entity
+export type { ChatRoom } from './chat-room';
+
+// Message entity
+export type {
+    Message,
+    MessageContent,
+    MessageMetadata,
+    MessageStatusInfo,
+    MessageStatusUpdate,
+    MessageStatusData,
+    TypingIndicatorMessage
+} from './message';
+
+export { MessageStatus } from './message'; 

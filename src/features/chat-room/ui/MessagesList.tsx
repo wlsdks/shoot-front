@@ -1,8 +1,9 @@
 import React, { memo } from 'react';
 import { ChatMessageItem, MessageStatus, MessageStatusInfo } from '../../message/types/ChatRoom.types';
-import { MessagesContainer } from '../../message/ui/styles/ChatRoom.styles';
-import { MessageRow } from '../../message/ui/MessageRow';
-import { UrlPreview } from '../../message/ui/UrlPreview';
+import { MessagesContainer } from '../styles/ChatRoom.styles';
+import { MessageRow } from './MessageRow';
+import { UrlPreview } from './UrlPreview';
+import { DateSeparator } from './DateSeparator';
 import { formatTime } from '../../message/lib/timeUtils';
 
 interface MessagesListProps {
@@ -66,6 +67,12 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
         }
     };
 
+    const isSameDate = (date1: string, date2: string) => {
+        const d1 = new Date(date1);
+        const d2 = new Date(date2);
+        return d1.toDateString() === d2.toDateString();
+    };
+
     return (
         <MessagesContainer className={input ? 'typing' : ''}>
             {messages.map((msg, idx) => {
@@ -96,8 +103,18 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
                 const nextTime = nextMessage ? formatTime(getMessageCreatedAt(nextMessage)) : null;
                 const showTime = !nextMessage || currentTime !== nextTime;
                 
+                // 날짜 구분선 표시 여부 확인
+                const prevMessage = messages[idx - 1];
+                const showDateSeparator = !prevMessage || !isSameDate(
+                    getMessageCreatedAt(prevMessage), 
+                    msgCreatedAt
+                );
+                
                 return (
                     <React.Fragment key={idx}>
+                        {showDateSeparator && (
+                            <DateSeparator date={msgCreatedAt} />
+                        )}
                         <MessageRow
                             message={msg}
                             isOwn={isOwn}
@@ -107,7 +124,7 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
                             indicatorText={indicatorText}
                             onContextMenu={onContextMenu}
                             onClick={onClick}
-                            userId={userId || 0}
+                            userId={userId}
                         />
                         {msg.content?.urlPreview && (
                             <div style={{ 

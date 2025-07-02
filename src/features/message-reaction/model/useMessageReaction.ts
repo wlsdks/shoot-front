@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { messageReactionService } from '../api/reactionApi';
 import { MessageReactionProps } from '../types';
 import { useMutationWithSingleInvalidation, DEFAULT_QUERY_OPTIONS } from '../../../shared/lib/hooks/useQueryFactory';
+import { hasReactionType, normalizeReactions } from '../../../shared/lib/reactionsUtils';
 
 export const useMessageReaction = (props: MessageReactionProps) => {
     // 리액션 목록 조회
@@ -32,12 +33,18 @@ export const useMessageReaction = (props: MessageReactionProps) => {
     );
 
     const handleReaction = async (reactionType: string) => {
-        const hasReacted = reactions?.reactions[reactionType]?.includes(props.userId || 0);
+        // API 응답이 ReactionItem[] 배열 형태이므로 hasReactionType 유틸리티 사용
+        const hasReacted = hasReactionType(reactions?.reactions, reactionType, props.userId || 0);
         await reactionMutation.mutateAsync({ reactionType, isAdding: !hasReacted });
     };
 
     return {
-        reactions: reactions?.reactions || {},
+        // API 응답을 정규화하여 기존 Record 형태로 반환 (하위 호환성)
+        reactions: reactions?.reactions ? 
+            normalizeReactions(reactions.reactions).reduce((acc, reaction) => {
+                acc[reaction.reactionType] = reaction.userIds;
+                return acc;
+            }, {} as Record<string, number[]>) : {},
         reactionTypes: reactionTypes || [],
         handleReaction,
         isLoading

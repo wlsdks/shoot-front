@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { ChatInputContainer, Input, SendButton, TypingIndicatorContainer, TypingDots } from '../../message/ui/styles/ChatRoom.styles';
-import { SendIcon } from '../../message/ui/icons';
+import { ChatInputContainer, Input, SendButton, TypingIndicatorContainer, TypingDots } from '../styles/ChatRoom.styles';
+import { SendIcon } from './icons';
 // TypingUser 타입 정의
 interface TypingUser {
     userId: number;
