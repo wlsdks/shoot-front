@@ -328,19 +328,19 @@ export const ContextMenuItem = styled.button<{ $isDangerous?: boolean }>`
 
 // 고정 메시지 스타일
 export const PinnedMessagesContainer = styled.div<{ $isExpanded: boolean }>`
-    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-    border: 1px solid #ffeaa7;
-    border-radius: 12px;
-    margin: 10px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin: 8px;
     margin-bottom: 0;
     overflow: hidden;
-    max-height: ${({ $isExpanded }) => $isExpanded ? '300px' : '60px'};
+    max-height: ${({ $isExpanded }) => $isExpanded ? '200px' : '40px'};
     transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 export const PinnedMessagesHeader = styled.div`
-    padding: 12px 16px;
+    padding: 8px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -349,84 +349,66 @@ export const PinnedMessagesHeader = styled.div`
     transition: background-color 0.2s;
     
     &:hover {
-        background: rgba(255, 255, 255, 0.5);
+        background: rgba(0, 0, 0, 0.05);
     }
 `;
 
 export const PinnedMessagesTitle = styled.div`
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #856404;
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: #495057;
+    width: 100%;
     
     svg {
-        width: 16px;
-        height: 16px;
-        fill: #856404;
+        width: 14px;
+        height: 14px;
+        fill: #6c757d;
     }
-`;
-
-export const PinnedMessagesSummary = styled.div`
-    font-size: 0.8rem;
-    color: #856404;
-    opacity: 0.8;
-    margin-top: 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 200px;
 `;
 
 export const PinnedMessagesContent = styled.div`
-    max-height: 240px;
+    max-height: 160px;
     overflow-y: auto;
-    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    border-top: 1px solid #e9ecef;
     
     &::-webkit-scrollbar {
-        width: 4px;
+        width: 3px;
     }
     
     &::-webkit-scrollbar-thumb {
-        background: rgba(133, 100, 4, 0.3);
+        background: rgba(108, 117, 125, 0.3);
         border-radius: 2px;
     }
 `;
 
 export const PinnedMessageItem = styled.div`
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 12px;
+    border-bottom: 1px solid #e9ecef;
+    background: #ffffff;
     
     &:last-child {
         border-bottom: none;
     }
     
     &:hover {
-        background: rgba(255, 255, 255, 0.4);
+        background: #f8f9fa;
     }
 `;
 
-export const PinnedMessageSender = styled.div`
-    font-size: 0.75rem;
-    color: #856404;
-    font-weight: 600;
-    margin-bottom: 4px;
-`;
-
 export const PinnedMessageText = styled.div`
-    font-size: 0.85rem;
-    color: #333;
-    line-height: 1.4;
+    font-size: 0.8rem;
+    color: #495057;
+    line-height: 1.3;
     word-break: break-word;
 `;
 
 export const PinnedMessageDate = styled.div`
-    font-size: 0.7rem;
-    color: #856404;
-    opacity: 0.7;
-    margin-top: 4px;
+    font-size: 0.65rem;
+    color: #6c757d;
+    opacity: 0.8;
+    margin-top: 3px;
 `;
 
 // URL 미리보기 스타일

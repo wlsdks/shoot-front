@@ -4,10 +4,8 @@ import {
     PinnedMessagesContainer,
     PinnedMessagesHeader,
     PinnedMessagesTitle,
-    PinnedMessagesSummary,
     PinnedMessagesContent,
     PinnedMessageItem,
-    PinnedMessageSender,
     PinnedMessageText,
     PinnedMessageDate
 } from '../styles/ChatRoom.styles';
@@ -36,19 +34,13 @@ export const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 tabIndex={0}
             >
                 <PinnedMessagesTitle>
-                    <span>📌</span>
-                    <span>공지사항 ({pinnedMessages.length})</span>
+                    <span style={{ marginRight: '6px', fontSize: '14px' }}>📌</span>
+                    <span style={{ flex: 1 }}>
+                        {pinnedMessages[0].content?.text}
+                    </span>
                 </PinnedMessagesTitle>
 
-                {!isExpanded && pinnedMessages.length > 0 && (
-                    <PinnedMessagesSummary>
-                        <strong>
-                            {pinnedMessages[0].senderId === currentUserId ? '나' : '상대방'}: {pinnedMessages[0].content?.text}
-                        </strong>
-                    </PinnedMessagesSummary>
-                )}
-
-                <span style={{ fontSize: '0.8rem', color: '#856404' }}>
+                <span style={{ fontSize: '0.7rem', color: '#6c757d', marginLeft: '6px' }}>
                     {isExpanded ? '△' : '▽'}
                 </span>
             </PinnedMessagesHeader>
@@ -57,9 +49,6 @@ export const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 <PinnedMessagesContent>
                     {pinnedMessages.map((pinnedMsg) => (
                         <PinnedMessageItem key={pinnedMsg.id}>
-                            <PinnedMessageSender>
-                                {pinnedMsg.senderId === currentUserId ? '나' : '상대방'}
-                            </PinnedMessageSender>
                             <PinnedMessageText>
                                 {pinnedMsg.content?.text}
                             </PinnedMessageText>
