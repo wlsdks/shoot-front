@@ -4,6 +4,9 @@ import { extractData } from '../../../shared/lib/apiUtils';
 import { UserResponse } from '../types/user';
 import { Friend } from '../../../entities';
 
+// 공통 API는 shared에서 import
+export { updateUserStatus } from '../../../shared/api/profile';
+
 // 사용자 프로필 인터페이스
 export interface ProfileUpdateRequest {
     nickname?: string;
@@ -57,20 +60,6 @@ export const uploadProfileImage = async (
             'Content-Type': 'multipart/form-data'
         }
     });
-    return response;
-};
-
-/**
- * 사용자 상태 업데이트 API
- * @param userId 유저의 ID
- * @param status 변경할 상태 (ONLINE, BUSY, AWAY 등)
- * @returns 업데이트된 사용자 정보
- */
-export const updateUserStatus = async (
-    userId: number, // userId 타입 변경
-    status: string
-) => {
-    const response = await api.put<ApiResponse<any>>(`/users/me/status`, { userId, status });
     return response;
 };
 

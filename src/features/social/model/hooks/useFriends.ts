@@ -1,22 +1,13 @@
-import { getFriends } from '../../api/friends';
-import { Friend } from '../../../../entities';
+import { useQuery } from '@tanstack/react-query';
+import { getFriends } from '../../../../shared/api/friends';
 import { convertToFriend } from '../utils/friendConverter';
-import { useUserDataQuery } from '../../../../shared/lib/hooks/useQueryFactory';
 
 // 친구 목록 조회 훅
 export const useFriends = (userId: number) => {
-    const { data, isLoading, error } = useUserDataQuery<Friend[]>(
-        ['friends'],
-        async () => {
-            const friendsData = await getFriends(userId);
-            return friendsData.map(convertToFriend);
-        },
-        userId
-    );
-
-    return {
-        data,
-        isLoading,
-        error,
-    };
+    return useQuery({
+        queryKey: ['friends', userId],
+        queryFn: () => getFriends(userId),
+        enabled: !!userId,
+        select: (data) => data.map(convertToFriend)
+    });
 }; 

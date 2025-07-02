@@ -7,7 +7,7 @@ import {
     sendFriendRequest,
     acceptFriendRequest,
     cancelFriendRequest,
-} from '../../api/friends';
+} from '../../../../shared/api/friends';
 import { Friend, FriendResponse } from '../../../../entities';
 
 // API 응답을 Friend 타입으로 변환하는 함수
