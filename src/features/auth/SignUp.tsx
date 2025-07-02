@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { signup } from '../../features/auth/api';
+import { signup } from './api';
 import {
   PageWrapper,
   MobileContainer,

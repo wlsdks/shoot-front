@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Friend } from '../../social/types/friend';
+import { Friend } from '../../../entities';
 import { useMutation } from '@tanstack/react-query';
 import { setBackgroundImage } from '../api/profile';
 import { useFriendProfile } from '../model/hooks/useProfile';

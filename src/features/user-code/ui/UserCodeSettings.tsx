@@ -1,6 +1,6 @@
 // src/features/user-code/ui/UserCodeSettings.tsx
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../shared/lib/context/AuthContext';
+import { useAuthContext } from '../../auth';
 import { useUserCode } from '../model/useUserCode';
 import {
     Container,
@@ -33,7 +33,7 @@ interface UserCodeSettingsProps {
 }
 
 const UserCodeSettings: React.FC<UserCodeSettingsProps> = ({ userId }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const [userCode, setUserCode] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     
@@ -41,8 +41,7 @@ const UserCodeSettings: React.FC<UserCodeSettingsProps> = ({ userId }) => {
         myCode,
         isLoadingMyCode,
         createCode,
-        isCreatingCode,
-        createCodeError
+        isCreatingCode
     } = useUserCode(user?.id || 0);
 
     useEffect(() => {

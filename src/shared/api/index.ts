@@ -10,4 +10,10 @@ export {
   extractMessage, 
   createApiError, 
   handleApiError 
-} from '../lib/apiUtils'; 
+} from '../lib/apiUtils';
+
+// Friends API
+export * from './friends';
+
+// Profile API
+export * from './profile'; 

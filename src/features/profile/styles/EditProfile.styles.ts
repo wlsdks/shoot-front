@@ -1,10 +1,5 @@
-import styled, { keyframes } from 'styled-components';
-
-// 애니메이션 정의
-const fadeIn = keyframes`
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-`;
+import styled from 'styled-components';
+import { fadeIn } from '../../../shared/ui/commonStyles';
 
 export const Form = styled.form`
     display: flex;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { FriendListModal } from '../../chat-room/ui/FriendListModal';
 import { forwardMessageToUser } from '../api/message';
-import { useAuth } from '../../../shared/lib/context/AuthContext';
+import { useAuthContext } from '../../auth';
 
 interface ForwardMessageModalProps {
     messageId: string;
@@ -12,7 +12,7 @@ export const ForwardMessageModal: React.FC<ForwardMessageModalProps> = ({
     messageId,
     onClose
 }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
 
     const handleFriendSelect = async (friendId: number) => {
         if (!user) return;

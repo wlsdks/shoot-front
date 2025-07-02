@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../shared/lib/context/AuthContext";
+import { useAuthContext } from "../auth";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
@@ -42,7 +42,7 @@ import { ForwardMessageModal } from '../message/ui/ForwardMessageModal';
 import { ErrorIcon } from '../message/ui/icons';
 
 const ChatRoom = ({ roomId }: { roomId: string }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     
     // 🚀 TODO: 새로운 통합 상태 관리 (단계적 적용 예정)
     // const { state: uiState, actions: uiActions } = useChatRoomState();

@@ -1,6 +1,6 @@
 // src/features/social/ui/FriendItem.tsx
 import React, { useState } from 'react';
-import { Friend } from '../types/friend';
+import { Friend } from '../../../entities';
 import FriendProfileModal from '../../profile/ui/FriendProfileModal';
 import {
     FriendItemContainer,

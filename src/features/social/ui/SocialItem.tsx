@@ -1,6 +1,6 @@
 // src/features/social/ui/SocialItem.tsx
 import React from 'react';
-import { Friend } from '../../../entities/friend';
+import { Friend } from '../../../entities';
 import {
     SocialItemContainer,
     UserInfo,

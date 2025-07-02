@@ -1,10 +1,10 @@
 // PrivateRoute.tsx
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../../shared/lib/context/AuthContext';
+import { useAuthContext } from '../../features/auth';
 
 const PrivateRoute: React.FC = () => {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, loading } = useAuthContext();
 
     // 아직 /me 결과를 기다리는 중이면 '로딩중' UI만 표시
     if (loading) {

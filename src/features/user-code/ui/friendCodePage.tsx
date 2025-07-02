@@ -1,6 +1,6 @@
 // src/features/user-code/ui/friendCodePage.tsx
 import React, { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useAuthContext } from "../../auth";
 import { useUserCode } from "../model/useUserCode";
 import { UserCode } from "../types";
 import {
@@ -34,7 +34,7 @@ interface FriendCodePageProps {
 }
 
 const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const [code, setCode] = useState("");
     const [message, setMessage] = useState<string | null>(null);
     const [isError, setIsError] = useState(false);

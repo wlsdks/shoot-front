@@ -1,6 +1,6 @@
 // src/features/social/ui/FriendsTab.tsx
 import React, { useState, useCallback } from "react";
-import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useAuthContext } from "../../auth";
 import { useFriends } from "../model/hooks/useFriends";
 import FriendSearch from "./FriendSearch";
 import FriendCodePage from "../../user-code/ui/friendCodePage";
@@ -26,7 +26,7 @@ import {
 } from "../styles/FriendsTab.styles";
 
 const FriendsTab: React.FC = () => {
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading } = useAuthContext();
     const [showSearch, setShowSearch] = useState<boolean>(false);
     const [showCode, setShowCode] = useState<boolean>(false);
     const navigate = useNavigate();
@@ -96,11 +96,15 @@ const FriendsTab: React.FC = () => {
                                 username: user.username,
                                 nickname: user.nickname || user.username,
                                 status: "나",
-                                profileImageUrl: user.profileImageUrl || null,
-                                backgroundImageUrl: null,
-                                bio: null,
-                                userCode: "",
-                                lastSeenAt: null
+                                profileImageUrl: user.profileImageUrl || undefined,
+                                backgroundImageUrl: undefined,
+                                bio: user.bio || undefined,
+                                userCode: user.userCode || "",
+                                lastSeenAt: undefined,
+                                isFriend: false,
+                                isPending: false,
+                                isIncoming: false,
+                                isOutgoing: false
                             }}
                             onChatClick={() => {}}
                         />

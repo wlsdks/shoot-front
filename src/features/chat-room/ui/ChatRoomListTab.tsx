@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useAuthContext } from "../../auth";
 import { useChatRooms } from "../model/hooks/useChatRooms";
 import { ChatRoom } from "../../message/types/ChatRoom.types";
 import TabContainer from "../../../shared/ui/TabContainer";
@@ -34,7 +34,7 @@ import {
 } from "../styles/ChatRoomListTab.styles";
 
 const ChatRoomList: React.FC = () => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; room: ChatRoom | null }>({
         visible: false,
         x: 0,

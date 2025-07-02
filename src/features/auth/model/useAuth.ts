@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
-import { login, signup, loginCheckApi } from '../../../features/auth/api';
-import { useAuth as useAuthContext } from '../context/AuthContext';
-import { API_CONFIG } from '../../api/config';
+import { login, signup, loginCheckApi } from '../api';
+import { useAuth as useAuthContext } from './AuthContext';
+import { API_CONFIG } from '../../../shared/api/config';
 
 export const useAuth = () => {
     const { login: contextLogin, isAuthenticated } = useAuthContext();

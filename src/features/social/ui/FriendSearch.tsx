@@ -1,7 +1,7 @@
 // src/features/social/ui/FriendSearch.tsx
 import React, { useState, useEffect, useRef, ChangeEvent } from "react";
-import { useAuth } from "../../../shared/lib/context/AuthContext";
-import { Friend } from "../types/friend";
+import { useAuthContext } from "../../auth";
+import { Friend } from "../../../entities";
 import { useFriendSearch } from "../model/hooks/useFriendSearch";
 import {
     SearchContainer,
@@ -30,7 +30,7 @@ interface FriendSearchProps {
 }
 
 const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const [query, setQuery] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
     

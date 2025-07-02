@@ -1,5 +1,5 @@
 import { getFriends } from '../../api/friends';
-import { Friend } from '../../types/friend';
+import { Friend } from '../../../../entities';
 import { convertToFriend } from '../utils/friendConverter';
 import { useUserDataQuery } from '../../../../shared/lib/hooks/useQueryFactory';
 

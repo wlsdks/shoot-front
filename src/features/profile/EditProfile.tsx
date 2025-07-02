@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../shared/lib/context/AuthContext';
+import { useAuthContext } from '../auth';
 import { updateProfile, uploadProfileImage, changePassword } from './api/profile';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../shared/api/config';
@@ -29,7 +29,7 @@ interface EditProfileProps {
 }
 
 const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
-  const { user, fetchCurrentUser } = useAuth();
+  const { user, fetchCurrentUser } = useAuthContext();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   

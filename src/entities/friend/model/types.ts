@@ -5,6 +5,8 @@ export interface Friend extends User {
     isPending: boolean;
     isIncoming: boolean;
     isOutgoing: boolean;
+    backgroundImageUrl?: string | null;
+    lastSeenAt?: string | null;
 }
 
 export interface FriendResponse {
@@ -18,4 +20,6 @@ export interface FriendResponse {
     isPending: boolean;
     isIncoming: boolean;
     isOutgoing: boolean;
+    backgroundImageUrl?: string | null;
+    lastSeenAt?: string | null;
 } 

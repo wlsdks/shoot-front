@@ -1,14 +1,6 @@
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { Link } from 'react-router-dom';
-
-export const fadeIn = keyframes`
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-`;
+import { fadeIn } from '../../../shared/ui/commonStyles';
 
 // 인증 페이지 전체를 고정시키는 컨테이너
 export const PageWrapper = styled.div`

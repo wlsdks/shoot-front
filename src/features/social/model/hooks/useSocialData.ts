@@ -8,7 +8,7 @@ import {
     acceptFriendRequest,
     cancelFriendRequest,
 } from '../../api/friends';
-import { Friend, FriendResponse } from '../../../../entities/friend';
+import { Friend, FriendResponse } from '../../../../entities';
 
 // API 응답을 Friend 타입으로 변환하는 함수
 const convertToFriend = (response: FriendResponse): Friend => ({

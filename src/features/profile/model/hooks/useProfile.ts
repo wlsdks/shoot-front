@@ -3,7 +3,7 @@ import { updateUserStatus } from '../../api/profile';
 import { setProfileImage, setBackgroundImage, getUserProfile } from '../../api/profile';
 import { getCurrentUser } from '../../api/profile';
 import { UserResponse } from '../../types/user';
-import { Friend } from '../../../social/types/friend';
+import { Friend } from '../../../../entities';
 
 export const useProfile = (userId: number) => {
     const queryClient = useQueryClient();

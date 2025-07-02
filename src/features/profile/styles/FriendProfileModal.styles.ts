@@ -1,17 +1,7 @@
 import styled, { keyframes } from 'styled-components';
+import { fadeIn } from '../../../shared/ui/commonStyles';
 
-// 애니메이션 효과
-const fadeIn = keyframes`
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-`;
-
+// 추가 애니메이션 효과
 const scaleIn = keyframes`
     from {
         transform: scale(0.95);

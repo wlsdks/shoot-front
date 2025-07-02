@@ -1,4 +1,4 @@
-import { ChatRoom } from '../../../entities/chat-room';
+import { ChatRoom } from '../../../entities';
 
 export type { ChatRoom };
 

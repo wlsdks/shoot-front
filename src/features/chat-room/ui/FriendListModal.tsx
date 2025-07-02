@@ -1,8 +1,8 @@
 // src/features/chat-room/ui/FriendListModal.tsx
 import React, { useState, useEffect } from 'react';
-import { getFriends } from '../../../features/social/api/friends';
-import { useAuth } from '../../../shared/lib/context/AuthContext';
-import { Friend, FriendResponse } from '../../../entities/friend';
+import { getFriends } from '../../../shared/api';
+import { useAuthContext } from '../../auth';
+import { Friend, FriendResponse } from '../../../entities';
 import {
     ModalOverlay,
     ModalContent,
@@ -43,7 +43,7 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
     onClose,
     onSelectFriend
 }) => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const [friends, setFriends] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');

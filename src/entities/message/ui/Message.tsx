@@ -1,37 +1,30 @@
 import React from 'react';
-import { MessageReaction } from '../../../features/message-reaction/ui/MessageReaction';
 
 interface MessageProps {
-    id: string;
     content: string;
-    senderId: number;
+    author: string;
     timestamp: string;
-    reactions: Record<string, number[]>;
-    currentUserId: number;
-    onReactionUpdate: (messageId: string, reactions: Record<string, number[]>) => void;
+    renderReaction?: () => React.ReactNode;
 }
 
-export const Message: React.FC<MessageProps> = ({
-    id,
-    content,
-    senderId,
-    timestamp,
-    reactions,
-    currentUserId,
-    onReactionUpdate,
+export const Message: React.FC<MessageProps> = ({ 
+    content, 
+    author, 
+    timestamp, 
+    renderReaction 
 }) => {
     return (
         <div className="message">
-        <div className="message-content">{content}</div>
-        <div className="message-footer">
-            <span className="message-time">{new Date(timestamp).toLocaleTimeString()}</span>
-            <MessageReaction
-            messageId={id}
-            userId={currentUserId}
-            reactions={reactions}
-            onReactionUpdate={(newReactions) => onReactionUpdate(id, newReactions)}
-            />
-        </div>
+            <div className="message-header">
+                <span className="author">{author}</span>
+                <span className="timestamp">{timestamp}</span>
+            </div>
+            <div className="message-content">{content}</div>
+            {renderReaction && (
+                <div className="message-reactions">
+                    {renderReaction()}
+                </div>
+            )}
         </div>
     );
 }; 

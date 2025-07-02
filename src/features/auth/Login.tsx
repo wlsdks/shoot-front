@@ -1,6 +1,6 @@
 // src/features/auth/Login.tsx
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../shared/lib/hooks/useAuth';
+import { useAuth } from './model/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Button, Input, Checkbox } from '../../shared/ui';
 import {

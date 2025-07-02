@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
-import { AuthProvider } from '../shared/lib/context/AuthContext';
+import { AuthProvider } from '../features/auth';
 import {
     LoginPage,
     SignUpPage,

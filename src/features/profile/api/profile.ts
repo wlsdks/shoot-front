@@ -2,7 +2,7 @@ import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
 import { UserResponse } from '../types/user';
-import { Friend } from '../../social/types/friend';
+import { Friend } from '../../../entities';
 
 // 사용자 프로필 인터페이스
 export interface ProfileUpdateRequest {

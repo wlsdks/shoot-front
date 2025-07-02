@@ -1,14 +1,18 @@
-import { Friend } from '../../types/friend';
-import { FriendResponse } from '../../../../entities/friend';
+import { Friend } from '../../../../entities';
+import { FriendResponse } from '../../../../entities';
 
 export const convertToFriend = (response: FriendResponse): Friend => ({
     id: response.id,
     username: response.username,
     nickname: response.nickname,
     status: response.status || "온라인",
-    profileImageUrl: response.profileImageUrl || null,
+    profileImageUrl: response.profileImageUrl || undefined,
     backgroundImageUrl: null,
-    bio: response.bio || null,
+    bio: response.bio || undefined,
     userCode: "",
-    lastSeenAt: null
+    lastSeenAt: null,
+    isFriend: response.isFriend,
+    isPending: response.isPending,
+    isIncoming: response.isIncoming,
+    isOutgoing: response.isOutgoing
 }); 

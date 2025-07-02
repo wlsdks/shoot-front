@@ -1,6 +1,6 @@
 // src/features/social/ui/SocialTab.tsx
 import React, { useState } from "react";
-import { useAuth } from "../../../shared/lib/context/AuthContext";
+import { useAuthContext } from "../../auth";
 import { useSocialData } from "../model/hooks/useSocialData";
 import TabContainer from "../../../shared/ui/TabContainer";
 import TabHeader from "../../../shared/ui/TabHeader";
@@ -21,7 +21,7 @@ import {
 } from "../styles/SocialTab.styles";
 
 const SocialTab: React.FC = () => {
-    const { user } = useAuth();
+    const { user } = useAuthContext();
     const [error, setError] = useState("");
     const [loadingMore, setLoadingMore] = useState(false);
 

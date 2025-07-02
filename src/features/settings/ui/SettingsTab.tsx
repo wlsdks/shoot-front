@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../shared/lib/context/AuthContext';
+import { useAuthContext } from '../../auth';
 import EditProfile from '../../profile/EditProfile';
 import UserCodeSettings from '../../user-code/ui/UserCodeSettings';
 import TabContainer from "../../../shared/ui/TabContainer";
@@ -38,7 +38,7 @@ import {
 const SettingsTab: React.FC = () => {
     const [activeSection, setActiveSection] = useState<string>('main');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const { logout, user } = useAuth();
+    const { logout, user } = useAuthContext();
     const navigate = useNavigate();
 
     const handleBack = () => {
