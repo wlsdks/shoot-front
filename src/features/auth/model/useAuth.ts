@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { login, signup, loginCheckApi } from '../api';
+import { login, signUp, fetchCurrentUser } from '../api';
 import { useAuth as useAuthContext } from './AuthContext';
 import { API_CONFIG } from '../../../shared/api/config';
 
@@ -19,7 +19,7 @@ export const useAuth = () => {
                 }
                 
                 // 사용자 정보를 가져와서 context에 저장
-                const user = await loginCheckApi();
+                const user = await fetchCurrentUser();
                 if (user) {
                     // 상태 업데이트를 동기적으로 처리
                     contextLogin(user, data.accessToken, data.refreshToken);
@@ -38,7 +38,7 @@ export const useAuth = () => {
 
     // 회원가입
     const signupMutation = useMutation({
-        mutationFn: (formData: FormData) => signup(formData),
+        mutationFn: (userData: any) => signUp(userData),
     });
 
     return {

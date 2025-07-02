@@ -15,24 +15,8 @@ export const spin = keyframes`
     100% { transform: rotate(360deg); }
 `;
 
-export const commonColors = {
-    primary: '#007bff',
-    secondary: '#6c757d',
-    success: '#28a745',
-    danger: '#dc3545',
-    warning: '#ffc107',
-    info: '#17a2b8',
-    light: '#f8f9fa',
-    dark: '#343a40',
-    white: '#ffffff',
-    black: '#000000',
-};
-
-export const commonShadows = {
-    small: '0 2px 5px rgba(0, 0, 0, 0.1)',
-    medium: '0 4px 8px rgba(0, 0, 0, 0.1)',
-    large: '0 8px 16px rgba(0, 0, 0, 0.1)',
-};
+// 공통 색상과 그림자는 shared/styles/common.ts에서 import
+export { commonColors, commonShadows } from '../styles/common';
 
 export const commonBorderRadius = {
     small: '4px',

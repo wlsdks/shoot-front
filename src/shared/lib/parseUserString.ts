@@ -1,12 +1,5 @@
 // utils/parseUserString.ts
-export interface UserDTO {
-    id: string;
-    username: string;
-    nickname: string;
-    status: string;
-    profileImageUrl?: string | null;
-    userCode?: string;
-}
+import { UserDTO } from '../../entities';
 
 /**
  * 백엔드에서 반환하는 문자열 예시:

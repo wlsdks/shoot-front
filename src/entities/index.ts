@@ -1,5 +1,5 @@
 // User entity
-export type { User } from './user';
+export type { User, UserResponse, UserDTO } from './user';
 
 // Friend entity  
 export type { Friend, FriendResponse } from './friend';

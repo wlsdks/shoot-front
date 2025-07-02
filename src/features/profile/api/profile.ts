@@ -1,8 +1,7 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
-import { UserResponse } from '../types/user';
-import { Friend } from '../../../entities';
+import { UserResponse, Friend } from '../../../entities';
 
 // 공통 API는 shared에서 import
 export { updateUserStatus } from '../../../shared/api/profile';

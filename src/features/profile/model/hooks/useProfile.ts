@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { updateUserStatus } from '../../api/profile';
 import { setProfileImage, setBackgroundImage, getUserProfile } from '../../api/profile';
 import { getCurrentUser } from '../../api/profile';
-import { UserResponse } from '../../types/user';
-import { Friend } from '../../../../entities';
+import { UserResponse, Friend } from '../../../../entities';
 
 export const useProfile = (userId: number) => {
     const queryClient = useQueryClient();

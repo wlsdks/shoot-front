@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { signup } from './api';
+import { signUp } from './api';
 import {
   PageWrapper,
   MobileContainer,
@@ -317,7 +317,7 @@ const SignUp: React.FC = () => {
       if (bio) formData.append('bio', bio);
       if (profileImage) formData.append('profileImage', profileImage);
       
-      await signup(formData);
+      await signUp(formData);
       setIsSuccess(true);
     } catch (err) {
       console.error('회원가입 실패:', err);
