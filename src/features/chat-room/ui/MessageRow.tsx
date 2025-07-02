@@ -18,7 +18,7 @@ const MessageContentRow = styled.div<{ $isOwnMessage: boolean }>`
     align-items: flex-end;
     justify-content: ${({ $isOwnMessage }) => ($isOwnMessage ? "flex-end" : "flex-start")};
     width: 100%;
-    gap: 6px;
+    gap: 1px;
 `;
 
 const ReactionArea = styled.div<{ $isOwnMessage: boolean }>`

@@ -80,12 +80,18 @@ export const ChatArea = styled.div`
     padding-bottom: 0px;
     background: #f8f9fa;
     overflow-y: auto;
+    scroll-behavior: auto; /* 자동 스크롤은 즉시, 사용자 스크롤은 부드럽게 */
     scrollbar-width: thin;
     scrollbar-color: #ddd transparent;
     display: flex;
     flex-direction: column;
     position: relative;
     height: 100%;
+    overscroll-behavior: contain; /* 스크롤 바운스 효과 제한 */
+    
+    /* 스크롤 성능 최적화 */
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0); /* 하드웨어 가속 활성화 */
     
     &::-webkit-scrollbar {
         width: 5px;
@@ -94,6 +100,11 @@ export const ChatArea = styled.div`
     &::-webkit-scrollbar-thumb {
         background: #ddd;
         border-radius: 3px;
+        transition: background 0.2s ease;
+    }
+    
+    &::-webkit-scrollbar-thumb:hover {
+        background: #bbb;
     }
     
     &::-webkit-scrollbar-track {
