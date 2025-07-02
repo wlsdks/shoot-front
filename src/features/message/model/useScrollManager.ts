@@ -41,7 +41,6 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
                     block: 'start', 
                     behavior: 'auto' // 즉시 이동 (깜빡임 방지)
                 });
-                console.log("타겟 메시지로 부드럽게 스크롤:", scrollRestoreInfo.targetMessageId);
                 setScrollRestoreInfo({ shouldRestore: false });
                 isPreviousMessagesLoadingRef.current = false;
                 return;
@@ -55,12 +54,6 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
             // 부드러운 전환을 위해 CSS transition 활용
             chatArea.style.scrollBehavior = 'auto';
             chatArea.scrollTop = newScrollPosition;
-            
-            console.log("스크롤 위치 복원:", {
-                original: scrollRestoreInfo.originalScrollTop,
-                heightDiff: scrollRestoreInfo.heightDifference,
-                new: newScrollPosition
-            });
         }
 
         setScrollRestoreInfo({ shouldRestore: false });
@@ -96,20 +89,13 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
         if (chatAreaRef.current) {
             scrollHeightBeforeUpdateRef.current = chatAreaRef.current.scrollHeight;
             lastScrollPosRef.current = chatAreaRef.current.scrollTop;
-            
-            console.log("스크롤 위치 저장:", {
-                scrollHeight: scrollHeightBeforeUpdateRef.current,
-                scrollTop: lastScrollPosRef.current
-            });
         }
-        
-        console.log("이전 메시지 로딩 준비:", { targetMessageId });
     }, [chatAreaRef]);
 
     // 이전 메시지 로딩 완료 후 스크롤 복원 설정
     const finalizePreviousMessagesLoad = useCallback((targetMessageId: string) => {
         if (!chatAreaRef.current) return;
-
+        
         const chatArea = chatAreaRef.current;
         const newScrollHeight = chatArea.scrollHeight;
         const heightDifference = newScrollHeight - scrollHeightBeforeUpdateRef.current;
@@ -119,13 +105,6 @@ export const useScrollManager = (chatAreaRef: React.RefObject<HTMLDivElement>) =
             targetMessageId,
             heightDifference,
             originalScrollTop: lastScrollPosRef.current
-        });
-
-        console.log("스크롤 복원 정보 설정:", {
-            targetMessageId,
-            heightDifference,
-            originalScrollTop: lastScrollPosRef.current,
-            newScrollHeight
         });
     }, [chatAreaRef]);
 

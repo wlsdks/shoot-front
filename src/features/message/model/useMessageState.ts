@@ -20,49 +20,30 @@ export const useMessageState = () => {
         return messageStatuses[tempId];
     }, [messageStatuses]);
 
-    const updateMessages = useCallback((newMsg: ChatMessageItem) => {
-        setMessages(prev => {
-            const messageMap = new Map<string, ChatMessageItem>();
-            prev.forEach(msg => {
-                if (msg.id) messageMap.set(msg.id, msg);
-                if (msg.tempId) messageMap.set(msg.tempId, msg);
-            });
-            
-            if ((newMsg.id && messageMap.has(newMsg.id)) || 
-                (newMsg.tempId && messageMap.has(newMsg.tempId))) {
-                return prev;
+    const updateMessages = useCallback((newMessage: ChatMessageItem) => {
+        setMessages((prevMessages) => {
+            const existingIndex = prevMessages.findIndex(
+                (msg) => msg.id === newMessage.id || msg.tempId === newMessage.tempId
+            );
+
+            if (existingIndex !== -1) {
+                return prevMessages.map((msg, index) =>
+                    index === existingIndex ? newMessage : msg
+                );
             }
-            
-            // 메시지에 저장된 상태 정보 적용
-            let messageToAdd = {...newMsg, readBy: newMsg.readBy || {}};
-            // console.log("메시지 추가 시 상태 확인:", {
-            //     tempId: newMsg.tempId,
-            //     hasStatusInfo: !!(newMsg.tempId && messageStatuses[newMsg.tempId]),
-            //     statusInfo: newMsg.tempId ? messageStatuses[newMsg.tempId] : undefined,
-            //     allStatuses: Object.keys(messageStatuses)
-            // });
-            
-            if (newMsg.tempId && messageStatuses[newMsg.tempId]) {
-                const statusInfo = messageStatuses[newMsg.tempId];
-                messageToAdd = {
-                    ...messageToAdd,
-                    status: statusInfo.status,
-                    id: statusInfo.persistedId || messageToAdd.id
-                };
-                // console.log("메시지 추가 시 저장된 상태 적용:", {
-                //     tempId: newMsg.tempId,
-                //     originalStatus: newMsg.status,
-                //     appliedStatus: statusInfo.status,
-                //     persistedId: statusInfo.persistedId
-                // });
-            } else {
-                // console.log("메시지 추가 시 상태 정보 없음:", {
-                //     tempId: newMsg.tempId,
-                //     messageStatuses: Object.keys(messageStatuses)
-                // });
+
+            // 새 메시지인 경우 추가하고 상태 적용
+            const messageWithStatus = { ...newMessage };
+            const existingStatus = messageStatuses[newMessage.tempId!];
+            if (existingStatus) {
+                messageWithStatus.status = existingStatus.status;
+                if (existingStatus.persistedId) {
+                    messageWithStatus.id = existingStatus.persistedId;
+                }
             }
-            
-            return [...prev, messageToAdd];
+
+            return [...prevMessages, messageWithStatus]
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         });
     }, [messageStatuses]);
 

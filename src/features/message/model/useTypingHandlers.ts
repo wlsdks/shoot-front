@@ -33,7 +33,6 @@ export const useTypingHandlers = ({
             lastTypingTimeRef.current = now;
             
             webSocketService.current.sendTypingIndicator(isTyping);
-            console.log(`🎯 타이핑 인디케이터 전송 (최적화): ${isTyping ? '타이핑 중' : '타이핑 종료'}`);
         }, 200), // 300ms → 200ms로 개선
         [webSocketService, roomId, userId]
     );

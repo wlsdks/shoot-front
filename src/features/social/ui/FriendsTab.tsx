@@ -35,11 +35,9 @@ const FriendsTab: React.FC = () => {
 
     // 채팅방 생성: 친구 클릭 시 direct chat 생성 후 이동
     const handleFriendClick = useCallback(async (friendId: number) => {
-        console.log("FriendTab: Friend clicked:", friendId);
         if (!user) return;
         try {
             const response = await createDirectChat(user.id, friendId);
-            console.log("FriendTab: Chat created, roomId:", response.data.roomId);
             navigate(`/chatroom/${response.data.roomId}`);
         } catch (err) {
             console.error("FriendTab: Chat Room creation failed:", err);

@@ -164,25 +164,16 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         // 중복 체크 후 즉시 메뉴 닫기
         const isAlreadyPinned = pinnedMessages.some((msg: ChatMessageItem) => msg.id === messageToPin.id);
         if (isAlreadyPinned) {
-            console.log("이미 고정된 메시지입니다:", messageToPin.id);
             setContextMenu({ ...contextMenu, visible: false });
             return;
         }
         
-        console.log("🚀 최적화된 공지사항 등록:", messageToPin.id);
-        
-        // 메뉴 즉시 닫기
         setContextMenu({ ...contextMenu, visible: false });
-        
-        // React Query Optimistic Update 실행
         optimizedPinMessage(messageToPin);
     }, [contextMenu, setContextMenu, pinnedMessages, optimizedPinMessage]);
     
         // 메시지 고정 해제 함수 (React Query Optimistic Update) - 메모이제이션  
     const handleUnpinMessage = useCallback(async (messageId: string) => {
-        console.log("🚀 최적화된 공지사항 해제:", messageId);
-        
-        // React Query Optimistic Update 실행
         optimizedUnpinMessage(messageId);
     }, [optimizedUnpinMessage]);
 
@@ -269,22 +260,17 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         readTimeoutRef.current = setTimeout(() => {
             // 중복 호출 방지 (500ms 최소 간격 유지)
             if (now - lastReadTimeRef.current < 300) {
-                console.log("🎯 읽음 처리 스킵 (최근 처리됨)");
                 return;
             }
             lastReadTimeRef.current = now;
 
             // 웹소켓 연결 상태 확인
             if (!webSocketService.current?.isConnected()) {
-                console.log("📡 HTTP API로 읽음 처리 (웹소켓 미연결)");
                 markAllMessagesAsRead(Number(roomId), user.id, 'temp-session')
-                    .then(() => console.log("✅ HTTP 읽음 처리 성공"))
-                    .catch((err) => console.error("❌ HTTP 읽음처리 실패", err));
+                    .catch((err) => console.error("HTTP 읽음처리 실패", err));
                 return;
             }
 
-            // 웹소켓으로 읽음 처리 (최적화)
-            console.log("⚡ 웹소켓 읽음 처리 (최적화):", { roomId, userId: user.id });
             webSocketService.current.markAllMessagesAsRead();
         }, 200);
     }, [roomId, user]);
@@ -315,7 +301,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 // 이미 연결 중이거나 연결된 상태라면 중복 연결 방지
                 if (webSocketService.current.isConnected() || 
                     (webSocketService.current as any).getIsConnecting?.()) {
-                    console.log("웹소켓이 이미 연결되어 있거나 연결 중 - 중복 연결 방지");
                     return;
                 }
                 
@@ -376,7 +361,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
                 // 개별 메시지 읽음 처리 핸들러 추가
                 webSocketService.current.onRead((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => {
-                    console.log("개별 메시지 읽음 처리:", data);
                     setMessages(prev => 
                         prev.map(msg => 
                             msg.id === data.messageId 
@@ -393,42 +377,14 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
                 // 동기화 핸들러
                 webSocketService.current.onSync((syncResponse: { roomId: number, direction?: string, messages: any[] }) => {
-                    console.log("📥 [ChatRoom] 동기화 응답 처리 시작:", {
-                        direction: syncResponse.direction,
-                        messageCount: syncResponse.messages?.length || 0,
-                        roomId: syncResponse.roomId,
-                        rawResponse: syncResponse
-                    });
-                    
                     if (!syncResponse.messages || !Array.isArray(syncResponse.messages)) {
-                        console.error("❌ [ChatRoom] 동기화 응답에 메시지 배열이 없음:", syncResponse);
+                        console.error("동기화 응답에 메시지 배열이 없음:", syncResponse);
                         return;
                     }
-                    
-                    console.log("📋 [ChatRoom] 동기화 메시지 상세:", 
-                        syncResponse.messages.map((msg: any) => ({
-                            id: msg.id,
-                            content: msg.content?.text || 'No text',
-                            senderId: msg.senderId,
-                            timestamp: msg.timestamp,
-                            status: msg.status,
-                            readBy: msg.readBy
-                        }))
-                    );
-                    
-                    // 가장 최신 메시지의 timestamp 확인
-                    const latestMessage = syncResponse.messages[syncResponse.messages.length - 1];
-                    console.log("🕐 [ChatRoom] 동기화에서 받은 가장 최신 메시지:", {
-                        id: latestMessage?.id,
-                        content: latestMessage?.content?.text,
-                        timestamp: latestMessage?.timestamp,
-                        currentTime: new Date().toISOString()
-                    });
                     
                     if (syncResponse.direction === "BEFORE") {
                         // 이전 메시지가 없으면 더 이상 요청하지 않음
                         if (syncResponse.messages.length === 0) {
-                            console.log("더 이상 이전 메시지가 없습니다.");
                             isPreviousMessagesLoadingRef.current = false;
                             setHasMoreMessages(false);
                             return;
@@ -476,13 +432,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                             }, 50);
                         }
                     } else {
-                        console.log("✅ [ChatRoom] 일반 동기화 처리 (INITIAL/AFTER)");
                         setMessages((prevMessages) => {
-                            console.log("📊 [ChatRoom] 메시지 상태 업데이트 전:", {
-                                기존메시지수: prevMessages.length,
-                                새로받은메시지수: syncResponse.messages.length,
-                                동기화방향: syncResponse.direction
-                            });
                             
                             const syncMessages: ChatMessageItem[] = syncResponse.messages.map((msg: any) => ({
                                 id: msg.id,
@@ -539,18 +489,13 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
                 // 초기 동기화 요청
                 setTimeout(() => {
-                    // 새로고침 직후나 첫 진입 시에는 최신 메시지부터 가져오기
-                    console.log("초기 동기화 요청 시작 - 최신 메시지부터 가져오기");
-                    
                     webSocketService.current.requestSync(
                         undefined,  // lastMessageId를 undefined로 설정하여 최신 메시지부터 가져오기
                         "INITIAL",  // 항상 INITIAL로 요청하여 최신 메시지들을 가져오기
                         100         // 초기 로드시 100개까지 가져오기 (충분한 양)
                     );
 
-                    // 첫 진입 시 읽음 처리 추가
                     if (roomId && user) {
-                        console.log("첫 진입 시 읽음 처리 시작");
                         markAllRead();
                     }
                 }, 100);
@@ -585,7 +530,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
     useEffect(() => {
         const handleOnline = () => {
-            console.log("네트워크 연결됨, 재연결 시도...");
             if (!webSocketService.current.isConnected()) {
                 setConnectionError("재연결 시도 중...");
                 reconnectAttemptRef.current = 0;
@@ -608,7 +552,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         };
     
         const handleOffline = () => {
-            console.log("네트워크 연결 끊김");
             setConnectionError("네트워크 연결이 끊어졌습니다. 자동 재연결 대기 중...");
             setIsConnected(false);
         };
@@ -633,8 +576,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             if (scrollTop < 50 && messages.length > 0 && hasMoreMessages) {
                 const firstMessage = messages[0];
                 if (firstMessage) {
-                    console.log("이전 메시지 로드 시작");
-                    
                     // 새로운 스크롤 관리자 사용 - 스크롤 위치 저장 및 로딩 준비
                     prepareForPreviousMessages(firstMessage.id);
                     setMessageDirection("BEFORE");
@@ -706,12 +647,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
         // 메시지 즉시 추가 (상태는 updateMessages 내에서 적용됨)
         updateMessages(chatMessage);
-        
-        // console.log("메시지 전송:", {
-        //     tempId: chatMessage.tempId,
-        //     content: chatMessage.content.text,
-        //     timestamp: new Date().toISOString()
-        // });
         
         webSocketService.current.sendMessage(chatMessage);
         setInput("");

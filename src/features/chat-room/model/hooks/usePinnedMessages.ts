@@ -51,10 +51,6 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
 
             // 🎯 안전장치: 백엔드에서 여러 공지사항이 와도 최신 1개만 유지
             if (pinnedMessages.length > 1) {
-                console.log("🔧 백엔드에서 여러 공지사항 수신, 최신 1개만 유지:", {
-                    전체수: pinnedMessages.length,
-                    최신ID: pinnedMessages[pinnedMessages.length - 1].id
-                });
                 return [pinnedMessages[pinnedMessages.length - 1]]; // 마지막(최신) 1개만 반환
             }
             
@@ -86,12 +82,6 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
                 status: MessageStatus.SAVED,
                 readBy: message.readBy || {}
             };
-
-            console.log("📌 공지사항 교체 (1개만 유지):", {
-                기존공지수: previousData?.length || 0,
-                새공지ID: formattedMessage.id,
-                새공지내용: formattedMessage.content?.text
-            });
 
             // 기존 공지사항들을 모두 제거하고 새로운 것 1개만 설정
             queryClient.setQueryData<ChatMessageItem[]>(['pinnedMessages', roomId], [formattedMessage]);
@@ -140,6 +130,8 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
     const invalidatePinnedMessages = () => {
         queryClient.invalidateQueries({ queryKey: ['pinnedMessages', roomId] });
     };
+
+
 
     return {
         pinnedMessages,

@@ -68,14 +68,6 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
         setLocalReactions(normalizeReactions(message.reactions));
     }, [message.reactions]);
 
-    // 디버깅용 로그 
-    useEffect(() => {
-        if (message.reactions) {
-            console.log(`메시지 ${message.id} reactions:`, message.reactions);
-            console.log('정규화된 reactions:', localReactions);
-        }
-    }, [message.reactions, message.id, localReactions]);
-
     const hasReactions = localReactions && localReactions.length > 0;
 
     // 테스트용 반응 추가 (메시지 더블클릭시)
@@ -131,7 +123,6 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
         // Record를 ReactionItem[] 배열로 변환하고 즉시 화면에 반영
         const reactionItems = normalizeReactions(updatedReactions);
         setLocalReactions(reactionItems);
-        console.log('리액션 업데이트:', updatedReactions);
     };
 
     return (
