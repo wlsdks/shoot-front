@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthContext } from '../../../shared';
+import { useAuthContext } from '../../auth';
 import TabContainer from "../../../shared/ui/TabContainer";
 import TabHeader from "../../../shared/ui/TabHeader";
 import {

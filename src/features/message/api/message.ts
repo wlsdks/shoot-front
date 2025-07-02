@@ -1,47 +1,39 @@
-import api from "../../../shared/api/api";
-import { ApiResponse } from '../../../shared/api/api';
-import { extractData } from '../../../shared/lib/apiUtils';
+import { apiGet, apiPost, apiPut, apiDelete } from "../../../shared/lib/apiUtils";
 
 // 채팅 메시지 조회 API 호출 (lastId 기준)
 export const getChatMessages = async (
-    roomId: number, // string -> number로 변경
+    roomId: number,
     lastId?: string,
     limit: number = 20
 ) => {
-    const response = await api.get<ApiResponse<any>>(`/messages/get`, { params: { roomId, lastId, limit } });
-    return {
-        data: extractData(response)
-    };
+    const data = await apiGet<any>('/messages/get', { roomId, lastId, limit });
+    return { data };
 };
 
 // 메시지 수정하기
 export const editMessage = async (messageId: string, newText: string) => {
-    const response = await api.put<ApiResponse<any>>(`/messages/edit`, null, { params: { messageId, newText } });
-    return extractData(response);
+    return apiPut<any>('/messages/edit', null, { messageId, newText });
 };
 
 // 메시지 삭제하기
 export const deleteMessage = async (messageId: string) => {
-    const response = await api.delete<ApiResponse<any>>(`/messages/delete`, { params: { messageId } });
-    return extractData(response);
+    return apiDelete<any>('/messages/delete', { messageId });
 };
 
 // 메시지 고정하기
 export const pinMessage = async (messageId: string) => {
-    const response = await api.post<ApiResponse<any>>(`/messages/${messageId}/pin`);
-    return extractData(response);
+    return apiPost<any>(`/messages/${messageId}/pin`);
 };
 
 // 메시지 고정 해제하기
 export const unpinMessage = async (messageId: string) => {
-    const response = await api.delete<ApiResponse<any>>(`/messages/${messageId}/pin`);
-    return extractData(response);
+    return apiDelete<any>(`/messages/${messageId}/pin`);
 };
 
 // 채팅방의 고정된 메시지 목록 가져오기
-export const getPinnedMessages = async (roomId: number) => { // string -> number로 변경
-    const response = await api.get<ApiResponse<any>>(`/messages/pins?roomId=${roomId}`);
-    return response.data; // 전체 응답 데이터를 반환하여 컴포넌트에서 처리
+export const getPinnedMessages = async (roomId: number) => {
+    const data = await apiGet<any>('/messages/pins', { roomId });
+    return { data }; // 일관성을 위해 { data } 형태로 반환
 };
 
 /**
@@ -53,13 +45,14 @@ export const getPinnedMessages = async (roomId: number) => { // string -> number
  */
 export const forwardMessage = async (
     originalMessageId: string,
-    targetRoomId: number, // string -> number로 변경
-    forwardingUserId: number // string -> number로 변경
+    targetRoomId: number,
+    forwardingUserId: number
 ) => {
-    const response = await api.post<ApiResponse<any>>(`/messages/forward`, null, {
-        params: { originalMessageId, targetRoomId, forwardingUserId }
+    return apiPost<any>('/messages/forward', null, { 
+        originalMessageId, 
+        targetRoomId, 
+        forwardingUserId 
     });
-    return extractData(response);
 };
 
 /**
@@ -74,8 +67,9 @@ export const forwardMessageToUser = async (
     targetUserId: number,
     forwardingUserId: number
 ) => {
-    const response = await api.post<ApiResponse<any>>(`/messages/forward/user`, null, {
-        params: { originalMessageId, targetUserId, forwardingUserId }
+    return apiPost<any>('/messages/forward/user', null, { 
+        originalMessageId, 
+        targetUserId, 
+        forwardingUserId 
     });
-    return extractData(response);
 };

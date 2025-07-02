@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useAuthContext } from "../../shared";
+import { useAuthContext } from "../auth";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";

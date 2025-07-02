@@ -1,6 +1,6 @@
 // src/features/social/ui/FriendsTab.tsx
 import React, { useState, useCallback } from "react";
-import { useAuthContext } from "../../../shared";
+import { useAuthContext } from "../../auth";
 import { useFriends } from "../model/hooks/useFriends";
 import FriendSearch from "./FriendSearch";
 import { useNavigate } from "react-router-dom";

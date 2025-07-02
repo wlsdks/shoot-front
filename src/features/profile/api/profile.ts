@@ -1,6 +1,6 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
-import { extractData } from '../../../shared/lib/apiUtils';
+import { apiGet, apiPut } from '../../../shared/lib/apiUtils';
 import { UserResponse, Friend } from '../../../entities';
 
 // 공통 API는 shared에서 import
@@ -28,8 +28,7 @@ export interface SetBackgroundImageRequest {
  * @returns 현재 사용자 정보
  */
 export const getCurrentUser = async (): Promise<UserResponse> => {
-    const response = await api.get<ApiResponse<UserResponse>>('/users/me');
-    return extractData(response);
+    return apiGet<UserResponse>('/users/me');
 };
 
 /**
@@ -42,8 +41,7 @@ export const updateProfile = async (
     userId: number,
     profileData: ProfileUpdateRequest
 ) => {
-    const response = await api.put<ApiResponse<any>>(`/users/me`, profileData);
-    return extractData(response);
+    return apiPut<any>('/users/me', profileData);
 };
 
 /**
@@ -72,31 +70,27 @@ export const changePassword = async (
     currentPassword: string,
     newPassword: string
 ) => {
-    const response = await api.put<ApiResponse<any>>(`/users/me/password`, {
+    return apiPut<any>('/users/me/password', {
         currentPassword,
         newPassword
     });
-    return extractData(response);
 };
 
 // 사용자 프로필 이미지 업로드 API
 export const setProfileImage = async (
     request: SetProfileImageRequest
 ): Promise<UserResponse> => {
-    const response = await api.put<ApiResponse<UserResponse>>('/users/me/profile-image', request);
-    return extractData(response);
+    return apiPut<UserResponse>('/users/me/profile-image', request);
 };
 
 // 사용자 프로필 배경 이미지 업로드 API
-export const setBackgroundImage = async (request
-    : SetBackgroundImageRequest
+export const setBackgroundImage = async (
+    request: SetBackgroundImageRequest
 ): Promise<UserResponse> => {
-    const response = await api.put<ApiResponse<UserResponse>>('/users/me/background-image', request);
-    return extractData(response);
+    return apiPut<UserResponse>('/users/me/background-image', request);
 };
 
 // 친구 프로필 조회 API
 export const getUserProfile = async (userId: number): Promise<Friend> => {
-    const response = await api.get(`/users/${userId}`);
-    return extractData(response);
+    return apiGet<Friend>(`/users/${userId}`);
 };

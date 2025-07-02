@@ -1,16 +1,12 @@
-import api from "../../../shared/api/api";
-import { ApiResponse } from '../../../shared/api/api';
-import { extractData } from '../../../shared/lib/apiUtils';
+import { apiGet, apiPost } from "../../../shared/lib/apiUtils";
 import { ChatRoomResponse, DirectChatRoomResponse, FindDirectChatRoomParams } from '../types/chatRoom.types';
 
 /**
  * 채팅방 목록 조회 API
  */
 export const getChatRooms = async (userId: number) => {
-    const response = await api.get<ApiResponse<any>>(`/chatrooms`, { params: { userId } });
-    return {
-        data: extractData(response)
-    };
+    const data = await apiGet<any>('/chatrooms', { userId });
+    return { data };
 };
 
 /**
@@ -21,14 +17,11 @@ export const updateChatRoomFavorite = async (
     userId: number,
     isFavorite: boolean
 ) => {
-    const response = await api.post<ApiResponse<ChatRoomResponse>>(`/chatrooms/favorite`, null, {
-        params: {
-            roomId,
-            userId,
-            isFavorite
-        }
+    return apiPost<ChatRoomResponse>('/chatrooms/favorite', null, {
+        roomId,
+        userId,
+        isFavorite
     });
-    return extractData(response);
 };
 
 /**
@@ -38,14 +31,11 @@ export const updateChatRoomFavorite = async (
  * @returns
  */
 export const markAllMessagesAsRead = async (roomId: number, userId: number, requestId?: string) => {
-    const requestIdParam = requestId ? `&requestId=${requestId}` : '';
+    const params: Record<string, any> = { userId };
+    if (requestId) params.requestId = requestId;
     
-    const response = await api.post<ApiResponse<any>>(
-        `/read-status/rooms/${roomId}/read-all?userId=${userId}${requestIdParam}`,
-        null
-    );
-    
-    return response.data;
+    const data = await apiPost<any>(`/read-status/rooms/${roomId}/read-all`, null, params);
+    return { data };
 };
 
 /**
@@ -55,12 +45,8 @@ export const markAllMessagesAsRead = async (roomId: number, userId: number, requ
  * @returns
  */
 export const markMessageAsRead = async (messageId: string, userId: number) => {
-    const response = await api.post<ApiResponse<any>>(
-        `/read-status/messages/${messageId}/read?userId=${userId}`,
-        null
-    );
-    
-    return response.data;
+    const data = await apiPost<any>(`/read-status/messages/${messageId}/read`, null, { userId });
+    return { data };
 };
 
 /**
@@ -73,18 +59,16 @@ export const createDirectChat = async (
     userId: number,
     friendId: number
 ) => {
-    const response = await api.post<ApiResponse<DirectChatRoomResponse>>(`/chatrooms/create/direct`, null, { 
-        params: { userId, friendId } 
+    const data = await apiPost<DirectChatRoomResponse>('/chatrooms/create/direct', null, { 
+        userId, 
+        friendId 
     });
-    return {
-        data: extractData(response)
-    };
+    return { data };
 };
 
 // 1:1 채팅방 찾기 API
 export const findDirectChatRoom = async (
     { myId, otherUserId }: FindDirectChatRoomParams
 ): Promise<ChatRoomResponse> => {
-    const response = await api.get<ApiResponse<ChatRoomResponse>>(`/chatrooms/direct?myId=${myId}&otherUserId=${otherUserId}`);
-    return extractData(response);
+    return apiGet<ChatRoomResponse>('/chatrooms/direct', { myId, otherUserId });
 }; 

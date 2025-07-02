@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthContext } from '../../shared';
+import { useAuthContext } from '../auth';
 import { updateProfile, uploadProfileImage, changePassword } from './api/profile';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../shared/api/config';

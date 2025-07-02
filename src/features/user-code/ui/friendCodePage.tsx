@@ -1,6 +1,6 @@
 // src/features/user-code/ui/friendCodePage.tsx
 import React, { useState, useEffect, useRef } from "react";
-import { useAuthContext } from "../../../shared";
+import { useAuthContext } from "../../auth";
 import { useUserCode } from "../model/useUserCode";
 import { UserCode } from "../types";
 import {

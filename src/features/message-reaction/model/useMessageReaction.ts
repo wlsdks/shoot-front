@@ -12,7 +12,7 @@ export const useMessageReaction = (props: MessageReactionProps) => {
         ...DEFAULT_QUERY_OPTIONS,
     });
 
-    // 리액션 타입 조회
+    // 리액션 타입 조회 (전역 캐시)
     const { data: reactionTypes } = useQuery({
         queryKey: ['reactionTypes'],
         queryFn: () => messageReactionService.getReactionTypes(),

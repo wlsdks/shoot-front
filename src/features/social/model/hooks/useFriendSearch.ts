@@ -1,13 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
 import { searchFriends } from '../../../../shared/api/friends';
 import { convertToFriend } from '../utils/friendConverter';
+import { useUserDataQuery } from '../../../../shared/lib/hooks/useQueryFactory';
+import { FriendResponse } from '../../../../entities';
 
 // 친구 검색 훅
 export const useFriendSearch = (userId: number | undefined, query: string) => {
-    return useQuery({
-        queryKey: ['friend-search', userId, query],
-        queryFn: () => searchFriends(userId!, query),
-        enabled: !!userId && !!query.trim(),
-        select: (data) => data.map(convertToFriend)
-    });
+    return useUserDataQuery<FriendResponse[]>(
+        ['friend-search', query],
+        () => searchFriends(userId!, query),
+        userId,
+        {
+            enabled: !!userId && !!query.trim(),
+            select: (data: FriendResponse[]) => data.map(convertToFriend) as any
+        }
+    );
 }; 

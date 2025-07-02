@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuthContext } from "../../../shared";
+import { useAuthContext } from "../../auth";
 import { useChatRooms } from "../model/hooks/useChatRooms";
 import { ChatRoom } from "../../../entities";
 import TabContainer from "../../../shared/ui/TabContainer";

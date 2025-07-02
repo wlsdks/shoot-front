@@ -1,10 +1,13 @@
 // UI Components
-export { default as FriendCodePage } from './ui/friendCodePage';
 export { default as UserCodeSettings } from './ui/UserCodeSettings';
 export { UserCodeManager } from './ui/UserCodeManager';
+export { default as FriendCodePage } from './ui/friendCodePage';
 
-// Types
-export type { UserCode } from './types';
+// API
+export * from './api/userCodeApi';
 
 // Hooks
-export { useUserCode } from './model/useUserCode'; 
+export { useUserCode } from './model/useUserCode';
+
+// Types
+export * from './types'; 
