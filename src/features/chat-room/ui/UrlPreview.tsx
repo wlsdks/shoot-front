@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChatMessageItem } from '../../message/types/ChatRoom.types';
+import { Message as ChatMessageItem } from '../../../entities';
 import {
     UrlPreviewContainer,
     UrlPreviewImage,

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { ChatMessageItem, MessageStatus } from '../types/ChatRoom.types';
+import { Message as ChatMessageItem, MessageStatus } from '../../../entities';
 import { WebSocketService } from '../../chat-room/api/websocket/types';
 
 interface UseMessageHandlersProps {

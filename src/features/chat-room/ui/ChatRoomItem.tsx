@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChatRoom } from '../../message/types/ChatRoom.types';
+import { ChatRoom } from '../../../entities';
 import {
     RoomItemContainer,
     ProfileContainer,

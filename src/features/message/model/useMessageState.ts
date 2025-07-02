@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChatMessageItem, MessageStatusInfo } from '../types/ChatRoom.types';
+import { Message as ChatMessageItem, MessageStatusInfo } from '../../../entities';
 
 export const useMessageState = () => {
     const [messages, setMessages] = useState<ChatMessageItem[]>([]);

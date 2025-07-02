@@ -1,6 +1,6 @@
 // src/features/social/ui/FriendSearch.tsx
 import React, { useState, useEffect, useRef, ChangeEvent } from "react";
-import { useAuthContext } from "../../auth";
+import { useAuthContext } from "../../../shared";
 import { Friend } from "../../../entities";
 import { useFriendSearch } from "../model/hooks/useFriendSearch";
 import {

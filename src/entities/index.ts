@@ -15,7 +15,8 @@ export type {
     MessageStatusInfo,
     MessageStatusUpdate,
     MessageStatusData,
-    TypingIndicatorMessage
+    TypingIndicatorMessage,
+    ReactionItem
 } from './message';
 
 export { MessageStatus } from './message'; 

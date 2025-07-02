@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { ChatMessageItem, MessageStatus, MessageStatusInfo } from '../../message/types/ChatRoom.types';
+import { Message as ChatMessageItem, MessageStatus, MessageStatusInfo } from '../../../entities';
 import { MessagesContainer } from '../styles/ChatRoom.styles';
 import { MessageRow } from './MessageRow';
 import { UrlPreview } from './UrlPreview';

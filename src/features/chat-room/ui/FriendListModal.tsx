@@ -1,7 +1,7 @@
 // src/features/chat-room/ui/FriendListModal.tsx
 import React, { useState, useEffect } from 'react';
 import { getFriends } from '../../../shared/api';
-import { useAuthContext } from '../../auth';
+import { useAuthContext } from '../../../shared';
 import { Friend, FriendResponse } from '../../../entities';
 import {
     ModalOverlay,

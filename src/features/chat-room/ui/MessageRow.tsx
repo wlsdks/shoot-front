@@ -1,5 +1,5 @@
 import React, { memo, useState, useEffect } from 'react';
-import { ChatMessageItem } from '../../message/types/ChatRoom.types';
+import { Message as ChatMessageItem } from '../../../entities';
 import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../styles/ChatRoom.styles';
 import { MessageReaction } from '../../message-reaction/ui/MessageReaction';
 import { normalizeReactions } from '../../../shared/lib/reactionsUtils';

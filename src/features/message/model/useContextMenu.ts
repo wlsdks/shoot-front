@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChatMessageItem } from '../types/ChatRoom.types';
+import { Message as ChatMessageItem } from '../../../entities';
 
 interface ContextMenuState {
     visible: boolean;

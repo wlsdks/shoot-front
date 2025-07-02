@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { ChatMessageItem } from '../../../message/types/ChatRoom.types';
+import { Message as ChatMessageItem } from '../../../../entities';
 
 // 리액션 타입 정의
 export interface ReactionType {

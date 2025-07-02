@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthContext } from '../../auth';
+import { useAuthContext } from '../../../shared';
 import EditProfile from '../../profile/EditProfile';
 import UserCodeSettings from '../../user-code/ui/UserCodeSettings';
 import TabContainer from "../../../shared/ui/TabContainer";

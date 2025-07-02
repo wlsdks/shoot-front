@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useAuthContext } from "../auth";
+import { useAuthContext } from "../../shared";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
@@ -19,9 +19,9 @@ import {
 // 타입 임포트
 import {
     MessageStatus,
-    ChatMessageItem,
+    Message as ChatMessageItem,
     TypingIndicatorMessage
-} from '../message/types/ChatRoom.types';
+} from '../../entities';
 
 // 커스텀 훅 임포트
 import { useMessageState } from '../message/model/useMessageState';

@@ -6,4 +6,7 @@ export * from './ui';
 
 // Library utilities
 export * from './lib/apiUtils';
-export * from './lib/hooks/useQueryFactory'; 
+export * from './lib/hooks/useQueryFactory';
+
+// Context
+export * from './lib/context'; 

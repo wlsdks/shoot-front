@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { ReactionItem } from '../../../entities/message/types';
+import { ReactionItem } from '../../../entities';
 import { normalizeReactions } from '../../../shared/lib/reactionsUtils';
 
 const ReactionContainer = styled.div`

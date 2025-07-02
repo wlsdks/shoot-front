@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPinnedMessages, pinMessage, unpinMessage } from '../../../message/api/message';
-import { ChatMessageItem, MessageStatus } from '../../../message/types/ChatRoom.types';
+import { Message as ChatMessageItem, MessageStatus } from '../../../../entities';
 import { API_CONFIG } from '../../../../shared/api/config';
 
 export const usePinnedMessages = (roomId: number, isConnected: boolean) => {

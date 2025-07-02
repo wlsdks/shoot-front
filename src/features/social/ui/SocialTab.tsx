@@ -1,6 +1,6 @@
 // src/features/social/ui/SocialTab.tsx
 import React, { useState } from "react";
-import { useAuthContext } from "../../auth";
+import { useAuthContext } from "../../../shared";
 import { useSocialData } from "../model/hooks/useSocialData";
 import TabContainer from "../../../shared/ui/TabContainer";
 import TabHeader from "../../../shared/ui/TabHeader";

@@ -3,7 +3,7 @@ import { Button } from 'antd';
 import { SmileOutlined } from '@ant-design/icons';
 import { ContextMenu, ContextMenuItem } from '../styles/ChatRoom.styles';
 import { ForwardIcon, PinIcon } from './icons';
-import { ChatMessageItem } from '../../message/types/ChatRoom.types';
+import { Message as ChatMessageItem } from '../../../entities';
 import { ReactionType } from '../../message-reaction/api/reactionApi';
 import { hasReactionType } from '../../../shared/lib/reactionsUtils';
 

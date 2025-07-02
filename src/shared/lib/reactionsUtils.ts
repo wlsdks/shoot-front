@@ -1,4 +1,4 @@
-import { ReactionItem } from '../../entities/message/types';
+import { ReactionItem } from '../../entities';
 
 // reactions 데이터가 특정 반응 타입을 포함하는지 확인
 export const hasReactionType = (

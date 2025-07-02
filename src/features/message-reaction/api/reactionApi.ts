@@ -1,7 +1,7 @@
 import api from "../../../shared/api/api";
 import { ApiResponse } from '../../../shared/api/api';
 import { extractData } from '../../../shared/lib/apiUtils';
-import { ReactionItem } from '../../../entities/message/types';
+import { ReactionItem } from '../../../entities';
 
 export interface ReactionType {
   code: string;

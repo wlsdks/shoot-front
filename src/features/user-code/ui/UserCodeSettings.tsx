@@ -1,6 +1,6 @@
 // src/features/user-code/ui/UserCodeSettings.tsx
 import React, { useState, useEffect } from 'react';
-import { useAuthContext } from '../../auth';
+import { useAuthContext } from '../../../shared';
 import { useUserCode } from '../model/useUserCode';
 import {
     Container,
