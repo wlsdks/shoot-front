@@ -5,8 +5,6 @@ import { Friend } from "../../../entities";
 import { useFriendSearch } from "../model/hooks/useFriendSearch";
 import {
     SearchContainer,
-    Header,
-    Title,
     SearchInputWrapper,
     SearchInput,
     SearchIcon,
@@ -22,7 +20,6 @@ import {
     EmptyState,
     EmptyTitle,
     EmptyMessage,
-    CloseButton
 } from "../styles/FriendSearch.styles";
 
 interface FriendSearchProps {
@@ -58,16 +55,6 @@ const FriendSearch: React.FC<FriendSearchProps> = ({ onClose }) => {
 
     return (
         <SearchContainer>
-            <Header>
-                <Title>친구 검색</Title>
-                <CloseButton onClick={onClose}>
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </CloseButton>
-            </Header>
-            
             <SearchInputWrapper>
                 <SearchInput
                     ref={inputRef}

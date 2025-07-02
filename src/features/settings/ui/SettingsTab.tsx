@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../../../shared';
-import EditProfile from '../../profile/EditProfile';
-import UserCodeSettings from '../../user-code/ui/UserCodeSettings';
 import TabContainer from "../../../shared/ui/TabContainer";
 import TabHeader from "../../../shared/ui/TabHeader";
 import {
@@ -30,216 +28,188 @@ import {
     LanguageIcon,
     HelpIcon,
     LogoutIcon,
-    BackIcon,
     ArrowRightIcon
 } from '../ui/icons/icons';
 
-// 설정 탭 컴포넌트
-const SettingsTab: React.FC = () => {
-    const [activeSection, setActiveSection] = useState<string>('main');
-    const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const { logout, user } = useAuthContext();
+interface SettingsTabProps {
+    EditProfileComponent?: React.ComponentType;
+    UserCodeSettingsComponent?: React.ComponentType<{ userId: number }>;
+}
+
+const SettingsTab: React.FC<SettingsTabProps> = ({ 
+    EditProfileComponent, 
+    UserCodeSettingsComponent 
+}) => {
     const navigate = useNavigate();
+    const { user, logout } = useAuthContext();
+    const [activeModal, setActiveModal] = useState<string | null>(null);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-    const handleBack = () => {
-        setActiveSection('main');
-    };
+    const settingsItems = [
+        {
+            id: 'profile',
+            icon: <ProfileIcon />,
+            title: '프로필 편집',
+            description: '닉네임, 상태 메시지 등을 변경할 수 있습니다',
+            category: '계정',
+            available: !!EditProfileComponent
+        },
+        {
+            id: 'userCode',
+            icon: <UserCodeIcon />,
+            title: '유저 코드',
+            description: '내 유저 코드를 관리하고 친구를 추가할 수 있습니다',
+            category: '계정',
+            available: !!UserCodeSettingsComponent
+        },
+        {
+            id: 'notifications',
+            icon: <NotificationIcon />,
+            title: '알림',
+            description: '메시지 알림 설정을 변경할 수 있습니다',
+            category: '환경설정',
+            available: false
+        },
+        {
+            id: 'security',
+            icon: <SecurityIcon />,
+            title: '보안',
+            description: '비밀번호 변경 및 보안 설정을 관리할 수 있습니다',
+            category: '환경설정',
+            available: false
+        },
+        {
+            id: 'theme',
+            icon: <ThemeIcon />,
+            title: '테마',
+            description: '어두운 모드 및 색상 설정을 변경할 수 있습니다',
+            category: '환경설정',
+            available: false
+        },
+        {
+            id: 'language',
+            icon: <LanguageIcon />,
+            title: '언어',
+            description: '앱 언어를 변경할 수 있습니다',
+            category: '환경설정',
+            available: false
+        },
+        {
+            id: 'help',
+            icon: <HelpIcon />,
+            title: '도움말',
+            description: '사용법 및 자주 묻는 질문을 확인할 수 있습니다',
+            category: '기타',
+            available: false
+        }
+    ];
 
-    // 로그아웃 처리 함수
-    const handleLogout = async () => {
-        try {
-            await logout();
-            navigate('/login');
-        } catch (error) {
-            console.error('로그아웃 실패:', error);
-        } finally {
-            setShowLogoutModal(false);
+    const handleItemClick = (itemId: string) => {
+        const item = settingsItems.find(item => item.id === itemId);
+        if (item?.available) {
+            setActiveModal(itemId);
         }
     };
 
-    // 로그아웃 확인 모달
-    const LogoutConfirmModal = () => (
-        <ModalOverlay onClick={() => setShowLogoutModal(false)}>
-            <ModalContent onClick={(e) => e.stopPropagation()}>
-                <ModalTitle>로그아웃</ModalTitle>
-                <ModalText>정말 로그아웃 하시겠습니까?</ModalText>
-                <ModalButtonGroup>
-                    <ModalButton onClick={() => setShowLogoutModal(false)}>
-                        취소
-                    </ModalButton>
-                    <ModalButton $primary onClick={handleLogout}>
-                        로그아웃
-                    </ModalButton>
-                </ModalButtonGroup>
-            </ModalContent>
-        </ModalOverlay>
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const renderModalContent = () => {
+        switch (activeModal) {
+            case 'profile':
+                return EditProfileComponent ? <EditProfileComponent /> : null;
+            case 'userCode':
+                return UserCodeSettingsComponent && user?.id ? 
+                    <UserCodeSettingsComponent userId={user.id} /> : null;
+            default:
+                return null;
+        }
+    };
+
+    if (activeModal) {
+        return (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <TabHeader
+                    title={settingsItems.find(item => item.id === activeModal)?.title || ''}
+                    showAppIcon={false}
+                    showBackButton={true}
+                    onBack={() => setActiveModal(null)}
+                />
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                    {renderModalContent()}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <TabContainer>
+            <TabHeader title="설정" />
+            <SettingsContent>
+                {['계정', '환경설정', '기타'].map(category => (
+                    <div key={category}>
+                        <CategoryHeader>{category}</CategoryHeader>
+                        {settingsItems
+                            .filter(item => item.category === category)
+                            .map(item => (
+                                <SettingItem 
+                                    key={item.id} 
+                                    onClick={() => handleItemClick(item.id)}
+                                    style={{ 
+                                        opacity: item.available ? 1 : 0.5,
+                                        cursor: item.available ? 'pointer' : 'not-allowed'
+                                    }}
+                                >
+                                    <IconContainer>{item.icon}</IconContainer>
+                                    <SettingInfo>
+                                        <SettingTitle>{item.title}</SettingTitle>
+                                        <SettingDescription>{item.description}</SettingDescription>
+                                    </SettingInfo>
+                                    {item.available && (
+                                        <ArrowIcon>
+                                            <ArrowRightIcon />
+                                        </ArrowIcon>
+                                    )}
+                                </SettingItem>
+                            ))
+                        }
+                    </div>
+                ))}
+
+                <CategoryHeader>계정 관리</CategoryHeader>
+                <SettingItem onClick={() => setShowLogoutConfirm(true)}>
+                    <IconContainer><LogoutIcon /></IconContainer>
+                    <SettingInfo>
+                        <SettingTitle>로그아웃</SettingTitle>
+                        <SettingDescription>현재 계정에서 로그아웃합니다</SettingDescription>
+                    </SettingInfo>
+                    <ArrowIcon><ArrowRightIcon /></ArrowIcon>
+                </SettingItem>
+
+                {showLogoutConfirm && (
+                    <ModalOverlay onClick={() => setShowLogoutConfirm(false)}>
+                        <ModalContent onClick={(e) => e.stopPropagation()}>
+                            <ModalTitle>로그아웃</ModalTitle>
+                            <ModalText>정말로 로그아웃하시겠습니까?</ModalText>
+                            <ModalButtonGroup>
+                                <ModalButton onClick={() => setShowLogoutConfirm(false)}>
+                                    취소
+                                </ModalButton>
+                                <ModalButton 
+                                    onClick={handleLogout}
+                                    style={{ backgroundColor: '#ff4757', color: 'white' }}
+                                >
+                                    로그아웃
+                                </ModalButton>
+                            </ModalButtonGroup>
+                        </ModalContent>
+                    </ModalOverlay>
+                )}
+            </SettingsContent>
+        </TabContainer>
     );
-
-    // 메인 설정 화면
-    if (activeSection === 'main') {
-        return (
-            <TabContainer>
-                <TabHeader title="설정" />
-                
-                <SettingsContent>
-                    <CategoryHeader>계정 관리</CategoryHeader>
-                    
-                    <SettingItem onClick={() => setActiveSection('profile')}>
-                        <IconContainer>
-                            <ProfileIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>프로필 관리</SettingTitle>
-                            <SettingDescription>개인 정보 및 프로필 사진 수정</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-
-                    <SettingItem onClick={() => setActiveSection('userCode')}>
-                        <IconContainer>
-                            <UserCodeIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>유저코드 설정</SettingTitle>
-                            <SettingDescription>친구 추가를 위한 유저코드 관리</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                    
-                    <CategoryHeader>알림 및 보안</CategoryHeader>
-                    
-                    <SettingItem>
-                        <IconContainer>
-                            <NotificationIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>알림 설정</SettingTitle>
-                            <SettingDescription>알림 및 소리 설정 관리</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                    
-                    <SettingItem>
-                        <IconContainer>
-                            <SecurityIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>개인정보 보호</SettingTitle>
-                            <SettingDescription>개인정보 보호 및 보안 설정</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                    
-                    <CategoryHeader>앱 설정</CategoryHeader>
-                    
-                    <SettingItem>
-                        <IconContainer>
-                            <ThemeIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>테마</SettingTitle>
-                            <SettingDescription>앱 디자인 테마 변경</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                    
-                    <SettingItem>
-                        <IconContainer>
-                            <LanguageIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>언어</SettingTitle>
-                            <SettingDescription>앱 언어 설정</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                    
-                    <CategoryHeader>지원</CategoryHeader>
-                    
-                    <SettingItem>
-                        <IconContainer>
-                            <HelpIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>도움말 및 지원</SettingTitle>
-                            <SettingDescription>자주 묻는 질문 및 지원받기</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                    
-                    <SettingItem onClick={() => setShowLogoutModal(true)}>
-                        <IconContainer color="#dc3545">
-                            <LogoutIcon />
-                        </IconContainer>
-                        <SettingInfo>
-                            <SettingTitle>로그아웃</SettingTitle>
-                            <SettingDescription>계정에서 로그아웃</SettingDescription>
-                        </SettingInfo>
-                        <ArrowIcon>
-                            <ArrowRightIcon />
-                        </ArrowIcon>
-                    </SettingItem>
-                </SettingsContent>
-                
-                {/* 로그아웃 확인 모달 */}
-                {showLogoutModal && <LogoutConfirmModal />}
-            </TabContainer>
-        );
-    }
-
-    // 프로필 관리 화면
-    if (activeSection === 'profile') {
-        return (
-            <TabContainer>
-                <TabHeader 
-                    title="프로필 관리"
-                    actions={
-                        <IconContainer onClick={handleBack} style={{ margin: 0, cursor: 'pointer' }}>
-                            <BackIcon />
-                        </IconContainer>
-                    }
-                />
-                <SettingsContent>
-                    <EditProfile onClose={handleBack} />
-                </SettingsContent>
-            </TabContainer>
-        );
-    }
-
-    // 유저코드 설정 화면
-    if (activeSection === 'userCode') {
-        return (
-            <TabContainer>
-                <TabHeader 
-                    title="유저코드 설정"
-                    actions={
-                        <IconContainer onClick={handleBack} style={{ margin: 0, cursor: 'pointer' }}>
-                            <BackIcon />
-                        </IconContainer>
-                    }
-                />
-                <SettingsContent>
-                    <UserCodeSettings userId={user?.id || 0} />
-                </SettingsContent>
-            </TabContainer>
-        );
-    }
-
-    return null;
 };
 
 export default SettingsTab;

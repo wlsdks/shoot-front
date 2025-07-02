@@ -5,8 +5,6 @@ import { useUserCode } from "../model/useUserCode";
 import { UserCode } from "../types";
 import {
     Container,
-    Header,
-    Title,
     Content,
     FormGroup,
     Label,
@@ -25,7 +23,6 @@ import {
     Message,
     MessageIcon,
     MessageText,
-    CloseButton,
     Spinner
 } from "../styles/friendCodePage.styles";
 
@@ -121,15 +118,6 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
 
     return (
         <Container>
-            <Header>
-                <Title>코드로 친구 찾기</Title>
-                <CloseButton onClick={onClose}>
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </CloseButton>
-            </Header>
-            
             <Content>
                 <FormGroup>
                     <Label>친구 코드</Label>
@@ -199,22 +187,12 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
                             </UserAvatar>
                             <UserInfo>
                                 <UserName>{searchedUser.nickname || searchedUser.username}</UserName>
-                                {searchedUser.username && searchedUser.nickname && (
-                                    <UserUsername>@{searchedUser.username}</UserUsername>
-                                )}
+                                <UserUsername>#{searchedUser.userCode}</UserUsername>
                             </UserInfo>
                         </UserHeader>
-                        
-                        {searchedUser.userCode && (
-                            <UserDetail>
-                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" />
-                                    <path d="M10 9L7 12L10 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <path d="M14 9L17 12L14 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                                <div>친구 코드: <span>#{searchedUser.userCode}</span></div>
-                            </UserDetail>
-                        )}
+                        <UserDetail>
+                            친구 요청을 보낼 수 있습니다.
+                        </UserDetail>
                     </UserCard>
                 )}
                 
@@ -222,15 +200,15 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
                     <Message $type={isError ? 'error' : 'success'}>
                         <MessageIcon>
                             {isError ? (
-                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                                    <path d="M12 8V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                    <path d="M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                                    <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" strokeWidth="2"/>
+                                    <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="2"/>
                                 </svg>
                             ) : (
-                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.709 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18455 2.99721 7.13631 4.39828 5.49706C5.79935 3.85781 7.69279 2.71537 9.79619 2.24013C11.8996 1.7649 14.1003 1.98232 16.07 2.86" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <path d="M22 4L12 14.01L9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <polyline points="22,4 12,14.01 9,11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                 </svg>
                             )}
                         </MessageIcon>

@@ -3,11 +3,9 @@ import React, { useState, useCallback } from "react";
 import { useAuthContext } from "../../../shared";
 import { useFriends } from "../model/hooks/useFriends";
 import FriendSearch from "./FriendSearch";
-import FriendCodePage from "../../user-code/ui/friendCodePage";
-import { createDirectChat } from "../../chat-room/api/chatRoom";
 import { useNavigate } from "react-router-dom";
 import TabContainer from "../../../shared/ui/TabContainer";
-import TabHeader from "../../../shared/ui/TabHeader";
+import TabHeader, { IconButton } from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Icon from "../../../shared/ui/Icon";
@@ -20,71 +18,101 @@ import {
     TabSectionCount,
 } from "../../../shared/ui/tabStyles";
 import {
-    ActionButton,
     ProfileSection,
-    HeaderButtons
 } from "../styles/FriendsTab.styles";
 
-const FriendsTab: React.FC = () => {
-    const { user, loading: authLoading } = useAuthContext();
-    const [showSearch, setShowSearch] = useState<boolean>(false);
-    const [showCode, setShowCode] = useState<boolean>(false);
+interface FriendsTabProps {
+    FriendCodePageComponent?: React.ComponentType<{ onClose: () => void }>;
+    onCreateDirectChat?: (myId: number, friendId: number) => Promise<{ roomId: number }>;
+}
+
+const FriendsTab: React.FC<FriendsTabProps> = ({ 
+    FriendCodePageComponent, 
+    onCreateDirectChat 
+}) => {
+    const { user } = useAuthContext();
     const navigate = useNavigate();
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isFriendCodePageOpen, setIsFriendCodePageOpen] = useState(false);
 
-    const { data: friends, isLoading: friendsLoading } = useFriends(user?.id || 0);
+    const { data: friends = [], isLoading, error } = useFriends(user?.id || 0);
 
-    // 채팅방 생성: 친구 클릭 시 direct chat 생성 후 이동
-    const handleFriendClick = useCallback(async (friendId: number) => {
-        if (!user) return;
+    const handleChatClick = useCallback(async (friendId: number) => {
+        if (!user?.id || !onCreateDirectChat) return;
+        
         try {
-            const response = await createDirectChat(user.id, friendId);
-            navigate(`/chatroom/${response.data.roomId}`);
-        } catch (err) {
-            console.error("FriendTab: Chat Room creation failed:", err);
-            alert("채팅방 생성에 실패했습니다.");
+            const result = await onCreateDirectChat(user.id, friendId);
+            navigate(`/chat/${result.roomId}`);
+        } catch (error) {
+            console.error('Failed to create chat room:', error);
         }
-    }, [user, navigate]);
+    }, [user?.id, navigate, onCreateDirectChat]);
 
-    if (authLoading || friendsLoading) {
+    const openFriendSearch = () => setIsSearchOpen(true);
+    const closeFriendSearch = () => setIsSearchOpen(false);
+    const openFriendCodePage = () => setIsFriendCodePageOpen(true);
+    const closeFriendCodePage = () => setIsFriendCodePageOpen(false);
+
+    if (isSearchOpen) {
+        return (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <TabHeader 
+                    title="친구 찾기" 
+                    showAppIcon={false}
+                    showBackButton={true}
+                    onBack={closeFriendSearch}
+                />
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                    <FriendSearch onClose={closeFriendSearch} />
+                </div>
+            </div>
+        );
+    }
+
+    if (isFriendCodePageOpen && FriendCodePageComponent) {
+        return (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <TabHeader 
+                    title="친구 추가" 
+                    showAppIcon={false}
+                    showBackButton={true}
+                    onBack={closeFriendCodePage}
+                />
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                    <FriendCodePageComponent onClose={closeFriendCodePage} />
+                </div>
+            </div>
+        );
+    }
+
+    const headerActions = (
+        <>
+            <IconButton onClick={openFriendSearch} title="친구 찾기">
+                <Icon name="search" />
+            </IconButton>
+            {FriendCodePageComponent && (
+                <IconButton onClick={openFriendCodePage} title="친구 추가">
+                    <Icon name="user-plus" />
+                </IconButton>
+            )}
+        </>
+    );
+
+    if (error) {
         return (
             <TabContainer>
-                <TabHeader title="내 친구 목록" />
-                <LoadingSpinner text="불러오는 중..." />
+                <TabHeader title="친구" actions={headerActions} />
+                <TabContent>
+                    <EmptyState text="친구 목록을 불러올 수 없습니다." />
+                </TabContent>
             </TabContainer>
         );
     }
 
     return (
         <TabContainer>
-            <TabHeader 
-                title="내 친구 목록"
-                actions={
-                    <HeaderButtons>
-                        <ActionButton onClick={() => setShowSearch((prev) => !prev)}>
-                            <Icon name="search" />
-                            검색
-                        </ActionButton>
-                        <ActionButton onClick={() => setShowCode((prev) => !prev)}>
-                            <Icon name="add-square" />
-                            코드로 찾기
-                        </ActionButton>
-                    </HeaderButtons>
-                }
-            />
-            
+            <TabHeader title="친구" actions={headerActions} />
             <TabContent>
-                {showSearch && (
-                    <TabSection>
-                        <FriendSearch onClose={() => setShowSearch(false)} />
-                    </TabSection>
-                )}
-                
-                {showCode && (
-                    <TabSection>
-                        <FriendCodePage onClose={() => setShowCode(false)} />
-                    </TabSection>
-                )}
-                
                 {/* 내 프로필 카드 */}
                 {user && (
                     <ProfileSection>
@@ -109,27 +137,26 @@ const FriendsTab: React.FC = () => {
                     </ProfileSection>
                 )}
                 
-                {/* 친구 섹션 헤더 */}
-                <TabSectionHeader>
-                    <TabSectionTitle>친구</TabSectionTitle>
-                    <TabSectionCount>{friends?.length || 0}</TabSectionCount>
-                </TabSectionHeader>
-                
-                {/* 친구 목록 */}
-                {!friends || friends.length === 0 ? (
-                    <EmptyState
-                        icon={<Icon name="users" />}
-                        text="아직 친구가 없습니다. 친구를 추가해 보세요!"
-                    />
+                {isLoading ? (
+                    <LoadingSpinner />
                 ) : (
                     <TabSection>
-                        {friends.map((friend) => (
-                            <FriendItem
-                                key={friend.id}
-                                friend={friend}
-                                onChatClick={() => handleFriendClick(friend.id)}
-                            />
-                        ))}
+                        <TabSectionHeader>
+                            <TabSectionTitle>친구</TabSectionTitle>
+                            <TabSectionCount>{friends.length}</TabSectionCount>
+                        </TabSectionHeader>
+                        
+                        {friends.length === 0 ? (
+                            <EmptyState text="아직 친구가 없습니다. 친구를 추가해보세요!" />
+                        ) : (
+                            friends.map((friend) => (
+                                <FriendItem
+                                    key={friend.id}
+                                    friend={friend}
+                                    onChatClick={onCreateDirectChat ? handleChatClick : () => {}}
+                                />
+                            ))
+                        )}
                     </TabSection>
                 )}
             </TabContent>

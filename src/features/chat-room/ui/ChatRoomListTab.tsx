@@ -4,7 +4,7 @@ import { useAuthContext } from "../../../shared";
 import { useChatRooms } from "../model/hooks/useChatRooms";
 import { ChatRoom } from "../../../entities";
 import TabContainer from "../../../shared/ui/TabContainer";
-import TabHeader from "../../../shared/ui/TabHeader";
+import TabHeader, { IconButton } from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
 import {
@@ -24,7 +24,6 @@ import {
 } from "../../../shared/ui/tabStyles";
 import { FriendListModal } from "./FriendListModal";
 import {
-    ActionButton,
     ContextMenu,
     ContextMenuItem,
     ErrorContainer,
@@ -89,10 +88,16 @@ const ChatRoomList: React.FC = () => {
     const pinnedRooms = filteredRooms.filter((room: ChatRoom) => room.isPinned) || [];
     const normalRooms = filteredRooms.filter((room: ChatRoom) => !room.isPinned) || [];
 
+    const headerActions = (
+        <IconButton onClick={() => setShowNewChatModal(true)} title="새 채팅">
+            <NewChatIcon />
+        </IconButton>
+    );
+
     if (isLoading) {
         return (
             <TabContainer>
-                <TabHeader title="채팅방" />
+                <TabHeader title="채팅방" actions={headerActions} />
                 <LoadingSpinner text="채팅방 목록을 불러오는 중..." />
             </TabContainer>
         );
@@ -100,15 +105,7 @@ const ChatRoomList: React.FC = () => {
 
     return (
         <TabContainer>
-            <TabHeader 
-                title="채팅방" 
-                actions={
-                    <ActionButton onClick={() => setShowNewChatModal(true)}>
-                        <NewChatIcon />
-                        새 채팅
-                    </ActionButton>
-                }
-            />
+            <TabHeader title="채팅방" actions={headerActions} />
             <TabContent>
                 {error && (
                     <ErrorContainer>
