@@ -16,4 +16,7 @@ export {
 export * from './friends';
 
 // Profile API
-export * from './profile'; 
+export * from './profile';
+
+// Messages API
+export * from './messages'; 

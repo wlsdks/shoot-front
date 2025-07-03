@@ -16,13 +16,9 @@ import PrivateRoute from './routes/PrivateRoute';
 import { theme } from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
 
-// Features imports for composition
-import { FriendsTab, SocialTab } from '../features/social';
+// Widgets imports for proper composition
+import { SocialWidget, SettingsWidget } from '../widgets';
 import { ChatRoomListTab } from '../features/chat-room';
-import { SettingsTab } from '../features/settings';
-import { EditProfile } from '../features/profile';
-import { UserCodeSettings, FriendCodePage as FriendCodeComponent } from '../features/user-code';
-import { createDirectChat } from '../features/chat-room';
 
 // FriendCodePage를 위한 래퍼 컴포넌트
 const FriendCodePageWrapper = () => {
@@ -31,16 +27,10 @@ const FriendCodePageWrapper = () => {
 };
 
 const App: React.FC = () => {
-    // Tab configuration with dependency injection
+    // Tab configuration using widgets for proper FSD composition
     const tabs = [
         {
-            component: (props: any) => (
-                <FriendsTab 
-                    FriendCodePageComponent={FriendCodeComponent}
-                    onCreateDirectChat={createDirectChat}
-                    {...props}
-                />
-            ),
+            component: (props: any) => <SocialWidget activeTab="friends" {...props} />,
             label: '친구',
             icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -52,7 +42,7 @@ const App: React.FC = () => {
             )
         },
         {
-            component: SocialTab,
+            component: (props: any) => <SocialWidget activeTab="social" {...props} />,
             label: '소셜',
             icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -72,13 +62,7 @@ const App: React.FC = () => {
             )
         },
         {
-            component: (props: any) => (
-                <SettingsTab 
-                    EditProfileComponent={EditProfile}
-                    UserCodeSettingsComponent={UserCodeSettings}
-                    {...props}
-                />
-            ),
+            component: (props: any) => <SettingsWidget {...props} />,
             label: '설정',
             icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">

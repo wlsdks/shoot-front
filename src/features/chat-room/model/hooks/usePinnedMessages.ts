@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPinnedMessages, pinMessage, unpinMessage } from '../../../message/api/message';
+import { getPinnedMessages, pinMessage, unpinMessage } from '../../../../shared/api';
 import { Message as ChatMessageItem, MessageStatus } from '../../../../entities';
 import { API_CONFIG } from '../../../../shared/api/config';
 
