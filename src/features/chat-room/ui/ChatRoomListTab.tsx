@@ -24,13 +24,11 @@ import {
 } from "../../../shared/ui/tabStyles";
 import { FriendListModal } from "./FriendListModal";
 import {
-    ContextMenu,
-    ContextMenuItem,
-    ErrorContainer,
     SearchContainer,
     SearchInput,
     SearchIcon as SearchIconWrapper
 } from "../styles/ChatRoomListTab.styles";
+import { ContextMenu, ErrorDisplay } from "../../../shared/ui";
 
 const ChatRoomList: React.FC = () => {
     const { user } = useAuthContext();
@@ -108,10 +106,11 @@ const ChatRoomList: React.FC = () => {
             <TabHeader title="채팅방" actions={headerActions} />
             <TabContent>
                 {error && (
-                    <ErrorContainer>
-                        <ErrorIcon />
-                        {error.message}
-                    </ErrorContainer>
+                    <ErrorDisplay
+                        title="채팅방 로딩 오류"
+                        message={error.message}
+                        icon={<ErrorIcon />}
+                    />
                 )}
 
                 <SearchContainer>
@@ -170,25 +169,23 @@ const ChatRoomList: React.FC = () => {
                     </>
                 )}
 
-                {contextMenu.visible && contextMenu.room && (
-                    <ContextMenu
-                        style={{
-                            top: contextMenu.y,
-                            left: contextMenu.x
-                        }}
-                    >
-                        <ContextMenuItem onClick={() => {
+                <ContextMenu
+                    isVisible={contextMenu.visible}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    actions={contextMenu.room ? [{
+                        id: 'toggle-pin',
+                        label: contextMenu.room.isPinned ? "고정 해제" : "고정하기",
+                        icon: <PinIcon />,
+                        onClick: () => {
                             updateFavorite.mutate({ 
                                 roomId: contextMenu.room!.roomId, 
                                 isFavorite: !contextMenu.room!.isPinned 
                             });
-                            setContextMenu({ visible: false, x: 0, y: 0, room: null });
-                        }}>
-                            <PinIcon />
-                            {contextMenu.room.isPinned ? "고정 해제" : "고정하기"}
-                        </ContextMenuItem>
-                    </ContextMenu>
-                )}
+                        }
+                    }] : []}
+                    onClose={() => setContextMenu({ visible: false, x: 0, y: 0, room: null })}
+                />
 
                 {showNewChatModal && (
                     <FriendListModal

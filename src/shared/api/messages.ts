@@ -1,5 +1,4 @@
 import { apiGet, apiPost, apiPut, apiDelete } from '../lib/apiUtils';
-import { Message } from '../../entities';
 
 // Message CRUD operations
 export const getMessage = async (messageId: string) => {

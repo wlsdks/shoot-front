@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../auth";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
+// import { useChatRoomState } from "./model/hooks/useChatRoomState"; // TODO: 향후 점진적 적용 예정
 import { markAllMessagesAsRead } from "./api/chatRoom";
 import { createWebSocketService } from "./api/websocket/index";
 
@@ -45,8 +46,10 @@ import { ErrorIcon } from './ui/icons';
 const ChatRoom = ({ roomId }: { roomId: string }) => {
     const { user } = useAuthContext();
     
-    // 🚀 TODO: 새로운 통합 상태 관리 (단계적 적용 예정)
+    // 🚀 TODO: 향후 통합 상태 관리 적용 예정 (단계적 적용)
     // const { state: uiState, actions: uiActions } = useChatRoomState();
+    
+    // 임시로 기존 방식 유지
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const [connectionError, setConnectionError] = useState<string | null>(null);

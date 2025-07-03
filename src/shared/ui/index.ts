@@ -11,4 +11,9 @@ export { default as EmptyState } from './EmptyState';
 // Shared component library
 export { Modal, ModalOverlay, ModalContent, ModalHeader, ModalTitle, ModalCloseButton, ModalBody, ModalFooter } from './components/Modal';
 export { ProfileAvatar, ProfileContainer, ProfileImage, ProfileInitial, StatusIndicator } from './components/Profile';
-export { SearchInput, SearchContainer, SearchInputField, SearchIcon, ClearButton } from './components/SearchInput'; 
+export { SearchInput, SearchContainer, SearchInputField, SearchIcon, ClearButton } from './components/SearchInput';
+
+// New Shared Components
+export { ActionButton } from './components/ActionButton';
+export { ContextMenu } from './components/ContextMenu';
+export { LoadingDisplay, ErrorDisplay, EmptyStateDisplay } from './components/StateDisplay'; 
