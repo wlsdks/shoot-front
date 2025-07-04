@@ -4,7 +4,7 @@ import { SmileOutlined } from '@ant-design/icons';
 import { ContextMenu, ContextMenuItem } from '../styles/ChatRoom.styles';
 import { ForwardIcon, PinIcon } from './icons';
 import { Message as ChatMessageItem } from '../../../entities';
-import { ReactionType } from '../../message-reaction/api/reactionApi';
+import { ReactionType } from '../../../shared';
 import { hasReactionType } from '../../../shared/lib/reactionsUtils';
 
 interface ContextMenuState {

@@ -1,9 +1,11 @@
-// UI Components
-export { default as EditProfile } from './EditProfile';
-export { default as FriendProfileModal } from './ui/FriendProfileModal';
+// Profile feature public API
 
 // API
 export * from './api';
 
-// Hooks
-export { useProfile } from './model/hooks/useProfile'; 
+// Model (Hooks)
+export { useProfile } from './model/hooks/useProfile';
+
+// UI Components
+export { default as EditProfile } from './EditProfile';
+export { default as FriendProfileModal } from './ui/FriendProfileModal'; 

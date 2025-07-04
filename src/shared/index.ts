@@ -1,26 +1,36 @@
-// API exports
+// Shared layer public API - FSD compliant exports
+
+// === API Layer ===
 export * from './api';
 
-// UI components
+// === UI Components ===
 export * from './ui';
 
-// Types exports
-export * from './lib/types/common';
+// === Library Layer ===
 
-// Library utilities and hooks
+// Core hooks
 export * from './lib/hooks';
+
+// Specialized hooks
 export * from './lib/hooks/useContextMenu';
-export * from './lib/api/queryKeys';
-export * from './lib/api/responseHandler';
 export * from './lib/hooks/useQueryFactory';
 export * from './lib/hooks/useAsync';
 export * from './lib/hooks/useConnection';
+export * from './lib/hooks/useMessageManagement';
+
+// WebSocket functionality
 export * from './lib/websocket';
+
+// API utilities
+export * from './lib/api/queryKeys';
+export * from './lib/api/responseHandler';
+
+// Business services
+export * from './lib/services/messageReactionService';
+
+// Utility functions
 export * from './lib/parseUserString';
 export * from './lib/reactionsUtils';
 
-// Services exports
-export * from './lib/services/messageReactionService';
-
-// Message Management Hooks
-export * from './lib/hooks/useMessageManagement'; 
+// === Types ===
+export * from './lib/types/common'; 

@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect } from 'react';
 import { Message as ChatMessageItem } from '../../../entities';
 import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../styles/ChatRoom.styles';
-import { MessageReaction } from '../../message-reaction/ui/MessageReaction';
+import { MessageReaction } from '../../../shared';
 import { normalizeReactions } from '../../../shared/lib/reactionsUtils';
 import styled from 'styled-components';
 
@@ -133,14 +133,14 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
         });
     };
 
-    const handleReactionUpdate = (updatedReactions: Record<string, number[]>) => {
+    const handleReactionUpdate = (messageId: string, updatedReactions: Record<string, number[]>) => {
         // Record를 ReactionItem[] 배열로 변환하고 즉시 화면에 반영
         const reactionItems = normalizeReactions(updatedReactions);
         setLocalReactions(reactionItems);
         
         // 상위 컴포넌트에 리액션 업데이트 알림 (스크롤 조정용)
         if (onReactionUpdate) {
-            onReactionUpdate(message.id, updatedReactions);
+            onReactionUpdate(messageId, updatedReactions);
         }
     };
 

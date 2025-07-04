@@ -16,4 +16,5 @@ export { SearchInput, SearchContainer, SearchInputField, SearchIcon, ClearButton
 // New Shared Components
 export { ActionButton } from './components/ActionButton';
 export { ContextMenu } from './components/ContextMenu';
-export { LoadingDisplay, ErrorDisplay, EmptyStateDisplay } from './components/StateDisplay'; 
+export { LoadingDisplay, ErrorDisplay, EmptyStateDisplay } from './components/StateDisplay';
+export { MessageReaction } from './components/MessageReaction'; 
