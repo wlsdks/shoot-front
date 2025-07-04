@@ -110,33 +110,31 @@ const UserCodeSettings: React.FC<UserCodeSettingsProps> = ({ userId }) => {
                 친구에게 유저코드를 공유하여 손쉽게 친구 추가를 할 수 있습니다.
             </Description>
  
-            {myCode?.userCode && (
-                <CurrentCodeCard>
-                    <CodeLabel>현재 코드</CodeLabel>
-                    <CodeDisplay>
-                        <CodePrefix>#</CodePrefix>
-                        {myCode.userCode}
-                    </CodeDisplay>
-                    
-                    <CodeActions>
-                        <CodeButton onClick={handleCopyCode}>
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            코드 복사
-                        </CodeButton>
-                        <CodeButton $primary onClick={handleGenerateRandomCode}>
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            새 코드 생성
-                        </CodeButton>
-                    </CodeActions>
-                </CurrentCodeCard>
-            )}
+            <CurrentCodeCard>
+                <CodeLabel>현재 코드</CodeLabel>
+                <CodeDisplay>
+                    <CodePrefix>#</CodePrefix>
+                    {myCode?.userCode || '코드가 설정되지 않았습니다'}
+                </CodeDisplay>
+                
+                <CodeActions>
+                    <CodeButton onClick={handleCopyCode} disabled={!myCode?.userCode}>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        코드 복사
+                    </CodeButton>
+                    <CodeButton $primary onClick={handleGenerateRandomCode}>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        새 코드 생성
+                    </CodeButton>
+                </CodeActions>
+            </CurrentCodeCard>
  
             <FormSection>
                 <FormTitle>{myCode?.userCode ? '코드 변경' : '코드 설정'}</FormTitle>
