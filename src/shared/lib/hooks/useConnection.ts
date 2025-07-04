@@ -227,7 +227,8 @@ export function useAutoReconnectConnection(
         autoReconnect, 
         healthCheckInterval, 
         isConnectionHealthy, 
-        connection.reconnect
+        connection.reconnect,
+        connection
     ]);
 
     return connection;

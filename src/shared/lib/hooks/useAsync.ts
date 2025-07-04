@@ -10,7 +10,6 @@ export interface UseAsyncOptions<T> {
     initialData?: T;
     onSuccess?: (data: T) => void;
     onError?: (error: Error) => void;
-    resetOnDeps?: boolean;
 }
 
 export interface UseAsyncReturn<T, P extends any[] = []> {
@@ -30,7 +29,7 @@ export function useAsync<T, P extends any[] = []>(
     asyncFunction: (...args: P) => Promise<T>,
     options: UseAsyncOptions<T> = {}
 ): UseAsyncReturn<T, P> {
-    const { initialData = null, onSuccess, onError, resetOnDeps = false } = options;
+    const { initialData = null, onSuccess, onError } = options;
     
     const [state, setState] = useState<AsyncState<T>>({
         data: initialData,

@@ -1,21 +1,22 @@
 import { useMutation } from '@tanstack/react-query';
 import { createMyCode, getMyCode, findUserByCode, sendFriendRequestByCode } from '../api/userCodeApi';
 import { UserCode } from '../types';
-import { useUserDataQuery, useMutationWithSingleInvalidation } from '../../../shared/lib/hooks/useQueryFactory';
+import { useUserDataQuery, useMutationWithSingleInvalidation, QUERY_KEYS } from '../../../shared';
 
 export const useUserCode = (userId: number) => {
     // 내 유저 코드 조회
     const { data: myCode, isLoading: isLoadingMyCode } = useUserDataQuery<UserCode>(
-        ['userCode'],
+        QUERY_KEYS.USER_CODE.my(userId),
         () => getMyCode(userId),
         userId
     );
 
     // 내 코드 생성/수정
-    const createCode = useMutationWithSingleInvalidation(
-        (code: string) => createMyCode(userId, code),
-        ['userCode', userId]
-    );
+    const createCode = useMutationWithSingleInvalidation({
+        mutationFn: (code: string) => createMyCode(userId, code),
+        invalidationTarget: QUERY_KEYS.USER_CODE.my(userId),
+        successMessage: '코드가 생성되었습니다.',
+    });
 
     // 유저 코드로 사용자 조회
     const findUser = useMutation({

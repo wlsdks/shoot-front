@@ -6,7 +6,7 @@ import { ChatRoomResponse, DirectChatRoomResponse, FindDirectChatRoomParams } fr
  */
 export const getChatRooms = async (userId: number) => {
     const data = await apiGet<any>('/chatrooms', { userId });
-    return { data };
+    return data;
 };
 
 /**

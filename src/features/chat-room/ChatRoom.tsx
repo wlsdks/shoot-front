@@ -4,7 +4,7 @@ import { useAuthContext } from "../auth";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
 // import { useChatRoomState } from "./model/hooks/useChatRoomState"; // TODO: 향후 점진적 적용 예정
 import { markAllMessagesAsRead } from "./api/chatRoom";
-import { createWebSocketService } from "./api/websocket/index";
+import { createWebSocketService } from "../../shared";
 
 import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
 import { hasReactionType } from '../../shared/lib/reactionsUtils';

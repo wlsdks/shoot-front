@@ -77,7 +77,7 @@ const ChatRoomList: React.FC = () => {
     }, []);
 
     // 검색 처리
-    const filteredRooms = chatRooms?.data ? chatRooms.data.filter((room: ChatRoom) => 
+    const filteredRooms = chatRooms ? chatRooms.filter((room: ChatRoom) => 
         room.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (room.lastMessage && room.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()))
     ) : [];
@@ -108,7 +108,7 @@ const ChatRoomList: React.FC = () => {
                 {error && (
                     <ErrorDisplay
                         title="채팅방 로딩 오류"
-                        message={error.message}
+                        message={error instanceof Error ? error.message : "채팅방을 불러오는 중 오류가 발생했습니다."}
                         icon={<ErrorIcon />}
                     />
                 )}
@@ -125,10 +125,10 @@ const ChatRoomList: React.FC = () => {
                     />
                 </SearchContainer>
 
-                {(!chatRooms?.data || chatRooms.data.length === 0 || filteredRooms.length === 0) ? (
+                {(!chatRooms || !Array.isArray(chatRooms) || chatRooms.length === 0 || filteredRooms.length === 0) ? (
                     <EmptyState
                         icon={<EmptyChatIcon />}
-                        text={chatRooms?.data?.length === 0 ? 
+                        text={(!chatRooms || !Array.isArray(chatRooms) || chatRooms.length === 0) ? 
                             "참여 중인 채팅방이 없습니다." : 
                             "검색 결과가 없습니다."
                         }

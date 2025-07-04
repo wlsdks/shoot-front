@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPinnedMessages, pinMessage, unpinMessage } from '../../../../shared/api';
 import { Message as ChatMessageItem, MessageStatus } from '../../../../entities';
-import { API_CONFIG } from '../../../../shared/api/config';
+import { QUERY_KEYS, DEFAULT_QUERY_OPTIONS } from '../../../../shared';
 
 export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
     const queryClient = useQueryClient();
@@ -13,7 +13,7 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
         error,
         refetch
     } = useQuery({
-        queryKey: ['pinnedMessages', roomId],
+        queryKey: QUERY_KEYS.MESSAGES.pinned(roomId),
         queryFn: async () => {
             const response = await getPinnedMessages(roomId);
             
@@ -57,10 +57,7 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
             return pinnedMessages;
         },
         enabled: !!roomId && isConnected,
-        staleTime: API_CONFIG.QUERY_STALE_TIME.MEDIUM, // 5분 캐시
-        gcTime: API_CONFIG.QUERY_STALE_TIME.LONG, // 30분 가비지 컬렉션
-        refetchOnWindowFocus: false,
-        retry: 2,
+        ...DEFAULT_QUERY_OPTIONS
     });
 
     // 메시지 고정 mutation (Optimistic Update)
@@ -71,10 +68,10 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
         },
         onMutate: async (message: ChatMessageItem) => {
             // 현재 쿼리 취소
-            await queryClient.cancelQueries({ queryKey: ['pinnedMessages', roomId] });
+            await queryClient.cancelQueries({ queryKey: QUERY_KEYS.MESSAGES.pinned(roomId) });
 
             // 이전 데이터 백업
-            const previousData = queryClient.getQueryData<ChatMessageItem[]>(['pinnedMessages', roomId]);
+            const previousData = queryClient.getQueryData<ChatMessageItem[]>(QUERY_KEYS.MESSAGES.pinned(roomId));
 
             // 🎯 공지사항은 1개만 유지: 새로운 공지사항으로 교체 (기존 것들 모두 제거)
             const formattedMessage: ChatMessageItem = {
@@ -84,14 +81,14 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
             };
 
             // 기존 공지사항들을 모두 제거하고 새로운 것 1개만 설정
-            queryClient.setQueryData<ChatMessageItem[]>(['pinnedMessages', roomId], [formattedMessage]);
+            queryClient.setQueryData<ChatMessageItem[]>(QUERY_KEYS.MESSAGES.pinned(roomId), [formattedMessage]);
 
             return { previousData };
         },
         onError: (err, message, context) => {
             // 오류시 롤백
             if (context?.previousData) {
-                queryClient.setQueryData(['pinnedMessages', roomId], context.previousData);
+                queryClient.setQueryData(QUERY_KEYS.MESSAGES.pinned(roomId), context.previousData);
             }
         },
         onSuccess: () => {
@@ -107,12 +104,12 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
             return { response, messageId };
         },
         onMutate: async (messageId: string) => {
-            await queryClient.cancelQueries({ queryKey: ['pinnedMessages', roomId] });
+            await queryClient.cancelQueries({ queryKey: QUERY_KEYS.MESSAGES.pinned(roomId) });
 
-            const previousData = queryClient.getQueryData<ChatMessageItem[]>(['pinnedMessages', roomId]);
+            const previousData = queryClient.getQueryData<ChatMessageItem[]>(QUERY_KEYS.MESSAGES.pinned(roomId));
 
             // Optimistic Update - 즉시 제거
-            queryClient.setQueryData<ChatMessageItem[]>(['pinnedMessages', roomId], 
+            queryClient.setQueryData<ChatMessageItem[]>(QUERY_KEYS.MESSAGES.pinned(roomId), 
                 old => old?.filter(msg => msg.id !== messageId) || []
             );
 
@@ -121,14 +118,14 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
         onError: (err, messageId, context) => {
             // 오류시 롤백
             if (context?.previousData) {
-                queryClient.setQueryData(['pinnedMessages', roomId], context.previousData);
+                queryClient.setQueryData(QUERY_KEYS.MESSAGES.pinned(roomId), context.previousData);
             }
         }
     });
 
     // WebSocket 이벤트로 인한 수동 갱신
     const invalidatePinnedMessages = () => {
-        queryClient.invalidateQueries({ queryKey: ['pinnedMessages', roomId] });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MESSAGES.pinned(roomId) });
     };
 
 

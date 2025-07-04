@@ -20,6 +20,7 @@ import {
 import {
     ProfileSection,
 } from "../styles/FriendsTab.styles";
+import { Friend } from "../../../entities";
 
 interface FriendsTabProps {
     FriendCodePageComponent?: React.ComponentType<{ onClose: () => void }>;
@@ -35,7 +36,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isFriendCodePageOpen, setIsFriendCodePageOpen] = useState(false);
 
-    const { data: friends = [], isLoading, error } = useFriends(user?.id || 0);
+    const { data: friends = [], isLoading, error } = useFriends(user?.id || 0) as { data: Friend[], isLoading: boolean, error: any };
 
     const handleChatClick = useCallback(async (friendId: number) => {
         if (!user?.id || !onCreateDirectChat) return;
