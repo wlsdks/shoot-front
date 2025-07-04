@@ -180,19 +180,28 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         optimizedUnpinMessage(messageId);
     }, [optimizedUnpinMessage]);
 
-    // 초기 로드 완료 시 스크롤 최하단으로
+    // 초기 로드 완료 시 스크롤 최하단으로 - 단순화
     useEffect(() => {
         if (messages.length > 0 && !initialLoadComplete && messageDirection === "INITIAL") {
+            // 초기 로드 시에는 반드시 맨 하단으로 이동
+            const scrollToBottomImmediate = () => {
+                if (chatAreaRef.current) {
+                    chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+                }
+            };
+            
+            // DOM 업데이트 완료 후 즉시 스크롤
+            setTimeout(scrollToBottomImmediate, 50);
             setTimeout(() => {
-                scrollToBottom('auto'); // 즉시 스크롤
+                scrollToBottomImmediate();
                 setInitialLoadComplete(true);
-            }, 100);
+            }, 150);
         }
-    }, [messages.length, initialLoadComplete, messageDirection, scrollToBottom, setInitialLoadComplete]);
+    }, [messages.length, initialLoadComplete, messageDirection, setInitialLoadComplete]);
 
-    // 새 메시지 도착 시 스크롤 처리
+    // 새 메시지 도착 시 스크롤 처리 - 단순화 및 AFTER 방향 포함
     useEffect(() => {
-        if (messageDirection === "new" && messages.length > 0) {
+        if ((messageDirection === "new" || messageDirection === "AFTER") && messages.length > 0 && initialLoadComplete) {
             const lastMessage = messages[messages.length - 1];
             const isOwnMessage = lastMessage?.senderId === user?.id;
             
@@ -201,7 +210,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 setTimeout(() => scrollToBottom('smooth'), 50);
             }
         }
-    }, [messageDirection, messages, user?.id, scrollToBottom, isNearBottom]);
+    }, [messageDirection, messages, user?.id, scrollToBottom, isNearBottom, initialLoadComplete]);
 
     // 메시지 참조 업데이트
     useEffect(() => {
@@ -213,18 +222,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         domReadyRef.current = true;
     }, []);
 
-    // 미리보기 로드 후 스크롤 처리를 위한 useEffect 추가
-    useEffect(() => {
-        // URL 미리보기가 포함된 메시지가 있는지 확인
-        const hasUrlPreviews = messages.some(msg => msg.content?.urlPreview);
-        
-        if (hasUrlPreviews) {
-            // 약간의 지연 후 스크롤 이동 (미리보기 렌더링 완료 대기)
-            setTimeout(() => {
-                scrollToBottom();
-            }, 300);
-        }
-    }, [messages, scrollToBottom]);
+    // URL 미리보기 로드 후 스크롤 처리 제거 - 불필요한 스크롤 조작 방지
 
     // 조합 시작 시
     const handleCompositionStart = () => {
@@ -321,24 +319,9 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     updateTypingStatus(typingMsg);
                 });
 
-                // 메시지 수신 핸들러 (useMessageHandlers에서 처리)
+                // 메시지 수신 핸들러 (useMessageHandlers에서 처리) - 스크롤 로직 제거
                 webSocketService.current.onMessage((msg: ChatMessageItem) => {
                     handleMessage(msg);
-                    
-                    // 상대방이 보낸 메시지이고, 현재 스크롤이 맨 하단에 있을 때만 자동 스크롤
-                    if (msg.senderId !== user?.id) {
-                        const chatArea = chatAreaRef.current;
-                        if (chatArea) {
-                            const { scrollTop, scrollHeight, clientHeight } = chatArea;
-                            const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
-                            
-                            if (isAtBottom) {
-                                setTimeout(() => {
-                                    scrollToBottom();
-                                }, 100);
-                            }
-                        }
-                    }
                     
                     if (
                         document.visibilityState === "visible" &&
@@ -474,11 +457,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                         }
                         else if (syncResponse.direction === "AFTER") {
                             setMessageDirection("AFTER");
-                            setTimeout(() => {
-                                if (chatAreaRef.current) {
-                                    chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-                                }
-                            }, 100);
+                            // 스크롤 로직 제거 - messageDirection 변경으로 기존 useEffect에서 처리
                         }
                     }
                 });
@@ -490,18 +469,20 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     }
                 }, 120000);
 
-                // 초기 동기화 요청
-                setTimeout(() => {
-                    webSocketService.current.requestSync(
-                        undefined,  // lastMessageId를 undefined로 설정하여 최신 메시지부터 가져오기
-                        "INITIAL",  // 항상 INITIAL로 요청하여 최신 메시지들을 가져오기
-                        100         // 초기 로드시 100개까지 가져오기 (충분한 양)
-                    );
+                // 초기 동기화 요청 - 중복 방지
+                if (messages.length === 0) {  // 메시지가 없을 때만 초기 동기화 실행
+                    setTimeout(() => {
+                        webSocketService.current.requestSync(
+                            undefined,  // lastMessageId를 undefined로 설정하여 최신 메시지부터 가져오기
+                            "INITIAL",  // 항상 INITIAL로 요청하여 최신 메시지들을 가져오기
+                            50          // 초기 로드시 50개로 줄여서 빠른 로딩
+                        );
 
-                    if (roomId && user) {
-                        markAllRead();
-                    }
-                }, 100);
+                        if (roomId && user) {
+                            markAllRead();
+                        }
+                    }, 100);
+                }
 
             } catch (error) {
                 console.error("WebSocket connection failed:", error);
