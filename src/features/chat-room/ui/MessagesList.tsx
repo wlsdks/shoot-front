@@ -13,6 +13,7 @@ interface MessagesListProps {
     input: string;
     onContextMenu: (e: React.MouseEvent, message: ChatMessageItem) => void;
     onClick: (e: React.MouseEvent, message: ChatMessageItem) => void;
+    onReactionUpdate?: (messageId: string, updatedReactions: any) => void;
 }
 
 const MessagesListComponent: React.FC<MessagesListProps> = ({
@@ -21,7 +22,8 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
     userId,
     input,
     onContextMenu,
-    onClick
+    onClick,
+    onReactionUpdate
 }) => {
     const getMessageCreatedAt = (msg: ChatMessageItem): string => {
         if (msg.createdAt && typeof msg.createdAt === 'object' && 'toISOString' in msg.createdAt) {
@@ -125,6 +127,7 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
                             onContextMenu={onContextMenu}
                             onClick={onClick}
                             userId={userId}
+                            onReactionUpdate={onReactionUpdate}
                         />
                         {msg.content?.urlPreview && (
                             <div style={{ 
@@ -151,6 +154,7 @@ export const MessagesList = memo(MessagesListComponent, (prevProps: MessagesList
         prevProps.userId === nextProps.userId &&
         prevProps.input === nextProps.input &&
         prevProps.onContextMenu === nextProps.onContextMenu &&
-        prevProps.onClick === nextProps.onClick
+        prevProps.onClick === nextProps.onClick &&
+        prevProps.onReactionUpdate === nextProps.onReactionUpdate
     );
 }); 

@@ -45,6 +45,7 @@ interface MessageRowProps {
     indicatorText: string;
     onContextMenu: (e: React.MouseEvent, message: ChatMessageItem) => void;
     onClick: (e: React.MouseEvent, message: ChatMessageItem) => void;
+    onReactionUpdate?: (messageId: string, updatedReactions: any) => void;
 }
 
 const MessageRowComponent: React.FC<MessageRowProps> = ({
@@ -56,7 +57,8 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
     statusIndicator,
     indicatorText,
     onContextMenu,
-    onClick
+    onClick,
+    onReactionUpdate
 }) => {
     // 로컬 상태로 반응 관리
     const [localReactions, setLocalReactions] = useState<ReactionItem[]>(
@@ -70,7 +72,7 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
 
     const hasReactions = localReactions && localReactions.length > 0;
 
-    // 테스트용 반응 추가 (메시지 더블클릭시)
+    // 테스트용 반응 추가 (메시지 더블클릭시) - 스크롤 조정 포함
     const handleDoubleClick = (e: React.MouseEvent, msg: ChatMessageItem) => {
         e.preventDefault();
         
@@ -79,9 +81,10 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
             const existingLike = prev.find(r => r.reactionType === 'like');
             const hasLiked = existingLike?.userIds.includes(userId || 0) || false;
             
+            let newReactions;
             if (hasLiked) {
                 // 좋아요 제거
-                return prev.map(reaction => {
+                newReactions = prev.map(reaction => {
                     if (reaction.reactionType === 'like') {
                         const newUserIds = reaction.userIds.filter(id => id !== (userId || 0));
                         return {
@@ -95,7 +98,7 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
             } else {
                 // 좋아요 추가
                 if (existingLike) {
-                    return prev.map(reaction => {
+                    newReactions = prev.map(reaction => {
                         if (reaction.reactionType === 'like') {
                             const newUserIds = [...reaction.userIds, userId || 0];
                             return {
@@ -107,7 +110,7 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
                         return reaction;
                     });
                 } else {
-                    return [...prev, {
+                    newReactions = [...prev, {
                         reactionType: 'like',
                         emoji: '👍',
                         description: '좋아요',
@@ -116,6 +119,17 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
                     }];
                 }
             }
+            
+            // 상위 컴포넌트에 리액션 업데이트 알림 (스크롤 조정용)
+            if (onReactionUpdate) {
+                const reactionsAsRecord: Record<string, number[]> = {};
+                newReactions.forEach(reaction => {
+                    reactionsAsRecord[reaction.reactionType] = reaction.userIds;
+                });
+                onReactionUpdate(message.id, reactionsAsRecord);
+            }
+            
+            return newReactions;
         });
     };
 
@@ -123,6 +137,11 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
         // Record를 ReactionItem[] 배열로 변환하고 즉시 화면에 반영
         const reactionItems = normalizeReactions(updatedReactions);
         setLocalReactions(reactionItems);
+        
+        // 상위 컴포넌트에 리액션 업데이트 알림 (스크롤 조정용)
+        if (onReactionUpdate) {
+            onReactionUpdate(message.id, updatedReactions);
+        }
     };
 
     return (
@@ -216,6 +235,7 @@ export const MessageRow = memo(MessageRowComponent, (prevProps, nextProps) => {
         prevProps.statusIndicator === nextProps.statusIndicator &&
         prevProps.indicatorText === nextProps.indicatorText &&
         prevProps.onContextMenu === nextProps.onContextMenu &&
-        prevProps.onClick === nextProps.onClick
+        prevProps.onClick === nextProps.onClick &&
+        prevProps.onReactionUpdate === nextProps.onReactionUpdate
     );
 }); 

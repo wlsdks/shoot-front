@@ -721,7 +721,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
     // 읽음 상태 계산 로직은 MessagesList 컴포넌트로 이동됨
 
-    // 리액션 선택 핸들러 - 메모이제이션
+    // 리액션 선택 핸들러 - 메모이제이션 및 스크롤 자동 조정
     const handleReactionSelect = useCallback(async (reactionType: string) => {
         if (!contextMenu.message) return;
         
@@ -738,18 +738,44 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                         : message
                 )
             );
+            
+            // 리액션 업데이트 후 스크롤 자동 조정 (화면 하단 근처에 있을 때만)
+            if (isNearBottom.current) {
+                setTimeout(() => {
+                    scrollToBottom('smooth');
+                }, 100); // DOM 업데이트 완료 후 스크롤
+            }
+            
             setShowReactionPicker(false);
             closeContextMenu();
         } catch (error) {
             console.error('리액션 처리 중 오류 발생:', error);
         }
-    }, [contextMenu.message, user?.id, setMessages, setShowReactionPicker, closeContextMenu]);
+    }, [contextMenu.message, user?.id, setMessages, setShowReactionPicker, closeContextMenu, isNearBottom, scrollToBottom]);
 
     // 반응 추가 버튼 클릭 핸들러
     const handleShowReactionPicker = (e: React.MouseEvent) => {
         e.stopPropagation(); // 이벤트 버블링 방지
         setShowReactionPicker(true);
     };
+
+    // 리액션 업데이트 콜백 (MessageRow에서 호출)
+    const handleReactionUpdate = useCallback((messageId: string, updatedReactions: any) => {
+        setMessages(prevMessages =>
+            prevMessages.map(message =>
+                message.id === messageId
+                    ? { ...message, reactions: updatedReactions }
+                    : message
+            )
+        );
+        
+        // 리액션 업데이트 후 스크롤 자동 조정 (화면 하단 근처에 있을 때만)
+        if (isNearBottom.current) {
+            setTimeout(() => {
+                scrollToBottom('smooth');
+            }, 100);
+        }
+    }, [setMessages, isNearBottom, scrollToBottom]);
 
     // 입력창 포커스 해제 핸들러
     const handleBlur = () => {
@@ -801,6 +827,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                         input={input}
                         onContextMenu={handleChatBubbleClick}
                         onClick={handleChatBubbleClick}
+                        onReactionUpdate={handleReactionUpdate}
                     />
                     <div ref={bottomRef} />
                 </ChatArea>
