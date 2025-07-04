@@ -197,7 +197,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 setInitialLoadComplete(true);
             }, 150);
         }
-    }, [messages.length, initialLoadComplete, messageDirection, setInitialLoadComplete]);
+    }, [messages.length, initialLoadComplete, messageDirection, setInitialLoadComplete, chatAreaRef]);
 
     // 새 메시지 도착 시 스크롤 처리 - 단순화 및 AFTER 방향 포함
     useEffect(() => {
