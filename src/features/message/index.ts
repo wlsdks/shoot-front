@@ -10,8 +10,8 @@ export { useScrollManager } from './model/useScrollManager';
 export { useTypingState } from './model/useTypingState';
 export { useTypingHandlers } from './model/useTypingHandlers';
 
-// Hooks - Context Menu
-export { useContextMenu } from './model/useContextMenu';
+// Hooks - Context Menu (moved to shared layer)
+// export { useContextMenu } from './model/useContextMenu';
 
 // Utilities
 export * from './lib/timeUtils';

@@ -1,13 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useAuthContext } from "../auth";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
 // import { useChatRoomState } from "./model/hooks/useChatRoomState"; // TODO: 향후 점진적 적용 예정
 import { markAllMessagesAsRead } from "./api/chatRoom";
-import { createWebSocketService } from "../../shared";
 
-import { messageReactionService, ReactionType } from '../message-reaction/api/reactionApi';
-import { hasReactionType } from '../../shared/lib/reactionsUtils';
+// Shared 레이어에서 가져오기 (FSD 원칙 준수)
+import { 
+    createWebSocketService,
+    messageReactionService,
+    hasReactionType,
+    type ReactionType
+} from "../../shared";
+
+// Auth feature에서 가져오기 (상위 레이어에서 하위 레이어 접근)
+import { useAuthContext } from "../auth";
 
 // 스타일 임포트
 import {
@@ -24,13 +30,15 @@ import {
     TypingIndicatorMessage
 } from '../../entities';
 
-// 커스텀 훅 임포트
+// 커스텀 훅 임포트 (Message feature에서 가져오기)
 import { useMessageState } from '../message/model/useMessageState';
 import { useMessageHandlers } from '../message/model/useMessageHandlers';
 import { useTypingState } from '../message/model/useTypingState';
 import { useScrollManager } from '../message/model/useScrollManager';
 import { useTypingHandlers } from '../message/model/useTypingHandlers';
-import { useContextMenu } from '../message/model/useContextMenu';
+
+// Context Menu 훅은 shared에서 가져오기
+import { useContextMenu } from "../../shared";
 
 // 새로 분리된 컴포넌트들 임포트
 import { ChatHeader } from './ui/ChatHeader';
