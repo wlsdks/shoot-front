@@ -9,7 +9,14 @@ import {
     createWebSocketService,
     messageReactionService,
     hasReactionType,
-    type ReactionType
+    type ReactionType,
+    useContextMenu,
+    // Message Management Hooks (FSD 원칙 준수)
+    useMessageState,
+    useMessageHandlers,
+    useTypingState,
+    useScrollManager,
+    useTypingHandlers
 } from "../../shared";
 
 // Auth feature에서 가져오기 (상위 레이어에서 하위 레이어 접근)
@@ -29,16 +36,6 @@ import {
     Message as ChatMessageItem,
     TypingIndicatorMessage
 } from '../../entities';
-
-// 커스텀 훅 임포트 (Message feature에서 가져오기)
-import { useMessageState } from '../message/model/useMessageState';
-import { useMessageHandlers } from '../message/model/useMessageHandlers';
-import { useTypingState } from '../message/model/useTypingState';
-import { useScrollManager } from '../message/model/useScrollManager';
-import { useTypingHandlers } from '../message/model/useTypingHandlers';
-
-// Context Menu 훅은 shared에서 가져오기
-import { useContextMenu } from "../../shared";
 
 // 새로 분리된 컴포넌트들 임포트
 import { ChatHeader } from './ui/ChatHeader';

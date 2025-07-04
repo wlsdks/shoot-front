@@ -23,6 +23,7 @@ import { ChatRoomListTab } from '../features/chat-room';
 // FriendCodePage를 위한 래퍼 컴포넌트
 const FriendCodePageWrapper = () => {
     const navigate = useNavigate();
+    // AuthProvider 내부에 있으므로 useAuthContext 대신 FriendCodePage 컴포넌트에서 처리
     return <FriendCodePage onClose={() => navigate(-1)} />;
 };
 

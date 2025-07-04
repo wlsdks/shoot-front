@@ -20,4 +20,7 @@ export * from './lib/parseUserString';
 export * from './lib/reactionsUtils';
 
 // Services exports
-export * from './lib/services/messageReactionService'; 
+export * from './lib/services/messageReactionService';
+
+// Message Management Hooks
+export * from './lib/hooks/useMessageManagement'; 

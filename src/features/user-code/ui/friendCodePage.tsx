@@ -1,8 +1,8 @@
 // src/features/user-code/ui/friendCodePage.tsx
 import React, { useState, useEffect, useRef } from "react";
-import { useAuthContext } from "../../auth";
 import { useUserCode } from "../model/useUserCode";
 import { UserCode } from "../types";
+import { User } from "../../../entities";
 import {
     Container,
     Content,
@@ -27,11 +27,11 @@ import {
 } from "../styles/friendCodePage.styles";
 
 interface FriendCodePageProps {
+    user: User | null;
     onClose: () => void;
 }
 
-const FriendCodePage: React.FC<FriendCodePageProps> = ({ onClose }) => {
-    const { user } = useAuthContext();
+const FriendCodePage: React.FC<FriendCodePageProps> = ({ user, onClose }) => {
     const [code, setCode] = useState("");
     const [message, setMessage] = useState<string | null>(null);
     const [isError, setIsError] = useState(false);

@@ -20,10 +20,10 @@ import {
 import {
     ProfileSection,
 } from "../styles/FriendsTab.styles";
-import { Friend } from "../../../entities";
+import { Friend, User } from "../../../entities";
 
 interface FriendsTabProps {
-    FriendCodePageComponent?: React.ComponentType<{ onClose: () => void }>;
+    FriendCodePageComponent?: React.ComponentType<{ user: User | null; onClose: () => void }>;
     onCreateDirectChat?: (myId: number, friendId: number) => Promise<{ roomId: number }>;
 }
 
@@ -80,7 +80,7 @@ const FriendsTab: React.FC<FriendsTabProps> = ({
                     onBack={closeFriendCodePage}
                 />
                 <div style={{ flex: 1, overflow: 'auto' }}>
-                    <FriendCodePageComponent onClose={closeFriendCodePage} />
+                    <FriendCodePageComponent user={user} onClose={closeFriendCodePage} />
                 </div>
             </div>
         );
