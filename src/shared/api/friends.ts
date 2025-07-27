@@ -18,18 +18,23 @@ export const getOutgoingRequests = async (userId: number): Promise<FriendRespons
 
 // 친구 요청 보내기 (targetUserId 기반)
 export const sendFriendRequest = async (userId: number, targetUserId: number) => {
-    return apiPost<any>('/friends/request', null, { userId, targetUserId });
+    return apiPost<any>('/friends/request', { userId, targetUserId });
 };
 
 // 친구 요청 수락
 export const acceptFriendRequest = async (userId: number, requesterId: number) => {
-    return apiPost<any>('/friends/accept', null, { userId, requesterId });
+    return apiPost<any>('/friends/accept', { userId, requesterId });
 };
 
 // 친구 요청 거절
 export const rejectFriendRequest = async (userId: number, requesterId: number) => {
-    return apiPost<any>('/friends/reject', null, { userId, requesterId });
+    return apiPost<any>('/friends/reject', { userId, requesterId });
 };
+
+// 친구 요청 취소
+export const cancelFriendRequest = async (userId: number, targetUserId: number): Promise<void> => {
+    return apiPost<void>('/friends/cancel', { userId, targetUserId });
+}; 
 
 // 친구 검색 API 함수
 export const searchFriends = async (userId: number, query: string): Promise<FriendResponse[]> => {
@@ -45,7 +50,3 @@ export const getRecommendations = async (
 ): Promise<FriendResponse[]> => {
     return apiGet<FriendResponse[]>('/friends/recommend/bfs', { userId, limit, maxDepth, skip });
 };
-
-export const cancelFriendRequest = async (userId: number, targetUserId: number): Promise<void> => {
-    return apiPost<void>('/friends/cancel', null, { userId, targetUserId });
-}; 
