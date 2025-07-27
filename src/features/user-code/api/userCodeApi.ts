@@ -2,7 +2,7 @@ import { apiGet, apiPost, apiDelete } from "../../../shared/lib/apiUtils";
 
 // 내 코드 생성 및 수정
 export const createMyCode = async (userId: number, code: string) => {
-    return apiPost<any>('/users/code', null, { userId, code });
+    return apiPost<any>('/users/code', { userId, code });
 };
 
 // 내 유저 코드 삭제
@@ -31,7 +31,7 @@ export const findUserByCode = async (code: string) => {
 // 유저 코드로 친구 요청 보내기
 export const sendFriendRequestByCode = async (userId: number, targetCode: string) => {
     try {
-        const data = await apiPost<any>('/users/request/by-code', null, { userId, targetCode });
+        const data = await apiPost<any>('/users/request/by-code', { userId, targetCode });
         return { data };
     } catch (error: any) {
         // 에러 응답의 데이터를 그대로 반환하여 message를 포함시킴
