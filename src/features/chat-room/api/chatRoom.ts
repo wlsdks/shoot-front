@@ -17,36 +17,11 @@ export const updateChatRoomFavorite = async (
     userId: number,
     isFavorite: boolean
 ) => {
-    return apiPost<ChatRoomResponse>('/chatrooms/favorite', null, {
+    return apiPost<ChatRoomResponse>('/chatrooms/favorite', {
         roomId,
         userId,
         isFavorite
     });
-};
-
-/**
- * 특정 채팅방 내 모든 메시지를 읽음 처리하는 API
- * @param roomId 채팅방 ID
- * @param userId 사용자 ID
- * @returns
- */
-export const markAllMessagesAsRead = async (roomId: number, userId: number, requestId?: string) => {
-    const params: Record<string, any> = { userId };
-    if (requestId) params.requestId = requestId;
-    
-    const data = await apiPost<any>(`/read-status/rooms/${roomId}/read-all`, null, params);
-    return { data };
-};
-
-/**
- * 특정 메시지를 읽음 처리하는 API
- * @param messageId 메시지 ID
- * @param userId 사용자 ID
- * @returns
- */
-export const markMessageAsRead = async (messageId: string, userId: number) => {
-    const data = await apiPost<any>(`/read-status/messages/${messageId}/read`, null, { userId });
-    return { data };
 };
 
 /**
@@ -59,7 +34,7 @@ export const createDirectChat = async (
     userId: number,
     friendId: number
 ) => {
-    const data = await apiPost<DirectChatRoomResponse>('/chatrooms/create/direct', null, { 
+    const data = await apiPost<DirectChatRoomResponse>('/chatrooms/create/direct', { 
         userId, 
         friendId 
     });

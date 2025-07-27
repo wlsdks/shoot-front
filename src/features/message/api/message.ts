@@ -48,7 +48,7 @@ export const forwardMessage = async (
     targetRoomId: number,
     forwardingUserId: number
 ) => {
-    return apiPost<any>('/messages/forward', null, { 
+    return apiPost<any>('/messages/forward', { 
         originalMessageId, 
         targetRoomId, 
         forwardingUserId 
@@ -67,7 +67,7 @@ export const forwardMessageToUser = async (
     targetUserId: number,
     forwardingUserId: number
 ) => {
-    return apiPost<any>('/messages/forward/user', null, { 
+    return apiPost<any>('/messages/forward/user', { 
         originalMessageId, 
         targetUserId, 
         forwardingUserId 
