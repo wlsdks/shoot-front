@@ -10,6 +10,7 @@ import {
     messageReactionService,
     type ReactionType,
     useContextMenu,
+    normalizeReactions,
     // Message Management Hooks (FSD 원칙 준수)
     useMessageState,
     useMessageHandlers,
@@ -364,7 +365,9 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                     setMessages(prevMessages => {
                         const updatedMessages = prevMessages.map(message => {
                             if (message.id === reactionUpdate.messageId) {
-                                return { ...message, reactions: reactionUpdate.reactions };
+                                // 백엔드 Record<string, number[]>를 ReactionItem[]로 변환
+                                const convertedReactions = normalizeReactions(reactionUpdate.reactions);
+                                return { ...message, reactions: convertedReactions };
                             }
                             return message;
                         });

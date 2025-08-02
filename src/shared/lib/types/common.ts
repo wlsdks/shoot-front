@@ -18,8 +18,8 @@ export interface ReactionType {
 export interface MessageReactionProps {
     messageId: string;
     userId?: number;
-    reactions?: any[];
-    onReactionUpdate?: (messageId: string, reactions: any[]) => void;
+    reactions?: import('../../../entities/message').ReactionItem[];
+    onReactionUpdate?: (messageId: string, reactions: Record<string, number[]>) => void;
 }
 
 // 컨텍스트 메뉴 관련 타입

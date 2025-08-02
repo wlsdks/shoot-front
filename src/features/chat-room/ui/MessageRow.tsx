@@ -226,8 +226,15 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
 // React.memo로 렌더링 최적화 - 메시지별 개별 메모이제이션
 export const MessageRow = memo(MessageRowComponent, (prevProps, nextProps) => {
     // 메시지 내용, 상태, 시간 표시 여부 등이 동일하면 리렌더링 하지 않음
+    const messageChanged = (
+        prevProps.message.id !== nextProps.message.id ||
+        prevProps.message.content !== nextProps.message.content ||
+        prevProps.message.status !== nextProps.message.status ||
+        JSON.stringify(prevProps.message.reactions) !== JSON.stringify(nextProps.message.reactions) // reactions 깊은 비교
+    );
+    
     return (
-        prevProps.message === nextProps.message &&
+        !messageChanged &&
         prevProps.isOwn === nextProps.isOwn &&
         prevProps.showTime === nextProps.showTime &&
         prevProps.currentTime === nextProps.currentTime &&

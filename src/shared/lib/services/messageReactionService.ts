@@ -1,10 +1,10 @@
-import { WebSocketService, ReactionResponse as WSReactionResponse } from '../websocket/types';
+import { WebSocketService, ReactionResponse } from '../websocket/types';
 import { ReactionType } from '../types/common';
 
 // WebSocket 기반 메시지 리액션 서비스
 export class MessageReactionService {
     private webSocketService: WebSocketService | null = null;
-    private responseCallbacks: Map<string, (response: WSReactionResponse) => void> = new Map();
+    private responseCallbacks: Map<string, (response: ReactionResponse) => void> = new Map();
 
     // WebSocket 서비스 설정
     setWebSocketService(webSocketService: WebSocketService): void {
@@ -12,16 +12,18 @@ export class MessageReactionService {
         
         // 반응 응답 콜백 등록
         this.webSocketService.onReactionResponse((response) => {
-            // 임시로 모든 대기 중인 콜백 호출 (실제로는 요청 ID 기반으로 매칭해야 함)
-            this.responseCallbacks.forEach((callback, messageId) => {
+            // 응답 콜백 호출
+            const callback = this.responseCallbacks.get(response.data?.messageId || '');
+
+            if (callback) {
                 callback(response);
-            });
-            this.responseCallbacks.clear();
+                this.responseCallbacks.delete(response.data?.messageId || '');
+            }
         });
     }
 
     // 리액션 토글 (WebSocket 기반)
-    async toggleReaction(messageId: string, reactionType: string): Promise<WSReactionResponse> {
+    async toggleReaction(messageId: string, reactionType: string): Promise<ReactionResponse> {
         if (!this.webSocketService) {
             throw new Error('WebSocket service not initialized');
         }
@@ -35,6 +37,7 @@ export class MessageReactionService {
 
             this.responseCallbacks.set(messageId, (response) => {
                 clearTimeout(timeoutId);
+                this.responseCallbacks.delete(messageId);
                 if (response.success) {
                     resolve(response);
                 } else {
@@ -45,17 +48,6 @@ export class MessageReactionService {
             // WebSocket으로 반응 전송
             this.webSocketService!.sendReaction(messageId, reactionType);
         });
-    }
-
-    // 기존 메서드들을 새로운 방식으로 래핑
-    async addReaction(messageId: string, reactionType: string): Promise<{ reactions: any[] }> {
-        const response = await this.toggleReaction(messageId, reactionType);
-        return { reactions: response.data?.reactions || [] };
-    }
-
-    async removeReaction(messageId: string, reactionType: string): Promise<{ reactions: any[] }> {
-        const response = await this.toggleReaction(messageId, reactionType);
-        return { reactions: response.data?.reactions || [] };
     }
 
     // 사용 가능한 리액션 타입 조회 (변경 없음)

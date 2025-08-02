@@ -13,6 +13,12 @@ export interface WebSocketMessage {
     limit?: number;
 }
 
+export interface Reaction {
+    userId: number;
+    reactionType: string;
+    createdAt?: string;
+}
+
 export interface ReactionRequest {
     messageId: string;
     reactionType: string;
@@ -21,7 +27,7 @@ export interface ReactionRequest {
 
 export interface ReactionUpdateMessage {
     messageId: string;
-    reactions: any[];
+    reactions: Record<string, number[]>; // 백엔드에서 집계된 형태로 전송
     userId: number;
     reactionType: string;
     action: 'ADDED' | 'REMOVED';
@@ -32,7 +38,7 @@ export interface ReactionResponse {
     message: string;
     data: {
         messageId: string;
-        reactions: any[];
+        reactions: Reaction[];
         updatedAt: string;
     } | null;
 }
