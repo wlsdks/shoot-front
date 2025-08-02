@@ -1,36 +1,64 @@
-import { apiGet, apiPut, apiDelete } from '../apiUtils';
+import { WebSocketService, ReactionResponse as WSReactionResponse } from '../websocket/types';
 import { ReactionType } from '../types/common';
 
-// 기존 API 응답 타입들
-export interface ReactionResponse {
-    messageId: string;
-    reactions: any[];
-    updatedAt: string;
-}
-
-export interface ReactionListResponse {
-    messageId: string;
-    reactions: any[];
-}
-
-// 메시지 리액션 API 서비스
+// WebSocket 기반 메시지 리액션 서비스
 export class MessageReactionService {
-    // 리액션 추가 (기존 경로 및 메서드 사용)
-    async addReaction(messageId: string, reactionType: string): Promise<ReactionResponse> {
-        return apiPut<ReactionResponse>(`/messages/${messageId}/reactions`, { reactionType });
+    private webSocketService: WebSocketService | null = null;
+    private responseCallbacks: Map<string, (response: WSReactionResponse) => void> = new Map();
+
+    // WebSocket 서비스 설정
+    setWebSocketService(webSocketService: WebSocketService): void {
+        this.webSocketService = webSocketService;
+        
+        // 반응 응답 콜백 등록
+        this.webSocketService.onReactionResponse((response) => {
+            // 임시로 모든 대기 중인 콜백 호출 (실제로는 요청 ID 기반으로 매칭해야 함)
+            this.responseCallbacks.forEach((callback, messageId) => {
+                callback(response);
+            });
+            this.responseCallbacks.clear();
+        });
     }
 
-    // 리액션 제거 (기존 경로 사용)
-    async removeReaction(messageId: string, reactionType: string): Promise<ReactionResponse> {
-        return apiDelete<ReactionResponse>(`/messages/${messageId}/reactions/${reactionType}`);
+    // 리액션 토글 (WebSocket 기반)
+    async toggleReaction(messageId: string, reactionType: string): Promise<WSReactionResponse> {
+        if (!this.webSocketService) {
+            throw new Error('WebSocket service not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            // 응답 콜백 등록 (간단한 구현 - 실제로는 요청 ID로 매칭)
+            const timeoutId = setTimeout(() => {
+                this.responseCallbacks.delete(messageId);
+                reject(new Error('Reaction request timeout'));
+            }, 5000);
+
+            this.responseCallbacks.set(messageId, (response) => {
+                clearTimeout(timeoutId);
+                if (response.success) {
+                    resolve(response);
+                } else {
+                    reject(new Error(response.message));
+                }
+            });
+
+            // WebSocket으로 반응 전송
+            this.webSocketService!.sendReaction(messageId, reactionType);
+        });
     }
 
-    // 메시지의 리액션 목록 조회 (기존 경로 사용)
-    async getReactions(messageId: string): Promise<ReactionListResponse> {
-        return apiGet<ReactionListResponse>(`/messages/${messageId}/reactions`);
+    // 기존 메서드들을 새로운 방식으로 래핑
+    async addReaction(messageId: string, reactionType: string): Promise<{ reactions: any[] }> {
+        const response = await this.toggleReaction(messageId, reactionType);
+        return { reactions: response.data?.reactions || [] };
     }
 
-    // 사용 가능한 리액션 타입 조회
+    async removeReaction(messageId: string, reactionType: string): Promise<{ reactions: any[] }> {
+        const response = await this.toggleReaction(messageId, reactionType);
+        return { reactions: response.data?.reactions || [] };
+    }
+
+    // 사용 가능한 리액션 타입 조회 (변경 없음)
     async getReactionTypes(): Promise<ReactionType[]> {
         return [
             { code: 'like', emoji: '👍', description: '좋아요' },

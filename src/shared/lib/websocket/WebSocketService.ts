@@ -1,6 +1,6 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate, WebSocketConfig } from "./types";
+import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate, WebSocketConfig, ReactionUpdateMessage, ReactionResponse, ReactionRequest } from "./types";
 import { Message } from "../../../entities";
 
 // 기본 설정
@@ -27,6 +27,9 @@ export class WebSocketServiceImpl implements WebSocketService {
     private readCallbacks: ((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void)[] = [];
     private pinUpdateCallbacks: (() => void)[] = [];
     private syncCallbacks: ((data: { roomId: number, direction?: string, messages: any[] }) => void)[] = [];
+    // Reaction 관련 콜백들 추가
+    private reactionUpdateCallbacks: ((update: ReactionUpdateMessage) => void)[] = [];
+    private reactionResponseCallbacks: ((response: ReactionResponse) => void)[] = [];
     
     // 상태 관리
     private activeStatusDebounceTimeout: NodeJS.Timeout | null = null;
@@ -163,6 +166,36 @@ export class WebSocketServiceImpl implements WebSocketService {
             const syncData = JSON.parse(message.body);
             this.syncCallbacks.forEach(callback => callback(syncData));
         });
+
+        // Reaction 관련 구독들 추가
+        
+        // 채팅방 전체 반응 업데이트 구독 (완전한 reactions 데이터가 포함된 토픽만 사용)
+        this.client.subscribe(`/topic/message/reaction/${this.roomId}`, (message) => {
+            try {
+                const reactionUpdate = JSON.parse(message.body);
+                
+                // reactions 필드가 있는 경우만 처리 (완전한 업데이트)
+                if (reactionUpdate.reactions) {
+                    this.reactionUpdateCallbacks.forEach(callback => callback(reactionUpdate as ReactionUpdateMessage));
+                }
+            } catch (error) {
+                console.error("❌ Error processing reaction update:", error);
+            }
+        });
+
+        // 두 번째 토픽 구독 제거 (중복이고 reactions 필드가 없어서 문제 발생)
+
+        // 개별 사용자 반응 응답 구독
+        if (this.userId) {
+            this.client.subscribe(`/queue/message/reaction/response/${this.userId}`, (message) => {
+                try {
+                    const reactionResponse: ReactionResponse = JSON.parse(message.body);
+                    this.reactionResponseCallbacks.forEach(callback => callback(reactionResponse));
+                } catch (error) {
+                    console.error("❌ Error processing reaction response:", error);
+                }
+            });
+        }
     }
 
     disconnect(): void {
@@ -225,6 +258,33 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.syncCallbacks.push(callback);
     }
 
+    // Reaction 관련 메서드들
+    sendReaction(messageId: string, reactionType: string): void {
+        if (!this.client?.connected || !this.userId) {
+            console.warn("⚠️ Cannot send reaction: WebSocket not connected or missing userId");
+            return;
+        }
+
+        const reactionRequest: ReactionRequest = {
+            messageId,
+            reactionType,
+            userId: this.userId
+        };
+
+        this.client.publish({
+            destination: "/app/reaction",
+            body: JSON.stringify(reactionRequest)
+        });
+    }
+
+    onReactionUpdate(callback: (update: ReactionUpdateMessage) => void): void {
+        this.reactionUpdateCallbacks.push(callback);
+    }
+
+    onReactionResponse(callback: (response: ReactionResponse) => void): void {
+        this.reactionResponseCallbacks.push(callback);
+    }
+
     clearAllHandlers(): void {
         this.messageCallbacks = [];
         this.typingIndicatorCallbacks = [];
@@ -234,6 +294,9 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.readCallbacks = [];
         this.pinUpdateCallbacks = [];
         this.syncCallbacks = [];
+        // Reaction 콜백들도 정리
+        this.reactionUpdateCallbacks = [];
+        this.reactionResponseCallbacks = [];
     }
 
     markAllMessagesAsRead(): void {
