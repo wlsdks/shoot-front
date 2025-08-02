@@ -13,6 +13,36 @@ export interface WebSocketMessage {
     limit?: number;
 }
 
+export interface Reaction {
+    userId: number;
+    reactionType: string;
+    createdAt?: string;
+}
+
+export interface ReactionRequest {
+    messageId: string;
+    reactionType: string;
+    userId: number;
+}
+
+export interface ReactionUpdateMessage {
+    messageId: string;
+    reactions: Record<string, number[]>; // 백엔드에서 집계된 형태로 전송
+    userId: number;
+    reactionType: string;
+    action: 'ADDED' | 'REMOVED';
+}
+
+export interface ReactionResponse {
+    success: boolean;
+    message: string;
+    data: {
+        messageId: string;
+        reactions: Reaction[];
+        updatedAt: string;
+    } | null;
+}
+
 export interface WebSocketService {
     connect(roomId: number, userId: number): Promise<void>;
     disconnect(): void;
@@ -26,6 +56,10 @@ export interface WebSocketService {
     onReadBulk(callback: (data: { messageIds: string[], userId: number }) => void): void;
     onPinUpdate(callback: () => void): void;
     onSync(callback: (syncResponse: { roomId: number, direction?: string, messages: any[] }) => void): void;
+    // Reaction 관련 메서드 추가
+    sendReaction(messageId: string, reactionType: string): void;
+    onReactionUpdate(callback: (update: ReactionUpdateMessage) => void): void;
+    onReactionResponse(callback: (response: ReactionResponse) => void): void;
     clearAllHandlers(): void;
     markAllMessagesAsRead(): void;
     sendTypingIndicator(isTyping: boolean): void;

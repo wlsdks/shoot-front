@@ -8,9 +8,9 @@ import { markAllMessagesAsRead } from "../../shared/api/messages";
 import { 
     createWebSocketService,
     messageReactionService,
-    hasReactionType,
     type ReactionType,
     useContextMenu,
+    normalizeReactions,
     // Message Management Hooks (FSD 원칙 준수)
     useMessageState,
     useMessageHandlers,
@@ -355,6 +355,24 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 // 핀 상태 변경 핸들러 - React Query 무효화
                 webSocketService.current.onPinUpdate(() => {
                     invalidatePinnedMessages();
+                });
+
+                // Reaction 서비스 설정 및 핸들러
+                messageReactionService.setWebSocketService(webSocketService.current);
+                
+                // Reaction 업데이트 핸들러
+                webSocketService.current.onReactionUpdate((reactionUpdate) => {
+                    setMessages(prevMessages => {
+                        const updatedMessages = prevMessages.map(message => {
+                            if (message.id === reactionUpdate.messageId) {
+                                // 백엔드 Record<string, number[]>를 ReactionItem[]로 변환
+                                const convertedReactions = normalizeReactions(reactionUpdate.reactions);
+                                return { ...message, reactions: convertedReactions };
+                            }
+                            return message;
+                        });
+                        return updatedMessages;
+                    });
                 });
 
                 // 동기화 핸들러
@@ -742,23 +760,17 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
     // 읽음 상태 계산 로직은 MessagesList 컴포넌트로 이동됨
 
-    // 리액션 선택 핸들러 - 메모이제이션 및 스크롤 자동 조정
+    // 리액션 선택 핸들러 - WebSocket 기반으로 변경
     const handleReactionSelect = useCallback(async (reactionType: string) => {
-        if (!contextMenu.message) return;
+        if (!contextMenu.message) {
+            return;
+        }
         
         try {
-            const hasReacted = hasReactionType(contextMenu.message.reactions, reactionType, user?.id || 0);
-            const response = hasReacted
-                ? await messageReactionService.removeReaction(contextMenu.message.id, reactionType)
-                : await messageReactionService.addReaction(contextMenu.message.id, reactionType);
+            // WebSocket을 통해 반응 토글 (백엔드에서 자동으로 add/remove 판단)
+            await messageReactionService.toggleReaction(contextMenu.message.id, reactionType);
             
-            setMessages(prevMessages =>
-                prevMessages.map(message =>
-                    message.id === contextMenu.message?.id
-                        ? { ...message, reactions: response.reactions }
-                        : message
-                )
-            );
+            // 반응 업데이트는 WebSocket 핸들러에서 자동 처리되므로 별도 상태 업데이트 불필요
             
             // 리액션 업데이트 후 스크롤 자동 조정 (화면 하단 근처에 있을 때만)
             if (isNearBottom.current) {
@@ -770,9 +782,9 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             setShowReactionPicker(false);
             closeContextMenu();
         } catch (error) {
-            console.error('리액션 처리 중 오류 발생:', error);
+            console.error('❌ 리액션 처리 중 오류 발생:', error);
         }
-    }, [contextMenu.message, user?.id, setMessages, setShowReactionPicker, closeContextMenu, isNearBottom, scrollToBottom]);
+    }, [contextMenu.message, setShowReactionPicker, closeContextMenu, isNearBottom, scrollToBottom]);
 
     // 반응 추가 버튼 클릭 핸들러
     const handleShowReactionPicker = (e: React.MouseEvent) => {
