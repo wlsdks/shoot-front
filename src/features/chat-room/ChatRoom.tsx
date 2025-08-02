@@ -62,13 +62,6 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     const [showForwardModal, setShowForwardModal] = useState(false);
     const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
     const [showReactionPicker, setShowReactionPicker] = useState(false);
-    // React Query 기반 고정 메시지 관리
-    const {
-        pinnedMessages,
-        pinMessage: optimizedPinMessage,
-        unpinMessage: optimizedUnpinMessage,
-        invalidatePinnedMessages
-    } = usePinnedMessages(Number(roomId), isConnected);
     const [isPinnedMessagesExpanded, setIsPinnedMessagesExpanded] = useState(false);
     const [hasMoreMessages, setHasMoreMessages] = useState(true);
     // 리액션 타입들을 메모이제이션 (불변 데이터)
@@ -144,6 +137,13 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         userId: user?.id,
         updateTypingStatus
     });
+
+    // React Query 기반 고정 메시지 관리 (WebSocket 기반)
+    const {
+        pinnedMessages,
+        pinMessage: optimizedPinMessage,
+        unpinMessage: optimizedUnpinMessage
+    } = usePinnedMessages(Number(roomId), isConnected, webSocketService.current);
 
     const {
         contextMenu,
@@ -353,9 +353,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 });
 
                 // 핀 상태 변경 핸들러 - React Query 무효화
-                webSocketService.current.onPinUpdate(() => {
-                    invalidatePinnedMessages();
-                });
+                // Pin 업데이트는 usePinnedMessages hook에서 처리됨
 
                 // Reaction 서비스 설정 및 핸들러
                 messageReactionService.setWebSocketService(webSocketService.current);

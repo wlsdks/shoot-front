@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPinnedMessages, pinMessage, unpinMessage } from '../../../../shared/api';
+import { useEffect } from 'react';
+import { getPinnedMessages } from '../../../../shared/api';
 import { Message as ChatMessageItem, MessageStatus } from '../../../../entities';
 import { QUERY_KEYS, DEFAULT_QUERY_OPTIONS } from '../../../../shared';
+import { WebSocketService, PinUpdateMessage } from '../../../../shared/lib/websocket/types';
 
-export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
+export const usePinnedMessages = (roomId: number, isConnected: boolean, webSocketService?: WebSocketService | null) => {
     const queryClient = useQueryClient();
 
     // 고정 메시지 조회 - React Query로 캐싱 및 자동 갱신
@@ -60,11 +62,14 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
         ...DEFAULT_QUERY_OPTIONS
     });
 
-    // 메시지 고정 mutation (Optimistic Update)
+    // 메시지 고정 mutation (WebSocket 기반)
     const pinMessageMutation = useMutation({
         mutationFn: async (message: ChatMessageItem) => {
-            const response = await pinMessage(message.id);
-            return { response, message };
+            if (!webSocketService?.isConnected()) {
+                throw new Error('WebSocket is not connected');
+            }
+            webSocketService.sendPinToggle(message.id);
+            return { message };
         },
         onMutate: async (message: ChatMessageItem) => {
             // 현재 쿼리 취소
@@ -97,11 +102,14 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
         }
     });
 
-    // 메시지 고정 해제 mutation (Optimistic Update)
+    // 메시지 고정 해제 mutation (WebSocket 기반)
     const unpinMessageMutation = useMutation({
         mutationFn: async (messageId: string) => {
-            const response = await unpinMessage(messageId);
-            return { response, messageId };
+            if (!webSocketService?.isConnected()) {
+                throw new Error('WebSocket is not connected');
+            }
+            webSocketService.sendPinToggle(messageId);
+            return { messageId };
         },
         onMutate: async (messageId: string) => {
             await queryClient.cancelQueries({ queryKey: QUERY_KEYS.MESSAGES.pinned(roomId) });
@@ -122,6 +130,31 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean) => {
             }
         }
     });
+
+    // WebSocket pin 업데이트 구독
+    useEffect(() => {
+        if (!webSocketService || !isConnected) return;
+        
+        const handlePinUpdate = (pinUpdate: PinUpdateMessage) => {
+            queryClient.setQueryData<ChatMessageItem[]>(
+                QUERY_KEYS.MESSAGES.pinned(roomId),
+                (old = []) => {
+                    if (pinUpdate.isPinned) {
+                        // 무엇을 자세하게 추가하는지 알아야 하니 기존 데이터를 invalidate
+                        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MESSAGES.pinned(roomId) });
+                        return old; // 임시로 기존 데이터 유지
+                    } else {
+                        // 고정 해제: 해당 메시지 제거
+                        return old.filter(msg => msg.id !== pinUpdate.messageId);
+                    }
+                }
+            );
+        };
+
+        webSocketService.onPinUpdate(handlePinUpdate);
+        
+        // cleanup은 WebSocketService에서 clearAllHandlers로 처리됨
+    }, [webSocketService, isConnected, roomId, queryClient]);
 
     // WebSocket 이벤트로 인한 수동 갱신
     const invalidatePinnedMessages = () => {

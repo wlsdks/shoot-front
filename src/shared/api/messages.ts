@@ -32,14 +32,6 @@ export const getPinnedMessages = async (roomId: number) => {
     return { data }; // Match the expected format
 };
 
-export const pinMessage = async (messageId: string) => {
-    return apiPost<any>(`/messages/${messageId}/pin`);
-};
-
-export const unpinMessage = async (messageId: string) => {
-    return apiDelete<any>(`/messages/${messageId}/pin`);
-};
-
 // Message history operations
 export const getMessageHistory = async (
     roomId: number, 
