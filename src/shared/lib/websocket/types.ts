@@ -43,6 +43,20 @@ export interface ReactionResponse {
     } | null;
 }
 
+// 메시지 고정 관련 타입
+export interface PinMessageRequest {
+    messageId: string;
+    userId: number;
+}
+
+export interface PinUpdateMessage {
+    messageId: string;
+    roomId: number;
+    userId: number;
+    isPinned: boolean;
+    timestamp: string;
+}
+
 export interface WebSocketService {
     connect(roomId: number, userId: number): Promise<void>;
     disconnect(): void;
@@ -54,12 +68,14 @@ export interface WebSocketService {
     onMessageUpdate(callback: (updatedMessage: Message) => void): void;
     onRead(callback: (data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void): void;
     onReadBulk(callback: (data: { messageIds: string[], userId: number }) => void): void;
-    onPinUpdate(callback: () => void): void;
+    onPinUpdate(callback: (update: PinUpdateMessage) => void): void;
     onSync(callback: (syncResponse: { roomId: number, direction?: string, messages: any[] }) => void): void;
-    // Reaction 관련 메서드 추가
+    // Reaction 관련 메서드
     sendReaction(messageId: string, reactionType: string): void;
     onReactionUpdate(callback: (update: ReactionUpdateMessage) => void): void;
     onReactionResponse(callback: (response: ReactionResponse) => void): void;
+    // Pin 관련 메서드 추가
+    sendPinToggle(messageId: string): void;
     clearAllHandlers(): void;
     markAllMessagesAsRead(): void;
     sendTypingIndicator(isTyping: boolean): void;

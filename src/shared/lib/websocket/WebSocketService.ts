@@ -1,6 +1,6 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate, WebSocketConfig, ReactionUpdateMessage, ReactionResponse, ReactionRequest } from "./types";
+import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate, WebSocketConfig, ReactionUpdateMessage, ReactionResponse, ReactionRequest, PinUpdateMessage, PinMessageRequest } from "./types";
 import { Message } from "../../../entities";
 
 // 기본 설정
@@ -25,7 +25,7 @@ export class WebSocketServiceImpl implements WebSocketService {
     private messageUpdateCallbacks: ((message: Message) => void)[] = [];
     private readBulkCallbacks: ((data: { messageIds: string[], userId: number }) => void)[] = [];
     private readCallbacks: ((data: { messageId: string, userId: number, readBy: Record<string, boolean> }) => void)[] = [];
-    private pinUpdateCallbacks: (() => void)[] = [];
+    private pinUpdateCallbacks: ((update: PinUpdateMessage) => void)[] = [];
     private syncCallbacks: ((data: { roomId: number, direction?: string, messages: any[] }) => void)[] = [];
     // Reaction 관련 콜백들 추가
     private reactionUpdateCallbacks: ((update: ReactionUpdateMessage) => void)[] = [];
@@ -90,11 +90,13 @@ export class WebSocketServiceImpl implements WebSocketService {
     }
 
     private subscribeToMessages(): void {
+        // 클라이언트 또는 방 아이디가 없으면 종료
         if (!this.client || !this.roomId) {
             console.error("WebSocket client not initialized or no roomId");
             return;
         }
 
+        // 연결 상태 확인
         if (!this.client.connected) {
             console.error("WebSocket not connected");
             return;
@@ -142,6 +144,7 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
+        // 읽음 처리 구독
         this.client.subscribe(`/topic/read-status/${this.roomId}`, (message) => {
             try {
                 const data = JSON.parse(message.body);
@@ -154,11 +157,6 @@ export class WebSocketServiceImpl implements WebSocketService {
             } catch (error) {
                 console.error("Error processing read status update:", error);
             }
-        });
-
-        // 핀 업데이트 구독
-        this.client.subscribe(`/topic/pin/${this.roomId}`, () => {
-            this.pinUpdateCallbacks.forEach(callback => callback());
         });
 
         // 동기화 구독
@@ -183,7 +181,15 @@ export class WebSocketServiceImpl implements WebSocketService {
             }
         });
 
-        // 두 번째 토픽 구독 제거 (중복이고 reactions 필드가 없어서 문제 발생)
+        // Pin 관련 구독 추가
+        this.client.subscribe(`/topic/pins/${this.roomId}`, (message) => {
+            try {
+                const pinUpdate = JSON.parse(message.body);
+                this.pinUpdateCallbacks.forEach(callback => callback(pinUpdate as PinUpdateMessage));
+            } catch (error) {
+                console.error("❌ Error processing pin update:", error);
+            }
+        });
 
         // 개별 사용자 반응 응답 구독
         if (this.userId) {
@@ -250,10 +256,6 @@ export class WebSocketServiceImpl implements WebSocketService {
         this.readBulkCallbacks.push(callback);
     }
 
-    onPinUpdate(callback: () => void): void {
-        this.pinUpdateCallbacks.push(callback);
-    }
-
     onSync(callback: (data: { roomId: number, direction?: string, messages: any[] }) => void): void {
         this.syncCallbacks.push(callback);
     }
@@ -283,6 +285,28 @@ export class WebSocketServiceImpl implements WebSocketService {
 
     onReactionResponse(callback: (response: ReactionResponse) => void): void {
         this.reactionResponseCallbacks.push(callback);
+    }
+
+    // Pin 관련 메서드들
+    sendPinToggle(messageId: string): void {
+        if (!this.client?.connected || !this.userId) {
+            console.warn("⚠️ Cannot send pin toggle: WebSocket not connected or missing userId");
+            return;
+        }
+
+        const pinRequest: PinMessageRequest = {
+            messageId,
+            userId: this.userId
+        };
+
+        this.client.publish({
+            destination: "/app/pin/toggle",
+            body: JSON.stringify(pinRequest)
+        });
+    }
+
+    onPinUpdate(callback: (update: PinUpdateMessage) => void): void {
+        this.pinUpdateCallbacks.push(callback);
     }
 
     clearAllHandlers(): void {
