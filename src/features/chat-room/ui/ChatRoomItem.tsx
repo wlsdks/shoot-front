@@ -1,10 +1,9 @@
 import React from 'react';
 import { ChatRoom } from '../../../entities';
+import { ProfileAvatar } from '../../../shared/ui';
 import {
     RoomItemContainer,
     ProfileContainer,
-    ProfileImage,
-    ProfileInitial,
     RoomDetails,
     LeftContainer,
     RoomTitle,
@@ -22,31 +21,20 @@ interface ChatRoomItemProps {
 
 const ChatRoomItem: React.FC<ChatRoomItemProps> = ({ room, onContextMenu }) => {
     const displayName = room.title.replace('님과의 대화', '');
-    const firstLetter = displayName.charAt(0).toUpperCase();
+    // firstLetter는 ProfileAvatar로 대체됨
     
     const handleClick = () => {
         window.location.href = `/chatroom/${room.roomId}`;
     };
 
     const renderProfileImage = () => {
-        if (room.profileImageUrl) {
-            return (
-                <ProfileContainer>
-                    <ProfileImage src={room.profileImageUrl} alt={displayName} />
-                    {room.isPinned && (
-                        <PinIndicator>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                                <circle cx="12" cy="10" r="3"/>
-                            </svg>
-                        </PinIndicator>
-                    )}
-                </ProfileContainer>
-            );
-        }
         return (
             <ProfileContainer>
-                <ProfileInitial>{firstLetter}</ProfileInitial>
+                <ProfileAvatar
+                    imageUrl={room.profileImageUrl}
+                    name={displayName}
+                    size="medium"
+                />
                 {room.isPinned && (
                     <PinIndicator>
                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

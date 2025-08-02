@@ -3,33 +3,22 @@ import React, { useState, useEffect } from 'react';
 import { getFriends } from '../../../shared/api';
 import { useAuthContext } from '../../auth';
 import { Friend, FriendResponse } from '../../../entities';
+import { 
+    Modal, 
+    ModalBody,
+    SearchInput, 
+    ProfileAvatar, 
+    LoadingDisplay, 
+    EmptyStateDisplay 
+} from '../../../shared/ui';
 import {
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalTitle,
-    CloseButton,
-    SearchContainer,
-    SearchInput,
-    SearchIcon,
     FriendListContainer,
     FriendItem,
-    ProfileContainer,
-    ProfileImage,
-    ProfileInitial,
-    StatusIndicator,
     FriendInfo,
     FriendName,
-    FriendUsername,
-    LoadingContainer,
-    Spinner,
-    EmptyState,
-    EmptyTitle,
-    EmptyMessage
+    FriendUsername
 } from '../styles/FriendListModal.styles';
 import {
-    BackArrowIcon,
-    SearchIcon as SearchIconComponent,
     EmptyFriendsIcon,
     NoSearchResultsIcon
 } from './icons/FriendListIcons';
@@ -89,61 +78,39 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
     );
 
     return (
-        <ModalOverlay onClick={onClose}>
-            <ModalContent onClick={(e) => e.stopPropagation()}>
-                <ModalHeader>
-                    <CloseButton onClick={onClose}>
-                        <BackArrowIcon />
-                    </CloseButton>
-                    <ModalTitle>친구 선택</ModalTitle>
-                </ModalHeader>
-
-                <SearchContainer>
-                    <SearchInput
-                        type="text"
-                        placeholder="친구 검색..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <SearchIcon>
-                        <SearchIconComponent />
-                    </SearchIcon>
-                </SearchContainer>
+        <Modal isOpen={true} onClose={onClose} title="친구 선택" maxWidth="500px">
+            <ModalBody>
+                <SearchInput
+                    placeholder="친구 검색..."
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                />
 
                 {loading ? (
-                    <LoadingContainer>
-                        <Spinner />
-                        <div>친구 목록을 불러오는 중...</div>
-                    </LoadingContainer>
+                    <LoadingDisplay message="친구 목록을 불러오는 중..." fullHeight />
                 ) : friends.length === 0 ? (
-                    <EmptyState>
-                        <EmptyFriendsIcon />
-                        <EmptyTitle>친구가 없습니다</EmptyTitle>
-                        <EmptyMessage>친구 추가 후 채팅을 시작해보세요</EmptyMessage>
-                    </EmptyState>
+                    <EmptyStateDisplay
+                        icon={<EmptyFriendsIcon />}
+                        title="친구가 없습니다"
+                        description="친구 추가 후 채팅을 시작해보세요"
+                    />
                 ) : filteredFriends.length === 0 ? (
-                    <EmptyState>
-                        <NoSearchResultsIcon />
-                        <EmptyTitle>검색 결과가 없습니다</EmptyTitle>
-                        <EmptyMessage>다른 검색어로 다시 시도해보세요</EmptyMessage>
-                    </EmptyState>
+                    <EmptyStateDisplay
+                        icon={<NoSearchResultsIcon />}
+                        title="검색 결과가 없습니다"
+                        description="다른 검색어로 다시 시도해보세요"
+                    />
                 ) : (
                     <FriendListContainer>
                         {filteredFriends.map((friend) => (
                             <FriendItem key={friend.id} onClick={() => handleFriendClick(friend.id)}>
-                                <ProfileContainer>
-                                    {friend.profileImageUrl && friend.profileImageUrl !== 'null' ? (
-                                        <>
-                                            <ProfileImage src={friend.profileImageUrl} alt={friend.username} />
-                                            <StatusIndicator isOnline={friend.status === '온라인'} />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ProfileInitial>{(friend.nickname || friend.username).charAt(0).toUpperCase()}</ProfileInitial>
-                                            <StatusIndicator isOnline={friend.status === '온라인'} />
-                                        </>
-                                    )}
-                                </ProfileContainer>
+                                <ProfileAvatar
+                                    imageUrl={friend.profileImageUrl && friend.profileImageUrl !== 'null' ? friend.profileImageUrl : null}
+                                    name={friend.nickname || friend.username}
+                                    isOnline={friend.status === '온라인'}
+                                    showStatus={true}
+                                    size="medium"
+                                />
                                 <FriendInfo>
                                     <FriendName>{friend.nickname || friend.username}</FriendName>
                                     {friend.username && friend.nickname && friend.username !== friend.nickname && (
@@ -154,7 +121,7 @@ export const FriendListModal: React.FC<FriendListModalProps> = ({
                         ))}
                     </FriendListContainer>
                 )}
-            </ModalContent>
-        </ModalOverlay>
+            </ModalBody>
+        </Modal>
     );
 };

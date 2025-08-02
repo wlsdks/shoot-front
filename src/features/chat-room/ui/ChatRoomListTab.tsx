@@ -7,10 +7,10 @@ import TabContainer from "../../../shared/ui/TabContainer";
 import TabHeader, { IconButton } from "../../../shared/ui/TabHeader";
 import LoadingSpinner from "../../../shared/ui/LoadingSpinner";
 import EmptyState from "../../../shared/ui/EmptyState";
+import { SearchInput } from "../../../shared/ui";
 import {
     NewChatIcon,
     ErrorIcon,
-    SearchIcon,
     EmptyChatIcon,
     PinIcon
 } from "./icons/ChatRoomIcons";
@@ -23,11 +23,6 @@ import {
     TabSectionCount,
 } from "../../../shared/ui/tabStyles";
 import { FriendListModal } from "./FriendListModal";
-import {
-    SearchContainer,
-    SearchInput,
-    SearchIcon as SearchIconWrapper
-} from "../styles/ChatRoomListTab.styles";
 import { ContextMenu, ErrorDisplay } from "../../../shared/ui";
 
 const ChatRoomList: React.FC = () => {
@@ -113,17 +108,11 @@ const ChatRoomList: React.FC = () => {
                     />
                 )}
 
-                <SearchContainer>
-                    <SearchIconWrapper>
-                        <SearchIcon />
-                    </SearchIconWrapper>
-                    <SearchInput
-                        type="text"
-                        placeholder="채팅방 검색"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </SearchContainer>
+                <SearchInput
+                    placeholder="채팅방 검색"
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                />
 
                 {(!chatRooms || !Array.isArray(chatRooms) || chatRooms.length === 0 || filteredRooms.length === 0) ? (
                     <EmptyState

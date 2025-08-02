@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from "react-router-dom";
 import { usePinnedMessages } from "./model/hooks/usePinnedMessages";
 // import { useChatRoomState } from "./model/hooks/useChatRoomState"; // TODO: 향후 점진적 적용 예정
-import { markAllMessagesAsRead } from "./api/chatRoom";
+import { markAllMessagesAsRead } from "../../shared/api/messages";
 
 // Shared 레이어에서 가져오기 (FSD 원칙 준수)
 import { 
@@ -272,7 +272,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
             // 웹소켓 연결 상태 확인
             if (!webSocketService.current?.isConnected()) {
-                markAllMessagesAsRead(Number(roomId), user.id, 'temp-session')
+                markAllMessagesAsRead(Number(roomId), user.id)
                     .catch((err) => console.error("HTTP 읽음처리 실패", err));
                 return;
             }
@@ -328,17 +328,8 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 webSocketService.current.onMessage((msg: ChatMessageItem) => {
                     handleMessage(msg);
                     
-                    if (
-                        document.visibilityState === "visible" &&
-                        msg.readBy && !msg.readBy[user?.id || ''] &&
-                        msg.senderId !== user?.id &&
-                        msg.tempId && messageStatuses[msg.tempId]?.persistedId
-                    ) {
-                        webSocketService.current.sendMessage({
-                            ...msg,
-                            id: messageStatuses[msg.tempId].persistedId!
-                        });
-                    }
+                    // 개별 메시지 읽음 처리는 제거 (주기적인 markAllRead로 대체)
+                    // 실시간 메시지 수신 시마다 읽음 처리하면 성능 저하 및 중복 요청 발생 가능
                 });
 
                 // 메시지 상태 핸들러 (useMessageHandlers에서 처리)
@@ -448,9 +439,34 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                                 }
                             }));
                             
+                            // 강화된 중복 제거 로직
                             const messageMap = new Map<string, ChatMessageItem>();
-                            prevMessages.forEach((msg) => messageMap.set(msg.id, msg));
-                            syncMessages.forEach((msg) => messageMap.set(msg.id, msg));
+                            
+                            // 기존 메시지들을 먼저 추가
+                            prevMessages.forEach((msg) => {
+                                if (msg.id) {
+                                    messageMap.set(msg.id, msg);
+                                } else if (msg.tempId) {
+                                    // tempId 기반 키 생성
+                                    messageMap.set(`temp_${msg.tempId}`, msg);
+                                } else {
+                                    // ID가 없는 경우 content+timestamp 기반 키 생성
+                                    const key = `${msg.senderId}_${msg.content?.text || ''}_${msg.createdAt}`;
+                                    messageMap.set(key, msg);
+                                }
+                            });
+                            
+                            // 동기화 메시지들을 추가 (중복되면 덮어쓰기)
+                            syncMessages.forEach((msg) => {
+                                if (msg.id) {
+                                    messageMap.set(msg.id, msg);
+                                } else if (msg.tempId) {
+                                    messageMap.set(`temp_${msg.tempId}`, msg);
+                                } else {
+                                    const key = `${msg.senderId}_${msg.content?.text || ''}_${msg.createdAt}`;
+                                    messageMap.set(key, msg);
+                                }
+                            });
                             
                             return Array.from(messageMap.values()).sort((a, b) => 
                                 new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime()

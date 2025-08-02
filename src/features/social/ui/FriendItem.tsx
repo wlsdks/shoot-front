@@ -2,12 +2,10 @@
 import React, { useState } from 'react';
 import { Friend } from '../../../entities';
 import FriendProfileModal from '../../profile/ui/FriendProfileModal';
+import { ProfileAvatar } from '../../../shared/ui';
 import {
     FriendItemContainer,
     ProfileImageContainer,
-    ProfileImage,
-    ProfileInitial,
-    StatusIndicator,
     UserInfo,
     UserName,
     UserStatus,
@@ -37,28 +35,17 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, onChatClick }) => {
     const isOnline = friend.status === "온라인" || friend.status === "나";
     const displayName = friend.nickname || friend.username;
 
-    const renderProfileImage = () => {
-        if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
-            return (
-                <>
-                    <ProfileImage src={friend.profileImageUrl} alt={displayName} />
-                    <StatusIndicator isOnline={isOnline} />
-                </>
-            );
-        }
-        return (
-            <>
-                <ProfileInitial>{displayName.charAt(0).toUpperCase()}</ProfileInitial>
-                <StatusIndicator isOnline={isOnline} />
-            </>
-        );
-    };
-
     return (
         <>
             <FriendItemContainer onClick={handleItemClick}>
                 <ProfileImageContainer>
-                    {renderProfileImage()}
+                    <ProfileAvatar
+                        imageUrl={friend.profileImageUrl && friend.profileImageUrl !== 'null' ? friend.profileImageUrl : null}
+                        name={displayName}
+                        isOnline={isOnline}
+                        showStatus={true}
+                        fullSize={true}
+                    />
                 </ProfileImageContainer>
                 <UserInfo>
                     <UserName>{displayName}</UserName>

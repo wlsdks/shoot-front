@@ -69,4 +69,29 @@ export const searchMessages = async (
         q: query,
         limit
     });
+};
+
+// Message forwarding operations
+export const forwardMessage = async (
+    originalMessageId: string,
+    targetRoomId: number,
+    forwardingUserId: number
+) => {
+    return apiPost<any>('/messages/forward', { 
+        originalMessageId, 
+        targetRoomId, 
+        forwardingUserId 
+    });
+};
+
+export const forwardMessageToUser = async (
+    originalMessageId: string,
+    targetUserId: number,
+    forwardingUserId: number
+) => {
+    return apiPost<any>('/messages/forward/user', { 
+        originalMessageId, 
+        targetUserId, 
+        forwardingUserId 
+    });
 }; 

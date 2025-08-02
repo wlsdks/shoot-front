@@ -4,7 +4,7 @@ import { MessagesContainer } from '../styles/ChatRoom.styles';
 import { MessageRow } from './MessageRow';
 import { UrlPreview } from './UrlPreview';
 import { DateSeparator } from './DateSeparator';
-import { formatTime } from '../../message/lib/timeUtils';
+import { formatTime } from '../../../shared';
 
 interface MessagesListProps {
     messages: ChatMessageItem[];

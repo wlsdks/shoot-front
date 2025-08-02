@@ -123,6 +123,7 @@ interface ProfileAvatarProps {
     showStatus?: boolean;
     bordered?: boolean;
     backgroundColor?: string;
+    fullSize?: boolean; // 부모 컨테이너의 크기에 맞게 조정
 }
 
 export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
@@ -132,28 +133,42 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
     size = 'medium',
     showStatus = false,
     bordered = false,
-    backgroundColor
+    backgroundColor,
+    fullSize = false
 }) => {
     const initial = name ? name.charAt(0).toUpperCase() : '?';
 
+    const containerStyle = fullSize ? { 
+        width: '100%', 
+        height: '100%',
+        position: 'relative' as const
+    } : {};
+
+    const elementStyle = fullSize ? {
+        width: '100%',
+        height: '100%'
+    } : {};
+
     return (
-        <ProfileContainer>
+        <ProfileContainer style={containerStyle}>
             {imageUrl ? (
                 <ProfileImage 
                     $imageUrl={imageUrl} 
-                    $size={size} 
+                    $size={fullSize ? 'medium' : size} 
                     $bordered={bordered}
+                    style={elementStyle}
                 />
             ) : (
                 <ProfileInitial 
-                    $size={size} 
+                    $size={fullSize ? 'medium' : size} 
                     $backgroundColor={backgroundColor}
+                    style={elementStyle}
                 >
                     {initial}
                 </ProfileInitial>
             )}
             {showStatus && (
-                <StatusIndicator $isOnline={isOnline} $size={size} />
+                <StatusIndicator $isOnline={isOnline} $size={fullSize ? 'medium' : size} />
             )}
         </ProfileContainer>
     );

@@ -31,6 +31,7 @@ export * from './lib/services/messageReactionService';
 // Utility functions
 export * from './lib/parseUserString';
 export * from './lib/reactionsUtils';
+export * from './lib/timeUtils';
 
 // === Types ===
 export * from './lib/types/common'; 

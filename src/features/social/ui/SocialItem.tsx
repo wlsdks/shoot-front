@@ -1,12 +1,11 @@
 // src/features/social/ui/SocialItem.tsx
 import React from 'react';
 import { Friend } from '../../../entities';
+import { ProfileAvatar } from '../../../shared/ui';
 import {
     SocialItemContainer,
     UserInfo,
     ProfileImageContainer,
-    ProfileImage,
-    ProfileInitial,
     FriendInfo,
     FriendName,
     FriendStatus,
@@ -22,12 +21,7 @@ interface SocialItemProps {
 }
 
 const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => {
-    const renderProfileImage = () => {
-        if (friend.profileImageUrl && friend.profileImageUrl !== 'null') {
-            return <ProfileImage src={friend.profileImageUrl} alt={friend.username} />;
-        }
-        return <ProfileInitial>{friend.username.charAt(0).toUpperCase()}</ProfileInitial>;
-    };
+    // renderProfileImage 함수는 ProfileAvatar로 대체됨
 
     const renderActionButton = () => {
         switch (status) {
@@ -86,7 +80,11 @@ const SocialItem: React.FC<SocialItemProps> = ({ friend, status, onAction }) => 
         <SocialItemContainer>
             <UserInfo>
                 <ProfileImageContainer>
-                    {renderProfileImage()}
+                    <ProfileAvatar
+                        imageUrl={friend.profileImageUrl && friend.profileImageUrl !== 'null' ? friend.profileImageUrl : null}
+                        name={friend.username}
+                        fullSize={true}
+                    />
                 </ProfileImageContainer>
                 <FriendInfo>
                     <FriendName>{friend.nickname || friend.username}</FriendName>

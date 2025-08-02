@@ -161,38 +161,7 @@ export const ButtonGroup = styled.div`
     padding-top: 1.5rem;
 `;
 
-export const Button = styled.button<{ $primary?: boolean }>`
-    flex: 1;
-    padding: 0.8rem;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    
-    background: ${props => props.$primary ? '#007bff' : '#f0f0f0'};
-    color: ${props => props.$primary ? 'white' : '#333'};
-    
-    &:hover {
-        background: ${props => props.$primary ? '#0056b3' : '#e0e0e0'};
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-    
-    &:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
-    }
-    
-    &:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-    }
-`;
+// Button 스타일은 shared ActionButton으로 대체됨
 
 export const ErrorMessage = styled.p`
     color: #e53935;

@@ -9,7 +9,7 @@ import {
     PinnedMessageText,
     PinnedMessageDate
 } from '../styles/ChatRoom.styles';
-import { formatTime } from '../../message/lib/timeUtils';
+import { formatTime } from '../../../shared';
 
 interface PinnedMessagesProps {
     pinnedMessages: ChatMessageItem[];

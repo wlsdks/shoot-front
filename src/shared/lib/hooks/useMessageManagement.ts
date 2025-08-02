@@ -56,17 +56,34 @@ export const useMessageState = () => {
   // 메시지 업데이트 함수
   const updateMessages = useCallback((newMessage: ChatMessageItem) => {
     setMessages(prevMessages => {
-      // 중복 방지
-      const exists = prevMessages.some(msg => 
-        msg.id === newMessage.id || msg.tempId === newMessage.tempId
-      );
+      // 강화된 중복 방지 - ID, tempId, content+timestamp 체크
+      const exists = prevMessages.some(msg => {
+        // ID나 tempId가 동일한 경우
+        if ((msg.id && newMessage.id && msg.id === newMessage.id) || 
+            (msg.tempId && newMessage.tempId && msg.tempId === newMessage.tempId)) {
+          return true;
+        }
+        
+        // 같은 사용자가 같은 시간에 같은 내용의 메시지를 보낸 경우 (중복 방지)
+        if (msg.senderId === newMessage.senderId && 
+            msg.content === newMessage.content &&
+            msg.createdAt === newMessage.createdAt) {
+          return true;
+        }
+        
+        return false;
+      });
       
       if (exists) {
-        return prevMessages.map(msg => 
-          (msg.id === newMessage.id || msg.tempId === newMessage.tempId) 
-            ? { ...msg, ...newMessage } 
-            : msg
-        );
+        return prevMessages.map(msg => {
+          const shouldUpdate = (msg.id && newMessage.id && msg.id === newMessage.id) || 
+                              (msg.tempId && newMessage.tempId && msg.tempId === newMessage.tempId) ||
+                              (msg.senderId === newMessage.senderId && 
+                               msg.content === newMessage.content &&
+                               msg.createdAt === newMessage.createdAt);
+          
+          return shouldUpdate ? { ...msg, ...newMessage } : msg;
+        });
       }
       
       return [...prevMessages, newMessage];

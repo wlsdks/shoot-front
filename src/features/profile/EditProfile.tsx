@@ -4,6 +4,7 @@ import { useAuthContext } from '../auth';
 import { updateProfile, uploadProfileImage, changePassword } from './api/profile';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_CONFIG } from '../../shared/api/config';
+import { ActionButton } from '../../shared/ui';
 import {
   Form,
   ProfileImageSection,
@@ -19,7 +20,6 @@ import {
   ToggleTitle,
   PasswordSection,
   ButtonGroup,
-  Button,
   ErrorMessage
 } from './styles/EditProfile.styles';
 
@@ -309,8 +309,8 @@ const EditProfile: React.FC<EditProfileProps> = ({ onClose }) => {
       {error && <ErrorMessage>{error}</ErrorMessage>}
       
       <ButtonGroup>
-        <Button type="button" onClick={handleCancel}>취소</Button>
-        <Button type="submit" $primary>저장하기</Button>
+        <ActionButton variant="secondary" type="button" onClick={handleCancel}>취소</ActionButton>
+        <ActionButton variant="primary" type="submit">저장하기</ActionButton>
       </ButtonGroup>
     </Form>
   );

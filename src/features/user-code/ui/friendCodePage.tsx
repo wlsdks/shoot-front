@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useUserCode } from "../model/useUserCode";
 import { UserCode } from "../types";
 import { User } from "../../../entities";
+import { ActionButton } from "../../../shared/ui";
 import {
     Container,
     Content,
@@ -12,7 +13,6 @@ import {
     InputPrefix,
     Input,
     ButtonGroup,
-    Button,
     UserCard,
     UserHeader,
     UserAvatar,
@@ -22,8 +22,7 @@ import {
     UserDetail,
     Message,
     MessageIcon,
-    MessageText,
-    Spinner
+    MessageText
 } from "../styles/friendCodePage.styles";
 
 interface FriendCodePageProps {
@@ -134,48 +133,35 @@ const FriendCodePage: React.FC<FriendCodePageProps> = ({ user, onClose }) => {
                 </FormGroup>
                 
                 <ButtonGroup>
-                    <Button 
-                        $primary 
+                    <ActionButton 
+                        variant="primary" 
                         onClick={handleSearch}
                         disabled={isFindingUser}
-                    >
-                        {isFindingUser ? (
-                            <>
-                                <Spinner />
-                                검색 중...
-                            </>
-                        ) : (
-                            <>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                                코드 검색
-                            </>
+                        icon={!isFindingUser && (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
                         )}
-                    </Button>
+                    >
+                        {isFindingUser ? "검색 중..." : "코드 검색"}
+                    </ActionButton>
                     
                     {searchedUser && (
-                        <Button 
+                        <ActionButton 
+                            variant="secondary"
                             onClick={handleSendRequest}
                             disabled={isSendingRequest}
-                        >
-                            {isSendingRequest ? (
-                                <>
-                                    <Spinner />
-                                    처리 중...
-                                </>
-                            ) : (
-                                <>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <line x1="20" y1="8" x2="20" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <line x1="23" y1="11" x2="17" y2="11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                    친구 신청
-                                </>
+                            icon={!isSendingRequest && (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <line x1="20" y1="8" x2="20" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <line x1="23" y1="11" x2="17" y2="11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
                             )}
-                        </Button>
+                        >
+                            {isSendingRequest ? "처리 중..." : "친구 신청"}
+                        </ActionButton>
                     )}
                 </ButtonGroup>
                 

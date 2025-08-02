@@ -103,40 +103,7 @@ export const ButtonGroup = styled.div`
     margin-top: 1.5rem;
 `;
 
-export const Button = styled.button<{ $primary?: boolean }>`
-    flex: 1;
-    padding: 0.85rem 1rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    border-radius: 12px;
-    border: none;
-    background: ${props => props.$primary ? '#4a6cf7' : '#f1f5f9'};
-    color: ${props => props.$primary ? 'white' : '#475569'};
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.3s;
-    
-    &:hover {
-        background: ${props => props.$primary ? '#3a5be0' : '#e2e8f0'};
-        transform: translateY(-2px);
-        box-shadow: ${props => props.$primary ? '0 6px 14px rgba(74, 108, 247, 0.2)' : '0 4px 6px rgba(0, 0, 0, 0.05)'};
-    }
-    
-    &:active {
-        transform: translateY(-1px);
-    }
-    
-    &:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-        transform: none;
-        background: ${props => props.$primary ? '#a0aef0' : '#e2e8f0'};
-        box-shadow: none;
-    }
-`;
+// Button 스타일은 shared ActionButton으로 대체됨
 
 export const UserCard = styled.div`
     margin-top: 1.5rem;
