@@ -25,6 +25,33 @@ export const commonBorderRadius = {
     circle: '50%',
 };
 
+// 공통 스타일 mixin들 (CSS 문자열)
+export const cardBase = `
+    background-color: white;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+`;
+
+export const cardHover = `
+    &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    &:active {
+        transform: translateY(-1px);
+    }
+`;
+
+export const itemContainer = `
+    ${cardBase}
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+    cursor: pointer;
+    ${cardHover}
+`;
+
 // 탭 컨테이너
 export const TabContainer = styled.div`
     height: 100%;

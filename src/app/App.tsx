@@ -11,13 +11,10 @@ import {
     ChatRoomPage,
     EditProfilePage,
 } from '../pages';
-import { BottomNavLayout, SocialWidget, SettingsWidget } from '../widgets';
+import { BottomNavLayout, SocialWidget, SettingsWidget, ChatWidget } from '../widgets';
 import PrivateRoute from './routes/PrivateRoute';
 import { theme } from './styles/theme';
 import GlobalStyles from './styles/GlobalStyles';
-
-// ChatRoomListTab을 위한 imports
-import { ChatRoomListTab } from '../features/chat-room';
 
 // FriendCodePage를 위한 래퍼 컴포넌트
 const FriendCodePageWrapper = () => {
@@ -52,7 +49,7 @@ const App: React.FC = () => {
             )
         },
         {
-            component: ChatRoomListTab,
+            component: (props: any) => <ChatWidget {...props} />,
             label: '채팅',
             icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">

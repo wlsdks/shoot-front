@@ -1,27 +1,13 @@
 import styled from 'styled-components';
-import { fadeIn } from '../../../shared/ui/commonStyles';
+import { itemContainer, fadeIn } from '../../../shared/ui/commonStyles';
 
 export const RoomItemContainer = styled.div`
+    ${itemContainer}
     display: flex;
     align-items: center;
     padding: 0.85rem;
-    background-color: white;
-    border-radius: 14px;
-    margin-bottom: 0.8rem;
-    transition: all 0.3s ease;
-    animation: ${fadeIn} 0.3s ease-out;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     position: relative;
-    cursor: pointer;
-    
-    &:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    &:active {
-        transform: translateY(-1px);
-    }
+    animation: ${fadeIn} 0.3s ease-out;
 `;
 
 export const ProfileContainer = styled.div`

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     getFriends,
     getIncomingRequests,
@@ -9,6 +9,7 @@ import {
     cancelFriendRequest,
 } from '../../../../shared/api/friends';
 import { Friend, FriendResponse } from '../../../../entities';
+import { useMutationWithSingleInvalidation } from '../../../../shared/lib/hooks/useQueryFactory';
 
 // API 응답을 Friend 타입으로 변환하는 함수
 const convertToFriend = (response: FriendResponse): Friend => ({
@@ -56,27 +57,24 @@ export const useSocialData = (userId: number) => {
     });
 
     // 친구 요청 보내기
-    const sendFriendRequestMutation = useMutation({
+    const sendFriendRequestMutation = useMutationWithSingleInvalidation({
         mutationFn: (targetUserId: number) => sendFriendRequest(userId, targetUserId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['socialData', userId] });
-        },
+        invalidationTarget: ['socialData', userId],
+        successMessage: '친구 요청을 보냈습니다.',
     });
 
     // 친구 요청 수락
-    const acceptRequestMutation = useMutation({
+    const acceptRequestMutation = useMutationWithSingleInvalidation({
         mutationFn: (requesterId: number) => acceptFriendRequest(userId, requesterId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['socialData', userId] });
-        },
+        invalidationTarget: ['socialData', userId],
+        successMessage: '친구 요청을 수락했습니다.',
     });
 
     // 친구 요청 취소
-    const cancelRequestMutation = useMutation({
+    const cancelRequestMutation = useMutationWithSingleInvalidation({
         mutationFn: (targetUserId: number) => cancelFriendRequest(userId, targetUserId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['socialData', userId] });
-        },
+        invalidationTarget: ['socialData', userId],
+        successMessage: '친구 요청을 취소했습니다.',
     });
 
     // 추천 친구 더 불러오기

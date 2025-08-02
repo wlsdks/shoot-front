@@ -1,12 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { updateUserStatus } from '../../api/profile';
 import { setProfileImage, setBackgroundImage, getUserProfile } from '../../api/profile';
 import { getCurrentUser } from '../../api/profile';
 import { UserResponse, Friend } from '../../../../entities';
+import { useMutationWithSingleInvalidation } from '../../../../shared/lib/hooks/useQueryFactory';
 
 export const useProfile = (userId: number) => {
-    const queryClient = useQueryClient();
-
     // 현재 사용자 정보 조회
     const { data: currentUser, isLoading: isLoadingUser } = useQuery<UserResponse>({
         queryKey: ['currentUser'],
@@ -14,27 +13,24 @@ export const useProfile = (userId: number) => {
     });
 
     // 사용자 상태 업데이트
-    const updateStatus = useMutation({
+    const updateStatus = useMutationWithSingleInvalidation({
         mutationFn: (status: string) => updateUserStatus(userId, status),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-        },
+        invalidationTarget: ['currentUser'],
+        successMessage: '상태가 업데이트되었습니다.',
     });
 
     // 프로필 이미지 설정
-    const updateProfileImage = useMutation({
+    const updateProfileImage = useMutationWithSingleInvalidation({
         mutationFn: setProfileImage,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-        },
+        invalidationTarget: ['currentUser'],
+        successMessage: '프로필 이미지가 업데이트되었습니다.',
     });
 
     // 배경 이미지 설정
-    const updateBackgroundImage = useMutation({
+    const updateBackgroundImage = useMutationWithSingleInvalidation({
         mutationFn: setBackgroundImage,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-        },
+        invalidationTarget: ['currentUser'],
+        successMessage: '배경 이미지가 업데이트되었습니다.',
     });
 
     return {

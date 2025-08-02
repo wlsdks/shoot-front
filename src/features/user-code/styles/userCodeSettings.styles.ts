@@ -1,18 +1,13 @@
 import styled from 'styled-components';
-import { commonColors, commonShadows, commonBorderRadius } from '../../../shared/ui/commonStyles';
-import { fadeIn } from '../../../shared/ui/commonStyles';
+import { commonColors, commonShadows, commonBorderRadius, fadeIn, cardBase } from '../../../shared/ui/commonStyles';
 
 export const Container = styled.div`
-    padding: 1.25rem;
+    ${cardBase}
+    padding: 1.5rem;
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     box-sizing: border-box;
-    background-color: white;
-    background-color: #fff;
-    border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
     animation: ${fadeIn} 0.3s ease-out;
 `;
 

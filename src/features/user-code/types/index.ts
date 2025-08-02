@@ -1,9 +1,5 @@
-export interface UserCode {
-    id: string | number;  // API에서 문자열로 올 수 있음
-    username: string;
-    nickname?: string;
-    userCode?: string;
-}
+// UserCode는 entities/user/User와 중복이므로 User 타입을 직접 사용
+export type { User as UserCode } from '../../../entities/user';
 
 export interface UserCodeResponse {
     userCode: string;

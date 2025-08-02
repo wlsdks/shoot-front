@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { fadeIn, slideUp } from '../../../shared/ui/commonStyles';
+import { fadeIn, slideUp, itemContainer } from '../../../shared/ui/commonStyles';
 
 export const SettingsContent = styled.div`
     flex: 1;
@@ -27,25 +27,10 @@ export const SettingsContent = styled.div`
 `;
 
 export const SettingItem = styled.div`
+    ${itemContainer}
     display: flex;
     align-items: center;
-    padding: 1rem;
-    background-color: white;
-    border-radius: 14px;
-    margin-bottom: 0.8rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
     animation: ${fadeIn} 0.3s ease-out;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    
-    &:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    &:active {
-        transform: translateY(-1px);
-    }
 `;
 
 export const IconContainer = styled.div<{ color?: string }>`
