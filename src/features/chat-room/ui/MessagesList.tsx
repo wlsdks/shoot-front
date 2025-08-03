@@ -5,6 +5,14 @@ import { MessageRow } from './MessageRow';
 import { UrlPreview } from './UrlPreview';
 import { DateSeparator } from './DateSeparator';
 import { formatTime } from '../../../shared';
+import {
+    SendingContainer,
+    Spinner,
+    FailedContainer,
+    DeleteButton,
+    RetryButton,
+    UnreadIndicator
+} from './styles/MessageStatus.styles';
 
 interface MessagesListProps {
     messages: ChatMessageItem[];
@@ -72,103 +80,36 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
         // 1. 전송 중: 회색 스피너 (PENDING 상태 또는 isSending=true)
         if (msg.isSending || msg.status === MessageStatus.PENDING) {
             return (
-                <span style={{ 
-                    fontSize: '0.8rem', 
-                    color: '#999',
-                    marginLeft: '4px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '2px'
-                }}>
-                    <span style={{ 
-                        width: '8px', 
-                        height: '8px', 
-                        border: '1px solid #999', 
-                        borderRadius: '50%',
-                        borderTopColor: 'transparent',
-                        animation: 'spin 1s linear infinite'
-                    }} />
-                </span>
+                <SendingContainer>
+                    <Spinner />
+                </SendingContainer>
             );
         }
         
         // 2. 전송 실패: 작은 삭제/재전송 버튼
         if (msg.status === MessageStatus.FAILED) {
             return (
-                <span style={{ 
-                    marginLeft: '4px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                }}>
-                    {/* 삭제 버튼 */}
-                    <button 
-                        style={{ 
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '0.7rem',
-                            color: '#999',
-                            padding: '2px',
-                            borderRadius: '2px',
-                            width: '16px',
-                            height: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease'
-                        }}
+                <FailedContainer>
+                    <DeleteButton
                         onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteMessage(msg);
                         }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.1)';
-                            e.currentTarget.style.color = '#f44336';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#999';
-                        }}
                         title="메시지 삭제"
                     >
                         ×
-                    </button>
+                    </DeleteButton>
                     
-                    {/* 재전송 버튼 */}
-                    <button 
-                        style={{ 
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '0.7rem',
-                            color: '#999',
-                            padding: '2px',
-                            borderRadius: '2px',
-                            width: '16px',
-                            height: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease'
-                        }}
+                    <RetryButton
                         onClick={(e) => {
                             e.stopPropagation();
                             handleRetryMessage(msg);
                         }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
-                            e.currentTarget.style.color = '#4CAF50';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#999';
-                        }}
                         title="재전송"
                     >
                         ↻
-                    </button>
-                </span>
+                    </RetryButton>
+                </FailedContainer>
             );
         }
         
@@ -180,14 +121,9 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
             } else {
                 // 전송됨 (읽지 않음): 검은색 "1" 표시
                 return (
-                    <span style={{ 
-                        fontSize: '0.7rem', 
-                        color: '#333',
-                        marginLeft: '4px',
-                        fontWeight: '500'
-                    }}>
+                    <UnreadIndicator>
                         1
-                    </span>
+                    </UnreadIndicator>
                 );
             }
         }
