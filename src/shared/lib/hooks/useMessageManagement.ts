@@ -110,9 +110,6 @@ export const useMessageHandlers = ({
   setMessages,
   messagesRef
 }: UseMessageHandlersProps) => {
-  // 최근 전송된 메시지들의 tempId 추적
-  const recentSentMessagesRef = useRef<string[]>([]);
-
   const handleMessage = useCallback((msg: ChatMessageItem) => {
     // 내가 보낸 메시지인지 확인
     if (msg.senderId === userId || String(msg.senderId) === String(userId)) {
