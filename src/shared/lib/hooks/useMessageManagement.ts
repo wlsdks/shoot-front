@@ -128,24 +128,23 @@ export const useMessageHandlers = ({
           }
           
           // tempId가 다르지만 내용과 시간이 유사한 최근 메시지 찾기 (fallback)
+          // 보안상 더 엄격한 조건으로 매칭
           if (existingMsg.isSending && 
               String(existingMsg.senderId) === String(msg.senderId) &&
-              existingMsg.content.text === msg.content.text) {
+              existingMsg.content.text === msg.content.text &&
+              existingMsg.content.text.length > 0) { // 빈 메시지 제외
             
             const existingTime = new Date(existingMsg.createdAt).getTime();
             const newTime = new Date(msg.createdAt).getTime();
             
-            // 시간 파싱이 실패한 경우 (NaN) 시간 검사 스킵
+            // 시간 파싱이 실패한 경우 매칭하지 않음 (보안 강화)
             if (isNaN(existingTime) || isNaN(newTime)) {
-              return {
-                ...existingMsg,
-                ...msg,
-                isSending: false // 전송 완료!
-              };
+              return existingMsg; // 매칭 실패, 기존 메시지 유지
             }
             
             const timeDiff = Math.abs(newTime - existingTime);
-            if (timeDiff < 10000) { // 10초 이내
+            // 시간 창을 3초로 줄여서 잘못된 매칭 위험 감소
+            if (timeDiff < 3000) { // 3초 이내
               return {
                 ...existingMsg,
                 ...msg,
