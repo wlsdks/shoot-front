@@ -36,6 +36,7 @@ export const ActionButton = styled.button`
     border: none;
     cursor: pointer;
     font-size: ${theme.messageStatus.button.fontSize};
+    font-weight: ${theme.typography.fontWeight.bold};
     color: ${theme.colors.message.pending};
     padding: 2px;
     border-radius: ${theme.borderRadius.small};
@@ -48,7 +49,7 @@ export const ActionButton = styled.button`
 `;
 
 export const DeleteButton = styled(ActionButton)`
-    color: ${theme.colors.message.pending};
+    color: ${theme.colors.message.delete};
 
     &:hover {
         background-color: ${theme.colors.message.deleteHover};

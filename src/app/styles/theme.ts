@@ -62,8 +62,8 @@ export const theme = {
             borderWidth: '1px'
         },
         button: {
-            size: '16px',
-            fontSize: '0.7rem'
+            size: '20px',
+            fontSize: '0.85rem'
         },
         unread: {
             fontSize: '0.7rem'
