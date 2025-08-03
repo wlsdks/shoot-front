@@ -6,7 +6,6 @@ import { debounce } from 'lodash';
 // 메시지 상태 관리 인터페이스
 export interface MessageState {
   messages: ChatMessageItem[];
-  messageStatuses: Record<string, any>;
   messageDirection: string;
   initialLoadComplete: boolean;
 }
@@ -16,9 +15,7 @@ export interface MessageActions {
   setMessageDirection: (direction: string) => void;
   setInitialLoadComplete: (complete: boolean) => void;
   updateMessages: (message: ChatMessageItem) => void;
-  updateMessageStatus: (tempId: string, status: any) => void;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessageItem[]>>;
-  setMessageStatuses: React.Dispatch<React.SetStateAction<Record<string, any>>>;
 }
 
 // 메시지 핸들러 Props
@@ -27,11 +24,8 @@ interface UseMessageHandlersProps {
   roomId: string | undefined;
   userId: number | undefined;
   updateMessages: (message: ChatMessageItem) => void;
-  updateMessageStatus: (tempId: string, status: { status: MessageStatus; persistedId: string | null; createdAt: string }) => void;
-  setMessageStatuses: React.Dispatch<React.SetStateAction<Record<string, { status: MessageStatus; persistedId: string | null; createdAt: string }>>>;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessageItem[]>>;
   messagesRef: React.MutableRefObject<ChatMessageItem[]>;
-  messageStatuses: Record<string, { status: MessageStatus; persistedId: string | null; createdAt: string }>;
 }
 
 // 타이핑 핸들러 Props
@@ -45,7 +39,6 @@ interface UseTypingHandlersProps {
 // 메시지 상태 관리 훅
 export const useMessageState = () => {
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
-  const [messageStatuses, setMessageStatuses] = useState<Record<string, any>>({});
   const [messageDirection, setMessageDirection] = useState<string>("INITIAL");
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
@@ -90,18 +83,9 @@ export const useMessageState = () => {
     });
   }, []);
 
-  // 메시지 상태 업데이트 함수
-  const updateMessageStatus = useCallback((tempId: string, status: any) => {
-    setMessageStatuses(prev => ({
-      ...prev,
-      [tempId]: { ...prev[tempId], ...status }
-    }));
-  }, []);
-
   return {
     // State
     messages,
-    messageStatuses,
     messageDirection,
     initialLoadComplete,
     
@@ -109,9 +93,7 @@ export const useMessageState = () => {
     setMessageDirection,
     setInitialLoadComplete,
     updateMessages,
-    updateMessageStatus,
     setMessages,
-    setMessageStatuses,
     
     // Refs
     messagesRef,
@@ -125,41 +107,84 @@ export const useMessageHandlers = ({
   roomId,
   userId,
   updateMessages,
-  updateMessageStatus,
-  setMessageStatuses,
   setMessages,
-  messagesRef,
-  messageStatuses
+  messagesRef
 }: UseMessageHandlersProps) => {
-  // 중복 상태 업데이트 방지를 위한 참조
-  const lastStatusUpdateRef = useRef<Record<string, { status: string; timestamp: number }>>({});
   // 최근 전송된 메시지들의 tempId 추적
   const recentSentMessagesRef = useRef<string[]>([]);
 
   const handleMessage = useCallback((msg: ChatMessageItem) => {
-    // 내가 보낸 메시지이고 tempId가 있으면 추적 목록에 추가
-    if (msg.senderId === userId && msg.tempId) {
-      recentSentMessagesRef.current.push(msg.tempId);
-      // 최근 10개만 유지
-      if (recentSentMessagesRef.current.length > 10) {
-        recentSentMessagesRef.current = recentSentMessagesRef.current.slice(-10);
-      }
+    // 내가 보낸 메시지인지 확인
+    if (msg.senderId === userId || String(msg.senderId) === String(userId)) {
+      // tempId 매칭으로 전송 중인 메시지 찾기
+      setMessages(prev => {
+        const updatedMessages = prev.map(existingMsg => {
+          // 정확한 tempId 매칭
+          if (existingMsg.tempId === msg.tempId && existingMsg.isSending) {
+            return {
+              ...existingMsg,
+              ...msg,
+              isSending: false // 전송 완료!
+            };
+          }
+          
+          // tempId가 다르지만 내용과 시간이 유사한 최근 메시지 찾기 (fallback)
+          if (existingMsg.isSending && 
+              String(existingMsg.senderId) === String(msg.senderId) &&
+              existingMsg.content.text === msg.content.text) {
+            
+            const existingTime = new Date(existingMsg.createdAt).getTime();
+            const newTime = new Date(msg.createdAt).getTime();
+            
+            // 시간 파싱이 실패한 경우 (NaN) 시간 검사 스킵
+            if (isNaN(existingTime) || isNaN(newTime)) {
+              return {
+                ...existingMsg,
+                ...msg,
+                isSending: false // 전송 완료!
+              };
+            }
+            
+            const timeDiff = Math.abs(newTime - existingTime);
+            if (timeDiff < 10000) { // 10초 이내
+              return {
+                ...existingMsg,
+                ...msg,
+                isSending: false // 전송 완료!
+              };
+            }
+          }
+          
+          return existingMsg;
+        });
+        
+        // 새로운 메시지라면 추가
+        const exists = updatedMessages.some(existing => existing.tempId === msg.tempId || existing.id === msg.id);
+        if (!exists) {
+          return [...updatedMessages, msg];
+        }
+        
+        return updatedMessages;
+      });
+      
+      return; // 중복 처리 방지
     }
     
+    // 다른 사용자 메시지는 기존 로직 사용
     updateMessages(msg);
     
     if (
       document.visibilityState === "visible" &&
       msg.readBy && !msg.readBy[userId!] &&
       msg.senderId !== userId &&
-      msg.tempId && messageStatuses[msg.tempId]?.persistedId
+      msg.id
     ) {
       webSocketService.current.sendMessage({
         ...msg,
-        id: messageStatuses[msg.tempId].persistedId!
+        id: msg.id
       });
     }
-  }, [userId, updateMessages, messageStatuses, webSocketService]);
+  }, [userId, updateMessages, webSocketService, setMessages]);
 
   const handleMessageStatus = useCallback((update: any) => {
     const statusUpdate = Array.isArray(update) 
@@ -170,123 +195,35 @@ export const useMessageHandlers = ({
       return;
     }
 
-    // 중복 상태 업데이트 방지 (100ms 내 같은 상태는 무시)
-    const now = Date.now();
-    const lastUpdate = lastStatusUpdateRef.current[statusUpdate.tempId];
-    if (lastUpdate && 
-        lastUpdate.status === statusUpdate.status && 
-        now - lastUpdate.timestamp < 100) {
-      return;
-    }
-
-    lastStatusUpdateRef.current[statusUpdate.tempId] = {
-      status: statusUpdate.status,
-      timestamp: now
-    };
-
-    // 상태 업데이트 - 실제 변경이 있을 때만
-    const existingStatus = messageStatuses[statusUpdate.tempId];
-    
-    const newStatus = {
-      status: statusUpdate.status,
-      persistedId: statusUpdate.persistedId || existingStatus?.persistedId,
-      createdAt: statusUpdate.createdAt || existingStatus?.createdAt
-    };
-    
-    // 상태가 실제로 변경된 경우에만 업데이트
-    const hasStatusChanged = !existingStatus || 
-      existingStatus.status !== newStatus.status || 
-      existingStatus.persistedId !== newStatus.persistedId;
-        
-    if (!hasStatusChanged) {
-      return;
-    }
-    
-    setMessageStatuses((prev) => ({
-      ...prev,
-      [statusUpdate.tempId]: newStatus
-    }));
-
-    // 메시지 업데이트 - 메시지가 있는 경우 즉시 적용, 없으면 대안 매칭 시도
-    let targetMessage = messagesRef.current.find(msg => msg.tempId === statusUpdate.tempId);
-    
-    if (!targetMessage) {
-      // 최근 전송된 메시지 중에서 아직 상태가 SENDING인 메시지 찾기
-      const pendingMessage = messagesRef.current
-        .filter(msg => msg.senderId === userId && msg.status === "SENDING")
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-            
-      if (pendingMessage) {
-        targetMessage = pendingMessage;
-        
-        // 이 경우 실제 tempId를 업데이트하여 향후 매칭이 가능하도록 함
-        setMessages((prev) => 
-          prev.map(msg => 
-            msg.tempId === pendingMessage.tempId 
-              ? { 
-                  ...msg, 
-                  tempId: statusUpdate.tempId, // 서버 tempId로 업데이트
-                  status: statusUpdate.status,
-                  id: statusUpdate.persistedId || msg.id 
-                }
-              : msg
-          )
-        );
-        return;
-      }
-      
-      // 100ms 후에 다시 시도
-      setTimeout(() => {
-        const delayedTargetMessage = messagesRef.current.find(msg => msg.tempId === statusUpdate.tempId);
-        if (delayedTargetMessage) {
-          setMessages((prev) => 
-            prev.map(msg => 
-              msg.tempId === statusUpdate.tempId 
-                ? { 
-                    ...msg, 
-                    status: statusUpdate.status,
-                    id: statusUpdate.persistedId || msg.id 
-                  }
-                : msg
-            )
-          );
-        }
-      }, 100);
-      return;
-    }
-
+    // SENT와 FAILED 모두 처리
     setMessages((prev) => {
-      const updatedMessages = prev.map(msg => {
+      return prev.map(msg => {
         if (msg.tempId === statusUpdate.tempId) {
-          const updatedMsg = {
-            ...msg,
-            status: statusUpdate.status,
-            id: statusUpdate.persistedId || msg.id
-          };
-          return updatedMsg;
+          if (statusUpdate.status === MessageStatus.SENT || statusUpdate.status === 'SENT') {
+            // SENT: 전송 성공 → 체크 표시
+            return {
+              ...msg,
+              status: MessageStatus.SENT,
+              id: statusUpdate.persistedId || msg.id,
+              isSending: false // 전송 완료 (성공)
+            };
+          } else if (statusUpdate.status === MessageStatus.FAILED || statusUpdate.status === 'FAILED') {
+            // FAILED: 전송 실패 → 삭제/재전송 버튼
+            return {
+              ...msg,
+              status: MessageStatus.FAILED,
+              isSending: false, // 전송 완료 (실패)
+              metadata: {
+                ...msg.metadata,
+                canRetry: true
+              }
+            };
+          }
         }
         return msg;
       });
-      
-      return updatedMessages;
     });
-
-    // 실패 상태 처리
-    if (statusUpdate.status === MessageStatus.FAILED) {
-      console.error("메시지 전송 실패:", statusUpdate);
-    }
-
-    // 읽음 처리 로직
-    if (statusUpdate.status === MessageStatus.SAVED && statusUpdate.persistedId) {
-      const currentMsg = messagesRef.current.find(m => m.tempId === statusUpdate.tempId);
-      if (currentMsg && !currentMsg.readBy[userId!] && currentMsg.senderId !== userId) {
-        webSocketService.current.sendMessage({
-          ...currentMsg,
-          id: statusUpdate.persistedId
-        });
-      }
-    }
-  }, [userId, setMessageStatuses, setMessages, messagesRef, webSocketService, messageStatuses]);
+  }, [setMessages]);
 
   const handleMessageUpdate = useCallback((updatedMessage: ChatMessageItem) => {
     setMessages((prevMessages) => 

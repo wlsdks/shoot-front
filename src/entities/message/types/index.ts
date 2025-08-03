@@ -1,9 +1,6 @@
 export enum MessageStatus {
-    SENDING = 'SENDING',
-    PROCESSING = 'PROCESSING',
-    SENT_TO_KAFKA = 'SENT_TO_KAFKA',
-    SAVED = 'SAVED',
-    FAILED = 'FAILED'
+    SENT = 'SENT',       // 전송 완료
+    FAILED = 'FAILED'    // 전송 실패
 }
 
 // 메시지 컨텐츠 인터페이스
@@ -44,6 +41,7 @@ export interface Message {
     readBy: Record<string, boolean>;
     reactions?: ReactionItem[] | Record<string, number[]>; // 두 구조 모두 지원
     metadata?: MessageMetadata;
+    isSending?: boolean; // 로컬 전송 중 상태
 }
 
 // 메시지 상태 정보

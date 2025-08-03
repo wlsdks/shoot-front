@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Message as ChatMessageItem, MessageStatus, MessageStatusInfo } from '../../../entities';
+import { Message as ChatMessageItem, MessageStatus } from '../../../entities';
 import { MessagesContainer } from '../styles/ChatRoom.styles';
 import { MessageRow } from './MessageRow';
 import { UrlPreview } from './UrlPreview';
@@ -8,22 +8,24 @@ import { formatTime } from '../../../shared';
 
 interface MessagesListProps {
     messages: ChatMessageItem[];
-    messageStatuses: { [key: string]: MessageStatusInfo };
     userId: number | undefined;
     input: string;
     onContextMenu: (e: React.MouseEvent, message: ChatMessageItem) => void;
     onClick: (e: React.MouseEvent, message: ChatMessageItem) => void;
     onReactionUpdate?: (messageId: string, updatedReactions: any) => void;
+    onRetryMessage?: (message: ChatMessageItem) => void;
+    onDeleteMessage?: (message: ChatMessageItem) => void;
 }
 
 const MessagesListComponent: React.FC<MessagesListProps> = ({
     messages,
-    messageStatuses,
     userId,
     input,
     onContextMenu,
     onClick,
-    onReactionUpdate
+    onReactionUpdate,
+    onRetryMessage,
+    onDeleteMessage
 }) => {
     const getMessageCreatedAt = (msg: ChatMessageItem): string => {
         if (msg.createdAt && typeof msg.createdAt === 'object' && 'toISOString' in msg.createdAt) {
@@ -56,17 +58,141 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
         return hasReadByAll;
     };
 
-    const renderStatusIndicator = (currentStatus: MessageStatus, isOwn: boolean, isPersisted: boolean): JSX.Element | null => {
-        if (!isOwn || isPersisted) return null;
+    const handleRetryMessage = (msg: ChatMessageItem) => {
+        onRetryMessage?.(msg);
+    };
+
+    const handleDeleteMessage = (msg: ChatMessageItem) => {
+        onDeleteMessage?.(msg);
+    };
+
+    const renderStatusIndicator = (msg: ChatMessageItem, isOwn: boolean, isPersisted: boolean, otherHasRead: boolean): JSX.Element | null => {
+        if (!isOwn) return null;
         
-        switch (currentStatus) {
-            case MessageStatus.SENDING:
-                return <span style={{ fontSize: '0.7rem', color: '#999' }}>전송 중...</span>;
-            case MessageStatus.FAILED:
-                return <span style={{ fontSize: '0.7rem', color: '#f44336' }}>전송 실패</span>;
-            default:
-                return null;
+        // 1. 전송 중: 회색 스피너
+        if (msg.isSending) {
+            return (
+                <span style={{ 
+                    fontSize: '0.8rem', 
+                    color: '#999',
+                    marginLeft: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '2px'
+                }}>
+                    <span style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        border: '1px solid #999', 
+                        borderRadius: '50%',
+                        borderTopColor: 'transparent',
+                        animation: 'spin 1s linear infinite'
+                    }} />
+                </span>
+            );
         }
+        
+        // 2. 전송 실패: 작은 삭제/재전송 버튼
+        if (msg.status === MessageStatus.FAILED) {
+            return (
+                <span style={{ 
+                    marginLeft: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                }}>
+                    {/* 삭제 버튼 */}
+                    <button 
+                        style={{ 
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem',
+                            color: '#999',
+                            padding: '2px',
+                            borderRadius: '2px',
+                            width: '16px',
+                            height: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease'
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMessage(msg);
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(244, 67, 54, 0.1)';
+                            e.currentTarget.style.color = '#f44336';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.color = '#999';
+                        }}
+                        title="메시지 삭제"
+                    >
+                        ×
+                    </button>
+                    
+                    {/* 재전송 버튼 */}
+                    <button 
+                        style={{ 
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.7rem',
+                            color: '#999',
+                            padding: '2px',
+                            borderRadius: '2px',
+                            width: '16px',
+                            height: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease'
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRetryMessage(msg);
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                            e.currentTarget.style.color = '#4CAF50';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.color = '#999';
+                        }}
+                        title="재전송"
+                    >
+                        ↻
+                    </button>
+                </span>
+            );
+        }
+        
+        // 3. 전송 완료된 경우만 읽음 상태 표시 (카카오톡 스타일)
+        if (isPersisted) {
+            if (otherHasRead) {
+                // 읽음: 아무것도 표시하지 않음 (카카오톡 스타일)
+                return null;
+            } else {
+                // 전송됨 (읽지 않음): 검은색 "1" 표시
+                return (
+                    <span style={{ 
+                        fontSize: '0.7rem', 
+                        color: '#333',
+                        marginLeft: '4px',
+                        fontWeight: '500'
+                    }}>
+                        1
+                    </span>
+                );
+            }
+        }
+        
+        return null;
     };
 
     const isSameDate = (date1: string, date2: string) => {
@@ -79,25 +205,14 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
         <MessagesContainer className={input ? 'typing' : ''}>
             {messages.map((msg, idx) => {
                 const isOwn = String(msg.senderId) === String(userId);
-                
-                let currentStatus = msg.status;
-                let isPersisted = false;
-                
-                if (msg.tempId && messageStatuses[msg.tempId]) {
-                    const statusInfo = messageStatuses[msg.tempId];
-                    currentStatus = statusInfo.status;
-                    isPersisted = statusInfo.status === MessageStatus.SAVED || !!statusInfo.persistedId;
-                } else {
-                    isPersisted = !!msg.id && msg.id !== msg.tempId;
-                }
+                const isPersisted = !!msg.id && msg.id !== msg.tempId && !msg.isSending;
                 
                 const otherParticipants = msg.readBy 
                     ? Object.keys(msg.readBy).filter(id => id !== userId?.toString()) 
                     : [];
                 
                 const otherHasRead = calculateReadStatus(isOwn, isPersisted, otherParticipants, msg);
-                const indicatorText = isOwn && isPersisted && !otherHasRead ? "1" : "";
-                const statusIndicator = renderStatusIndicator(currentStatus, isOwn, isPersisted);
+                const statusIndicator = renderStatusIndicator(msg, isOwn, isPersisted, otherHasRead);
                 
                 const nextMessage = messages[idx + 1];
                 const msgCreatedAt = getMessageCreatedAt(msg);
@@ -123,7 +238,6 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
                             showTime={showTime}
                             currentTime={currentTime}
                             statusIndicator={statusIndicator}
-                            indicatorText={indicatorText}
                             onContextMenu={onContextMenu}
                             onClick={onClick}
                             userId={userId}
@@ -150,11 +264,12 @@ export const MessagesList = memo(MessagesListComponent, (prevProps: MessagesList
     // 얕은 비교로 최적화
     return (
         prevProps.messages === nextProps.messages &&
-        prevProps.messageStatuses === nextProps.messageStatuses &&
         prevProps.userId === nextProps.userId &&
         prevProps.input === nextProps.input &&
         prevProps.onContextMenu === nextProps.onContextMenu &&
         prevProps.onClick === nextProps.onClick &&
-        prevProps.onReactionUpdate === nextProps.onReactionUpdate
+        prevProps.onReactionUpdate === nextProps.onReactionUpdate &&
+        prevProps.onRetryMessage === nextProps.onRetryMessage &&
+        prevProps.onDeleteMessage === nextProps.onDeleteMessage
     );
 }); 

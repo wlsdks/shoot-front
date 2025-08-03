@@ -84,15 +84,12 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
 
     const {
         messages,
-        messageStatuses,
         messageDirection,
         initialLoadComplete,
         setMessageDirection,
         setInitialLoadComplete,
         updateMessages,
-        updateMessageStatus,
         setMessages,
-        setMessageStatuses,
         messagesRef,
         chatAreaRef
     } = useMessageState();
@@ -107,11 +104,8 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         roomId,
         userId: user?.id,
         updateMessages,
-        updateMessageStatus,
-        setMessageStatuses,
         setMessages,
-        messagesRef,
-        messageStatuses
+        messagesRef
     });
 
     const {
@@ -650,29 +644,56 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 isDeleted: false,
             },
             createdAt: new Date().toISOString(),
-            status: MessageStatus.SENDING,
+            status: MessageStatus.SENT, // 기본값은 SENT로 설정
             readBy: { [user.id.toString()]: true },
             metadata: {
                 tempId: tempId,
                 needsUrlPreview: true,
                 previewUrl: null
-            }
+            },
+            isSending: true // 로컬 전송 중 상태
         };
 
-        // 상태를 먼저 설정
-        updateMessageStatus(tempId, { 
-            status: MessageStatus.SENDING, 
-            persistedId: null,
-            createdAt: new Date().toISOString()
-        });
-
-        // 메시지 즉시 추가 (상태는 updateMessages 내에서 적용됨)
+        // 메시지 즉시 추가 (로컬 전송 중 상태로)
         updateMessages(chatMessage);
         
         webSocketService.current.sendMessage(chatMessage);
         setInput("");
         sendTypingIndicator(false);
     };
+
+    // 실패한 메시지 재전송
+    const handleRetryMessage = useCallback((message: ChatMessageItem) => {
+        if (!webSocketService.current.isConnected() || !roomId || !user) {
+            console.error("재전송 불가: 연결 끊김");
+            return;
+        }
+
+        // 새로운 tempId 생성
+        const newTempId = generateUUID();
+        
+        // 메시지 상태를 전송 중으로 변경
+        const retryMessage: ChatMessageItem = {
+            ...message,
+            tempId: newTempId,
+            status: MessageStatus.SENT,
+            isSending: true,
+            createdAt: new Date().toISOString() // 새로운 시간으로 업데이트
+        };
+
+        // 기존 실패 메시지를 새로운 전송 중 메시지로 업데이트
+        setMessages(prev => prev.map(msg => 
+            msg.tempId === message.tempId ? retryMessage : msg
+        ));
+
+        // 웹소켓으로 재전송
+        webSocketService.current.sendMessage(retryMessage);
+    }, [roomId, user, setMessages, webSocketService]);
+
+    // 실패한 메시지 삭제
+    const handleDeleteMessage = useCallback((message: ChatMessageItem) => {
+        setMessages(prev => prev.filter(msg => msg.tempId !== message.tempId));
+    }, [setMessages]);
 
     // 입력값 변경 및 타이핑 디바운스 처리
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -853,12 +874,13 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 <ChatArea ref={chatAreaRef}>
                     <MessagesList
                         messages={messages}
-                        messageStatuses={messageStatuses}
                         userId={user?.id}
                         input={input}
                         onContextMenu={handleChatBubbleClick}
                         onClick={handleChatBubbleClick}
                         onReactionUpdate={handleReactionUpdate}
+                        onRetryMessage={handleRetryMessage}
+                        onDeleteMessage={handleDeleteMessage}
                     />
                     <div ref={bottomRef} />
                 </ChatArea>

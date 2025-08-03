@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect } from 'react';
 import { Message as ChatMessageItem } from '../../../entities';
-import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer, ReadIndicator } from '../styles/ChatRoom.styles';
+import { MessageRow as StyledMessageRow, ChatBubble, TimeContainer } from '../styles/ChatRoom.styles';
 import { MessageReaction } from '../../../shared';
 import { normalizeReactions } from '../../../shared/lib/reactionsUtils';
 import styled from 'styled-components';
@@ -42,7 +42,7 @@ interface MessageRowProps {
     currentTime: string;
     userId: number | undefined;
     statusIndicator: JSX.Element | null;
-    indicatorText: string;
+
     onContextMenu: (e: React.MouseEvent, message: ChatMessageItem) => void;
     onClick: (e: React.MouseEvent, message: ChatMessageItem) => void;
     onReactionUpdate?: (messageId: string, updatedReactions: any) => void;
@@ -55,7 +55,7 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
     currentTime,
     userId,
     statusIndicator,
-    indicatorText,
+
     onContextMenu,
     onClick,
     onReactionUpdate
@@ -163,15 +163,12 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
                         </ChatBubble>
                         
                         {/* 시간/상태 표시 - 말풍선 오른쪽에 */}
-                        {(showTime || statusIndicator || indicatorText) && (
+                        {(showTime || statusIndicator) && (
                             <TimeContainer $isOwnMessage={isOwn}>
-                                {indicatorText && (
-                                    <ReadIndicator>{indicatorText}</ReadIndicator>
-                                )}
+                                {statusIndicator}
                                 {showTime && (
                                     <div>{currentTime}</div>
                                 )}
-                                {statusIndicator}
                             </TimeContainer>
                         )}
                     </MessageContentRow>
@@ -181,15 +178,12 @@ const MessageRowComponent: React.FC<MessageRowProps> = ({
                 {isOwn && (
                     <MessageContentRow $isOwnMessage={isOwn}>
                         {/* 시간/상태 표시 - 말풍선 왼쪽에 */}
-                        {(showTime || statusIndicator || indicatorText) && (
+                        {(showTime || statusIndicator) && (
                             <TimeContainer $isOwnMessage={isOwn}>
-                                {indicatorText && (
-                                    <ReadIndicator>{indicatorText}</ReadIndicator>
-                                )}
+                                {statusIndicator}
                                 {showTime && (
                                     <div>{currentTime}</div>
                                 )}
-                                {statusIndicator}
                             </TimeContainer>
                         )}
                         
@@ -240,7 +234,6 @@ export const MessageRow = memo(MessageRowComponent, (prevProps, nextProps) => {
         prevProps.currentTime === nextProps.currentTime &&
         prevProps.userId === nextProps.userId &&
         prevProps.statusIndicator === nextProps.statusIndicator &&
-        prevProps.indicatorText === nextProps.indicatorText &&
         prevProps.onContextMenu === nextProps.onContextMenu &&
         prevProps.onClick === nextProps.onClick &&
         prevProps.onReactionUpdate === nextProps.onReactionUpdate
