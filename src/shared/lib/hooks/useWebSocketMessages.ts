@@ -18,14 +18,12 @@ export interface UseWebSocketMessagesProps {
 
 export interface UseWebSocketMessagesReturn {
     messages: Message[];
-    messageStatuses: Record<string, MessageStatus>;
     typingUsers: Record<number, { username?: string; isTyping: boolean }>;
     isConnected: boolean;
     hasMoreMessages: boolean;
     
     // Actions
     setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-    setMessageStatuses: React.Dispatch<React.SetStateAction<Record<string, MessageStatus>>>;
     updateTypingStatus: (typingMsg: TypingIndicatorMessage) => void;
     setHasMoreMessages: React.Dispatch<React.SetStateAction<boolean>>;
     
@@ -48,7 +46,6 @@ export const useWebSocketMessages = ({
 }: UseWebSocketMessagesProps): UseWebSocketMessagesReturn => {
     // State
     const [messages, setMessages] = useState<Message[]>([]);
-    const [messageStatuses, setMessageStatuses] = useState<Record<string, MessageStatus>>({});
     const [typingUsers, setTypingUsers] = useState<Record<number, { username?: string; isTyping: boolean }>>({});
     const [isConnected, setIsConnected] = useState(false);
     const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -57,7 +54,6 @@ export const useWebSocketMessages = ({
     const messagesRef = useRef<Message[]>([]);
     const firstVisibleMessageRef = useRef<string | null>(null);
     const typingTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
-    const lastStatusUpdateRef = useRef<Record<string, { status: string; timestamp: number }>>({});
     
     // Update messagesRef when messages change
     useEffect(() => {
@@ -91,56 +87,24 @@ export const useWebSocketMessages = ({
         }
     }, [userId]);
     
-    // Message status handling
+    // Message status handling (SENT와 FAILED 모두 처리)
     const handleMessageStatus = useCallback((update: MessageStatusUpdate) => {
         if (!update || !update.tempId) return;
         
-        // 중복 상태 업데이트 방지
-        const now = Date.now();
-        const lastUpdate = lastStatusUpdateRef.current[update.tempId];
-        if (lastUpdate && 
-            lastUpdate.status === update.status.toString() && 
-            now - lastUpdate.timestamp < 100) {
-            return;
-        }
-        
-        lastStatusUpdateRef.current[update.tempId] = {
-            status: update.status.toString(),
-            timestamp: now
-        };
-        
-        // 상태 업데이트
-        const existingStatus = messageStatuses[update.tempId];
-        const newStatus = {
-            status: update.status.toString(),
-            messageId: update.messageId || existingStatus?.messageId,
-            persistedId: update.messageId || existingStatus?.persistedId,
-            createdAt: existingStatus?.createdAt
-        };
-        
-        // 실제 변경이 있을 때만 업데이트
-        const hasStatusChanged = !existingStatus || 
-            existingStatus.status !== newStatus.status || 
-            existingStatus.messageId !== newStatus.messageId;
-            
-        if (hasStatusChanged) {
-            setMessageStatuses(prev => ({
-                ...prev,
-                [update.tempId]: newStatus
-            }));
-        }
-        
-        // 메시지 업데이트
-        if (update.messageId) {
-            setMessages(prev => 
-                prev.map(msg => 
-                    msg.tempId === update.tempId 
-                        ? { ...msg, id: update.messageId, status: update.status }
-                        : msg
-                )
-            );
-        }
-    }, [messageStatuses]);
+        // 🎯 SENT와 FAILED 모두 처리
+        setMessages(prev => 
+            prev.map(msg => 
+                msg.tempId === update.tempId 
+                    ? { 
+                        ...msg, 
+                        id: update.messageId || msg.id, 
+                        status: update.status,
+                        isSending: false // 전송 완료 (성공 또는 실패) ✅
+                    }
+                    : msg
+            )
+        );
+    }, []);
     
     // WebSocket operations
     const sendMessage = useCallback((message: Message) => {
@@ -227,13 +191,11 @@ export const useWebSocketMessages = ({
     
     return {
         messages,
-        messageStatuses,
         typingUsers,
         isConnected,
         hasMoreMessages,
         
         setMessages,
-        setMessageStatuses,
         updateTypingStatus,
         setHasMoreMessages,
         

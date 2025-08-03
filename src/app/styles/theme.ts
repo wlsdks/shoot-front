@@ -11,7 +11,16 @@ export const theme = {
         white: '#ffffff',
         border: '#dee2e6',
         text: '#212529',
-        background: '#f8f9fa'
+        background: '#f8f9fa',
+        // 메시지 상태 관련 색상
+        message: {
+            pending: '#999999',
+            delete: '#f44336',
+            deleteHover: 'rgba(244, 67, 54, 0.1)',
+            retry: '#4CAF50',
+            retryHover: 'rgba(76, 175, 80, 0.1)',
+            unread: '#333333'
+        }
     },
     shadows: {
         small: '0 2px 4px rgba(0, 0, 0, 0.1)',
@@ -34,6 +43,7 @@ export const theme = {
     typography: {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         fontSize: {
+            xsmall: '0.7rem',
             small: '0.875rem',
             medium: '1rem',
             large: '1.25rem',
@@ -43,6 +53,20 @@ export const theme = {
             normal: 400,
             medium: 500,
             bold: 700
+        }
+    },
+    // 메시지 상태 관련 사이즈
+    messageStatus: {
+        spinner: {
+            size: '8px',
+            borderWidth: '1px'
+        },
+        button: {
+            size: '16px',
+            fontSize: '0.7rem'
+        },
+        unread: {
+            fontSize: '0.7rem'
         }
     }
 }; 

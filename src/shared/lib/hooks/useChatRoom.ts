@@ -13,7 +13,6 @@ export interface UseChatRoomProps {
 export interface UseChatRoomReturn {
     // 메시지 관련
     messages: Message[];
-    messageStatuses: Record<string, any>;
     hasMoreMessages: boolean;
     setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
     
@@ -55,7 +54,6 @@ export const useChatRoom = ({
     // WebSocket 메시지 관리 hook 사용
     const {
         messages,
-        messageStatuses,
         typingUsers,
         isConnected,
         hasMoreMessages,
@@ -177,7 +175,6 @@ export const useChatRoom = ({
     return {
         // 메시지 관련
         messages,
-        messageStatuses,
         hasMoreMessages,
         setMessages,
         

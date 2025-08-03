@@ -81,7 +81,7 @@ export const usePinnedMessages = (roomId: number, isConnected: boolean, webSocke
             // 🎯 공지사항은 1개만 유지: 새로운 공지사항으로 교체 (기존 것들 모두 제거)
             const formattedMessage: ChatMessageItem = {
                 ...message,
-                status: MessageStatus.SAVED,
+                status: MessageStatus.SENT,
                 readBy: message.readBy || {}
             };
 
