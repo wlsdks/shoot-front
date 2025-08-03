@@ -1,4 +1,5 @@
 export enum MessageStatus {
+    PENDING = 'PENDING', // 전송 중
     SENT = 'SENT',       // 전송 완료
     FAILED = 'FAILED'    // 전송 실패
 }

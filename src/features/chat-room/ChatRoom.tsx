@@ -79,6 +79,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
     const webSocketService = useRef(createWebSocketService());
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectAttemptRef = useRef(0);
+    const messageTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
     const maxReconnectAttempts = 5;
     const reconnectDelay = 3000;
 
@@ -105,7 +106,8 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         userId: user?.id,
         updateMessages,
         setMessages,
-        messagesRef
+        messagesRef,
+        messageTimeoutsRef
     });
 
     const {
@@ -644,20 +646,34 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
                 isDeleted: false,
             },
             createdAt: new Date().toISOString(),
-            status: MessageStatus.SENT, // 기본값은 SENT로 설정
+            status: MessageStatus.PENDING, // 전송 중 상태
             readBy: { [user.id.toString()]: true },
             metadata: {
                 tempId: tempId,
                 needsUrlPreview: true,
                 previewUrl: null
             },
-            isSending: true // 로컬 전송 중 상태
+            isSending: true // 전송 중 상태
         };
 
         // 메시지 즉시 추가 (로컬 전송 중 상태로)
         updateMessages(chatMessage);
         
         webSocketService.current.sendMessage(chatMessage);
+        
+        // 10초 timeout 처리
+        const timeoutId = setTimeout(() => {
+            setMessages(prev => prev.map(msg => 
+                msg.tempId === tempId 
+                    ? { ...msg, status: MessageStatus.FAILED, isSending: false }
+                    : msg
+            ));
+            messageTimeoutsRef.current.delete(tempId);
+        }, 10000);
+        
+        // timeout 저장
+        messageTimeoutsRef.current.set(tempId, timeoutId);
+        
         setInput("");
         sendTypingIndicator(false);
     };
@@ -676,7 +692,7 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
         const retryMessage: ChatMessageItem = {
             ...message,
             tempId: newTempId,
-            status: MessageStatus.SENT,
+            status: MessageStatus.PENDING,
             isSending: true,
             createdAt: new Date().toISOString() // 새로운 시간으로 업데이트
         };
@@ -686,8 +702,32 @@ const ChatRoom = ({ roomId }: { roomId: string }) => {
             msg.tempId === message.tempId ? retryMessage : msg
         ));
 
-        // 웹소켓으로 재전송
-        webSocketService.current.sendMessage(retryMessage);
+        try {
+            // 웹소켓으로 재전송
+            webSocketService.current.sendMessage(retryMessage);
+            
+            // 10초 timeout 처리
+            const timeoutId = setTimeout(() => {
+                setMessages(prev => prev.map(msg => 
+                    msg.tempId === newTempId 
+                        ? { ...msg, status: MessageStatus.FAILED, isSending: false }
+                        : msg
+                ));
+                messageTimeoutsRef.current.delete(newTempId);
+            }, 10000);
+            
+            // timeout 저장
+            messageTimeoutsRef.current.set(newTempId, timeoutId);
+            
+        } catch (error) {
+            console.error("재전송 오류:", error);
+            // 즉시 실패 처리
+            setMessages(prev => prev.map(msg => 
+                msg.tempId === newTempId 
+                    ? { ...msg, status: MessageStatus.FAILED, isSending: false }
+                    : msg
+            ));
+        }
     }, [roomId, user, setMessages, webSocketService]);
 
     // 실패한 메시지 삭제

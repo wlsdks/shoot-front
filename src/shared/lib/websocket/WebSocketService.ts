@@ -1,7 +1,7 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { WebSocketService, WebSocketMessage, TypingIndicatorMessage, MessageStatusUpdate, WebSocketConfig, ReactionUpdateMessage, ReactionResponse, ReactionRequest, PinUpdateMessage, PinMessageRequest } from "./types";
-import { Message } from "../../../entities";
+import { Message, MessageStatus } from "../../../entities";
 
 // 기본 설정
 const DEFAULT_CONFIG: WebSocketConfig = {
@@ -223,12 +223,39 @@ export class WebSocketServiceImpl implements WebSocketService {
     sendMessage(message: Message): void {
         if (!this.client?.connected) {
             console.warn("Cannot send message: WebSocket not connected");
+            // 연결이 안 되어 있으면 즉시 실패 처리
+            if (message.tempId) {
+                const failedUpdate = {
+                    tempId: message.tempId,
+                    messageId: '',
+                    status: MessageStatus.FAILED,
+                    timestamp: Date.now()
+                };
+                this.messageStatusCallbacks.forEach(callback => callback(failedUpdate));
+            }
             return;
         }
-        this.client.publish({
-            destination: "/app/chat",
-            body: JSON.stringify(message)
-        });
+
+        try {
+            // 백엔드로 보낼 때는 프론트엔드 전용 필드들 제외
+            const { status, isSending, ...backendMessage } = message;
+            this.client.publish({
+                destination: "/app/chat",
+                body: JSON.stringify(backendMessage)
+            });
+        } catch (error) {
+            console.error("Error sending message:", error);
+            // 전송 실패 시 즉시 실패 처리
+            if (message.tempId) {
+                const failedUpdate = {
+                    tempId: message.tempId,
+                    messageId: '',
+                    status: MessageStatus.FAILED,
+                    timestamp: Date.now()
+                };
+                this.messageStatusCallbacks.forEach(callback => callback(failedUpdate));
+            }
+        }
     }
 
     // 콜백 등록 메서드들

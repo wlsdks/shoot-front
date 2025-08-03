@@ -69,8 +69,8 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
     const renderStatusIndicator = (msg: ChatMessageItem, isOwn: boolean, isPersisted: boolean, otherHasRead: boolean): JSX.Element | null => {
         if (!isOwn) return null;
         
-        // 1. 전송 중: 회색 스피너
-        if (msg.isSending) {
+        // 1. 전송 중: 회색 스피너 (PENDING 상태 또는 isSending=true)
+        if (msg.isSending || msg.status === MessageStatus.PENDING) {
             return (
                 <span style={{ 
                     fontSize: '0.8rem', 
@@ -205,7 +205,8 @@ const MessagesListComponent: React.FC<MessagesListProps> = ({
         <MessagesContainer className={input ? 'typing' : ''}>
             {messages.map((msg, idx) => {
                 const isOwn = String(msg.senderId) === String(userId);
-                const isPersisted = !!msg.id && msg.id !== msg.tempId && !msg.isSending;
+                // tempId를 그대로 id로 사용하므로 id !== tempId 조건 제거
+                const isPersisted = !!msg.id && !msg.isSending && msg.status === MessageStatus.SENT;
                 
                 const otherParticipants = msg.readBy 
                     ? Object.keys(msg.readBy).filter(id => id !== userId?.toString()) 

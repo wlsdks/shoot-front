@@ -26,6 +26,7 @@ interface UseMessageHandlersProps {
   updateMessages: (message: ChatMessageItem) => void;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessageItem[]>>;
   messagesRef: React.MutableRefObject<ChatMessageItem[]>;
+  messageTimeoutsRef: React.MutableRefObject<Map<string, NodeJS.Timeout>>;
 }
 
 // 타이핑 핸들러 Props
@@ -108,7 +109,8 @@ export const useMessageHandlers = ({
   userId,
   updateMessages,
   setMessages,
-  messagesRef
+  messagesRef,
+  messageTimeoutsRef
 }: UseMessageHandlersProps) => {
   const handleMessage = useCallback((msg: ChatMessageItem) => {
     // 내가 보낸 메시지인지 확인
@@ -192,10 +194,20 @@ export const useMessageHandlers = ({
       return;
     }
 
-    // SENT와 FAILED 모두 처리
+    // 메시지 상태 업데이트 처리 (PENDING, SENT, FAILED)
     setMessages((prev) => {
       return prev.map(msg => {
         if (msg.tempId === statusUpdate.tempId) {
+          // timeout 클리어 (SENT 또는 FAILED 시)
+          if (statusUpdate.status === MessageStatus.SENT || statusUpdate.status === 'SENT' ||
+              statusUpdate.status === MessageStatus.FAILED || statusUpdate.status === 'FAILED') {
+            const timeoutId = messageTimeoutsRef.current.get(statusUpdate.tempId);
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              messageTimeoutsRef.current.delete(statusUpdate.tempId);
+            }
+          }
+
           if (statusUpdate.status === MessageStatus.SENT || statusUpdate.status === 'SENT') {
             // SENT: 전송 성공 → 체크 표시
             return {
@@ -215,12 +227,19 @@ export const useMessageHandlers = ({
                 canRetry: true
               }
             };
+          } else if (statusUpdate.status === MessageStatus.PENDING || statusUpdate.status === 'PENDING') {
+            // PENDING: 전송 중 → 스피너 표시
+            return {
+              ...msg,
+              status: MessageStatus.PENDING,
+              isSending: true
+            };
           }
         }
         return msg;
       });
     });
-  }, [setMessages]);
+  }, [setMessages, messageTimeoutsRef]);
 
   const handleMessageUpdate = useCallback((updatedMessage: ChatMessageItem) => {
     setMessages((prevMessages) => 
